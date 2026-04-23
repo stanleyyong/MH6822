@@ -1,0 +1,3134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Basel III Capital Requirements - Interactive Lecture Tool</title>
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --secondary: #2c6faa;
+    --accent: #e8913a;
+    --success: #2e7d32;
+    --danger: #c62828;
+    --warning: #f9a825;
+    --light: #f5f7fa;
+    --dark: #1a1a2e;
+    --border: #d0d7de;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--light);
+    color: #333;
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  header h1 { font-size: 1.6rem; font-weight: 600; }
+  header p { opacity: 0.85; font-size: 0.95rem; margin-top: 0.3rem; }
+
+  /* Navigation Tabs */
+  .tab-nav {
+    display: flex;
+    background: white;
+    border-bottom: 2px solid var(--border);
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .tab-nav button {
+    padding: 0.85rem 1.4rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #666;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .tab-nav button:hover { color: var(--secondary); background: #f0f4f8; }
+  .tab-nav button.active {
+    color: var(--secondary);
+    border-bottom-color: var(--secondary);
+    font-weight: 600;
+  }
+
+  /* Content Sections */
+  .tab-content { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .tab-content.active { display: block; }
+
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border: 1px solid var(--border);
+  }
+  .card h2 {
+    color: var(--primary);
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e8edf2;
+  }
+  .card h3 { color: var(--secondary); font-size: 1.1rem; margin: 1rem 0 0.5rem; }
+
+  /* Capital Stack Visualisation */
+  .capital-stack {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    margin: 1.5rem auto;
+  }
+  .capital-layer {
+    padding: 0.8rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: white;
+    position: relative;
+  }
+  .capital-layer .pct {
+    position: absolute;
+    right: -70px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #555;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* Comparison Table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    margin: 1rem 0;
+  }
+  .compare-table th {
+    background: var(--primary);
+    color: white;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+  }
+  .compare-table td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .compare-table tr:hover { background: #f0f6fc; }
+  .compare-table .col-sa { background: #e8f5e9; }
+  .compare-table .col-ima { background: #e3f2fd; }
+  .compare-table .col-ssa { background: #fff3e0; }
+  .compare-table th.col-sa, .compare-table th.col-ima, .compare-table th.col-ssa { color: #333; }
+
+  /* Interactive Calculator */
+  .calc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin: 1rem 0;
+  }
+  @media (max-width: 768px) { .calc-grid { grid-template-columns: 1fr; } }
+
+  .input-group { margin-bottom: 0.8rem; }
+  .input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 0.25rem;
+  }
+  .input-group input, .input-group select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  .input-group input:focus, .input-group select:focus {
+    outline: none;
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 2px rgba(44,111,170,0.15);
+  }
+  .input-group .hint {
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 0.2rem;
+  }
+
+  .btn {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--secondary); color: white; }
+  .btn-primary:hover { background: var(--primary); }
+  .btn-accent { background: var(--accent); color: white; }
+  .btn-accent:hover { background: #d07a2a; }
+  .btn-sm { padding: 0.4rem 1rem; font-size: 0.82rem; }
+
+  /* Results Panel */
+  .results-panel {
+    background: linear-gradient(135deg, #f8fbff, #eef3f9);
+    border: 2px solid var(--secondary);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(44,111,170,0.15);
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-label { font-weight: 500; color: #555; }
+  .result-value { font-weight: 700; color: var(--primary); }
+  .result-value.pass { color: var(--success); }
+  .result-value.fail { color: var(--danger); }
+
+  /* Bar Chart */
+  .bar-chart { margin: 1rem 0; }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .bar-label {
+    width: 140px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-align: right;
+    padding-right: 0.75rem;
+    color: #555;
+  }
+  .bar-track {
+    flex: 1;
+    background: #e8edf2;
+    border-radius: 6px;
+    height: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s ease;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+  }
+  .bar-threshold {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background: var(--danger);
+    z-index: 2;
+  }
+  .bar-threshold::after {
+    content: attr(data-label);
+    position: absolute;
+    top: -18px;
+    left: -15px;
+    font-size: 0.65rem;
+    color: var(--danger);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Timeline */
+  .timeline {
+    position: relative;
+    padding: 1rem 0 1rem 2rem;
+    border-left: 3px solid var(--secondary);
+    margin: 1rem 0 1rem 1rem;
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2.35rem;
+    top: 0.25rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--secondary);
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px var(--secondary);
+  }
+  .timeline-item.completed::before { background: var(--success); box-shadow: 0 0 0 2px var(--success); }
+  .timeline-item.current::before { background: var(--accent); box-shadow: 0 0 0 2px var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 2px var(--accent); } 50% { box-shadow: 0 0 0 6px rgba(232,145,58,0.3); } }
+  .timeline-date { font-size: 0.8rem; font-weight: 700; color: var(--secondary); }
+  .timeline-text { font-size: 0.9rem; margin-top: 0.2rem; }
+
+  /* Tooltip / Info Boxes */
+  .info-box {
+    background: #e3f2fd;
+    border-left: 4px solid var(--secondary);
+    padding: 0.8rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0.8rem 0;
+    font-size: 0.88rem;
+  }
+  .warn-box {
+    background: #fff8e1;
+    border-left: 4px solid var(--warning);
+    padding: 0.8rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0.8rem 0;
+    font-size: 0.88rem;
+  }
+  .key-term {
+    background: #e8edf2;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  /* Trading/Banking Book Diagram */
+  .book-diagram {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    margin: 1.5rem 0;
+    align-items: start;
+  }
+  .book-box {
+    border-radius: 10px;
+    padding: 1.2rem;
+  }
+  .book-trading {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border: 2px solid #42a5f5;
+  }
+  .book-banking {
+    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+    border: 2px solid #66bb6a;
+  }
+  .book-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #999;
+    padding-top: 2rem;
+  }
+  .book-box h3 { margin-top: 0; text-align: center; }
+  .book-box ul { font-size: 0.85rem; padding-left: 1.2rem; margin-top: 0.5rem; }
+  .book-box li { margin-bottom: 0.3rem; }
+
+  /* Portfolio Table for Calculator */
+  .portfolio-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin: 0.5rem 0;
+  }
+  .portfolio-table th {
+    background: #f0f4f8;
+    padding: 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 2px solid var(--border);
+  }
+  .portfolio-table td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  .portfolio-table input {
+    width: 100%;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.82rem;
+  }
+  .portfolio-table tr:hover { background: #fafbfc; }
+
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .tag-sa { background: #e8f5e9; color: #2e7d32; }
+  .tag-ima { background: #e3f2fd; color: #1565c0; }
+  .tag-ssa { background: #fff3e0; color: #e65100; }
+
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.8rem;
+    color: #888;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { color: var(--secondary); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+  .formula-box {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 1rem 1.2rem;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    margin: 0.8rem 0;
+    overflow-x: auto;
+  }
+  .formula-box .highlight { color: #64b5f6; font-weight: 700; }
+  .formula-box .accent { color: #ffb74d; font-weight: 700; }
+  .formula-box .green { color: #81c784; font-weight: 700; }
+
+  .step-indicator {
+    display: flex;
+    gap: 0;
+    margin: 1rem 0;
+  }
+  .step {
+    flex: 1;
+    text-align: center;
+    padding: 0.6rem 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #e8edf2;
+    color: #888;
+    position: relative;
+  }
+  .step.active { background: var(--secondary); color: white; }
+  .step.done { background: var(--success); color: white; }
+  .step:first-child { border-radius: 6px 0 0 6px; }
+  .step:last-child { border-radius: 0 6px 6px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Basel III Capital Requirements &amp; Regulatory Reporting</h1>
+  <p>Interactive lecture tool &mdash; From capital basics to the Basel III Endgame</p>
+</header>
+
+<nav class="tab-nav" id="tabNav">
+  <button class="active" onclick="showTab('history')">1. Why Capital Rules?</button>
+  <button onclick="showTab('baselii')">2. Basel II Deep Dive</button>
+  <button onclick="showTab('transition')">3. Basel II &rarr; III &amp; Arbitrage</button>
+  <button onclick="showTab('overview')">4. Capital Framework</button>
+  <button onclick="showTab('books')">5. Trading vs Banking Book</button>
+  <button onclick="showTab('approaches')">6. Three Approaches</button>
+  <button onclick="showTab('calculator')">7. RWA Calculator</button>
+  <button onclick="showTab('b3e')">8. B3E Endgame</button>
+  <button onclick="showTab('reporting')">9. Reporting Demo</button>
+</nav>
+
+<!-- ==================== TAB 0: HISTORY & CONTEXT ==================== -->
+<section class="tab-content active" id="tab-history">
+
+  <div class="card">
+    <h2>Why Do We Regulate Bank Capital? A 160-Year Story</h2>
+    <p>Before diving into Basel III formulas, students must understand <em>why</em> these rules exist. Capital adequacy regulation is not an abstract exercise; it was forged in repeated crises where under-capitalised banks failed, depositors lost savings, and economies contracted. This tab traces that history from the 1860s through to the output floor debates of 2024.</p>
+    <div class="info-box">
+      <strong>Source materials:</strong> OCC "Moments in History: The History of Supervisory Expectations for Capital Adequacy Part II (1984&ndash;2021)" by Roger Tufts &amp; Paul Moloney (Oct 2022), and OSFI "Basel III Capital Floor Technical Note" (Oct 2024).
+    </div>
+  </div>
+
+  <!-- Era 1: Pre-Basel -->
+  <div class="card">
+    <h2>Era 1: Before Basel &mdash; The Bellaire Decision &amp; the 1983 Act</h2>
+    <p style="font-size:0.88rem;">For the first 120 years of U.S. banking history, capital adequacy was assessed <strong>subjectively</strong> by examiners, combining capital ratios with judgments about asset quality, management effectiveness, and earnings prospects. There were no formula-based minimums.</p>
+
+    <div class="warn-box">
+      <strong>The Bellaire Setback (1983):</strong> A U.S. Circuit Court ruled that the OCC had erroneously concluded that the capital of First National Bank of Bellaire created an unsafe condition. This decision was a significant setback to the authority of the OCC, FRB, and FDIC to make determinations regarding a bank's capital adequacy.
+    </div>
+
+    <p style="font-size:0.88rem; margin-top:0.8rem;">The law changed that same year. The <strong>International Lending Supervision Act of 1983</strong> (Section 980) explicitly gave banking agencies the authority to set formula-based capital requirements:</p>
+    <div style="background:#f8fbff; border-left:3px solid var(--secondary); padding:0.8rem 1rem; margin:0.8rem 0; font-size:0.85rem; font-style:italic;">
+      "Each appropriate Federal banking agency shall cause banking institutions to achieve and maintain adequate capital by establishing minimum levels of capital&hellip; Failure of a banking institution to maintain capital at or above its minimum level as established&hellip; may be deemed&hellip; to constitute an unsafe and unsound practice."
+    </div>
+  </div>
+
+  <!-- Era 2: 1985 Rule & Basel I -->
+  <div class="card">
+    <h2>Era 2: The First Rules &amp; Basel I (1985&ndash;1992)</h2>
+    <div class="two-col">
+      <div>
+        <h3>The OCC's 1985 Rule: Simple Leverage</h3>
+        <p style="font-size:0.88rem;">The first enforceable capital regulation was a simple <strong>leverage ratio</strong> (capital divided by assets). It defined:</p>
+        <ul style="font-size:0.85rem; padding-left:1.2rem; margin-top:0.3rem;">
+          <li><strong>Primary capital:</strong> common stock, surplus, undivided profit, perpetual preferred stock, ALLL (minus intangibles)</li>
+          <li><strong>Secondary capital:</strong> limited-life preferred stock, mandatory convertible debt (capped at 50% of primary)</li>
+          <li><strong>Minimums:</strong> Primary 5.5%, Total 6% of adjusted total assets</li>
+        </ul>
+        <div class="info-box" style="margin-top:0.8rem;">
+          <strong>Problem:</strong> A $100M Treasury bond and a $100M junk loan required the <em>same</em> capital. The leverage ratio was risk-blind.
+        </div>
+      </div>
+      <div>
+        <h3>Basel I: Risk-Based Capital (1988&ndash;1992)</h3>
+        <p style="font-size:0.88rem;">The OCC, FRB, FDIC entered bilateral talks with the Bank of England and Bank of Japan. Their agreed risk-weighting structure became <strong>Basel I</strong> (1988), adopted by G-10 countries.</p>
+        <table class="portfolio-table" style="margin-top:0.5rem;">
+          <tr style="background:#e3f2fd;"><th>Asset</th><th>Risk Weight</th><th>Capital per $100</th></tr>
+          <tr><td>Treasuries</td><td>0%</td><td>$0</td></tr>
+          <tr><td>Municipal bonds</td><td>20%</td><td>$1.60</td></tr>
+          <tr><td>Residential mortgages</td><td>50%</td><td>$4.00</td></tr>
+          <tr><td>All other loans</td><td>100%</td><td>$8.00</td></tr>
+        </table>
+        <p style="font-size:0.85rem; margin-top:0.5rem;"><strong>Key innovation:</strong> Off-balance sheet items (loan commitments, letters of credit, swaps, FX contracts) were included for the first time.</p>
+        <p style="font-size:0.85rem;"><strong>Minimum:</strong> Total capital-to-RWA &ge; <strong>8%</strong> by Dec 31, 1992.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- The Crisis Pattern -->
+  <div class="card">
+    <h2>Bank Failures &amp; the Case for Capital Rules</h2>
+    <p style="font-size:0.88rem;">The data makes the case powerfully. From 1985 through 1993, <strong>581 national banks failed</strong>. In 1988 alone, 123 national banks (2.8% of all 4,353) failed, the same year Basel I was announced.</p>
+
+    <div style="margin:1.5rem 0;">
+      <h3 style="text-align:center; margin-bottom:0.8rem;">National Bank Failures, 1982&ndash;2020</h3>
+      <div id="failureChart" style="display:flex; align-items:flex-end; height:180px; gap:2px; padding:0 0.5rem; border-bottom:2px solid #ccc; border-left:2px solid #ccc;">
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#888; padding:0.2rem 0.5rem;">
+        <span>1982</span><span>1988</span><span>1994</span><span>2000</span><span>2006</span><span>2010</span><span>2015</span><span>2020</span>
+      </div>
+      <p style="text-align:center; font-size:0.75rem; color:#888; margin-top:0.3rem;">Source: FDIC, OCC Integrated Bank Information System</p>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <h3>S&amp;L Crisis (1985&ndash;1993)</h3>
+        <p style="font-size:0.85rem;">Weak leverage ratios, concentrated real estate lending, and lax supervision. The 1st percentile leverage ratio fell below 0% in the late 1980s, meaning 1 in 100 banks was technically insolvent.</p>
+      </div>
+      <div>
+        <h3>Global Financial Crisis (2008&ndash;2010)</h3>
+        <p style="font-size:0.85rem;">Over <strong>500 banks failed</strong>. Basel II internal models had produced dangerously low capital. Banks continued paying dividends and bonuses as conditions deteriorated. This directly motivated the Capital Conservation Buffer.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Era 3: Basel II -->
+  <div class="card">
+    <h2>Era 3: Basel II &mdash; The Rise of Internal Models (1999&ndash;2008)</h2>
+    <p style="font-size:0.88rem;">The Basel Committee's 1999 consultative paper opened Pandora's box: letting banks use their own estimates to calculate capital.</p>
+
+    <h3>Internal Ratings-Based (IRB) Approach</h3>
+    <p style="font-size:0.88rem;">Published June 2004, Basel II allowed banks (subject to supervisory approval) to estimate four inputs to determine credit risk capital:</p>
+    <table class="portfolio-table" style="margin:0.5rem 0;">
+      <tr style="background:#fff3e0;"><th>Input</th><th>Description</th><th>Who Estimates?</th></tr>
+      <tr><td><strong>PD</strong></td><td>Probability of Default</td><td>Bank (Advanced IRB) or Supervisor (Foundation IRB)</td></tr>
+      <tr><td><strong>LGD</strong></td><td>Loss Given Default</td><td>Bank (A-IRB) / Supervisor (F-IRB)</td></tr>
+      <tr><td><strong>EAD</strong></td><td>Exposure at Default</td><td>Bank (A-IRB) / Supervisor (F-IRB)</td></tr>
+      <tr><td><strong>M</strong></td><td>Maturity of the exposure</td><td>Bank</td></tr>
+    </table>
+
+    <div class="two-col" style="margin-top:1rem;">
+      <div>
+        <h3>Basel II Also Added</h3>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li>External credit ratings (S&amp;P, Moody's, Fitch) for securitisation risk weights</li>
+          <li><strong>Operational risk</strong> as a new capital charge (first time)</li>
+          <li>Three-pillar structure: Pillar 1 (minimums), Pillar 2 (supervisory review), Pillar 3 (disclosure)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>The Transition Floor</h3>
+        <p style="font-size:0.85rem;">U.S. agencies required a <strong>parallel run</strong>: Year 1 RWA &ge; 95% of standardised; Year 2 &ge; 90%; Year 3 &ge; 85%. This was prescient, but the 2008 crisis intervened before most banks completed the transition.</p>
+        <div class="warn-box" style="margin-top:0.5rem;">
+          <strong>Key lesson:</strong> The financial crisis of 2008 fundamentally shattered regulators' confidence that banks' internal models could reliably determine capital requirements.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Era 4: Basel III -->
+  <div class="card">
+    <h2>Era 4: Basel III &mdash; Post-Crisis Overhaul (2010&ndash;Present)</h2>
+
+    <h3>What Changed (U.S. 2013 Final Rule)</h3>
+    <table class="compare-table">
+      <tr>
+        <th style="width:30%">Requirement</th>
+        <th style="width:25%">Basel II / Pre-Crisis</th>
+        <th style="width:25%">Basel III</th>
+        <th style="width:20%">Impact</th>
+      </tr>
+      <tr>
+        <td>CET1 Ratio</td>
+        <td>No separate CET1 requirement</td>
+        <td><strong>4.5%</strong> (new)</td>
+        <td>Raised quality bar</td>
+      </tr>
+      <tr>
+        <td>Tier 1 Ratio</td>
+        <td>4%</td>
+        <td><strong>6%</strong></td>
+        <td>+50% increase</td>
+      </tr>
+      <tr>
+        <td>Total Capital Ratio</td>
+        <td>8%</td>
+        <td><strong>8%</strong> (unchanged)</td>
+        <td>But denominator tightened</td>
+      </tr>
+      <tr>
+        <td>Capital Conservation Buffer</td>
+        <td>None</td>
+        <td><strong>2.5%</strong> CET1</td>
+        <td>Restricts distributions below buffer</td>
+      </tr>
+      <tr>
+        <td>Countercyclical Buffer</td>
+        <td>None</td>
+        <td><strong>0&ndash;2.5%</strong></td>
+        <td>Currently 0 in U.S.</td>
+      </tr>
+      <tr>
+        <td>Leverage Ratio</td>
+        <td>4% (simple)</td>
+        <td><strong>4%</strong> + SLR 3% (Cat I&ndash;III)</td>
+        <td>Expanded denominator to include off-BS</td>
+      </tr>
+      <tr>
+        <td>Enhanced SLR (G-SIBs)</td>
+        <td>None</td>
+        <td><strong>6%</strong> (bank) / 5% (BHC)</td>
+        <td>New for largest 8 banks</td>
+      </tr>
+      <tr>
+        <td>G-SIB Surcharge</td>
+        <td>None</td>
+        <td><strong>1.0&ndash;4.5%</strong></td>
+        <td>Systemic risk charge</td>
+      </tr>
+      <tr>
+        <td>Capital numerator quality</td>
+        <td>Hybrid instruments counted as Tier 1</td>
+        <td>Hybrids <strong>excluded</strong>; CET1 = common equity + retained earnings</td>
+        <td>Removed debt-like instruments</td>
+      </tr>
+    </table>
+
+    <div class="info-box" style="margin-top:1rem;">
+      <strong>The CCB rationale</strong> (OCC, FDIC, FRB): "During the recent financial crisis, some banking organizations continued to pay dividends and substantial discretionary bonuses even as their financial condition weakened&hellip; To encourage better capital preservation&hellip; the rule limits capital distributions and discretionary bonus payments for banking organizations that do not hold a specified amount of common equity tier 1 capital in addition to the amount of regulatory capital necessary to meet the minimum risk-based capital requirements."
+    </div>
+  </div>
+
+  <!-- U.S. Bank Categories -->
+  <div class="card">
+    <h2>U.S. Large Bank Categories &amp; Requirements</h2>
+    <p style="font-size:0.88rem;">A 2019 final rule established four categories of large banks ($100B+ assets), each with tiered requirements:</p>
+    <table class="compare-table" style="margin-top:0.8rem;">
+      <tr>
+        <th>Category</th>
+        <th>Criteria</th>
+        <th>Risk-Based Requirements</th>
+        <th>Leverage Requirements</th>
+      </tr>
+      <tr>
+        <td><strong>I &mdash; G-SIBs</strong></td>
+        <td>8 U.S. G-SIBs (JPM, BofA, Citi, Wells, Goldman, Morgan Stanley, BNY Mellon, State Street)</td>
+        <td>CET1 4.5% + CCB 2.5% + SCB + G-SIB surcharge (1.0&ndash;3.5%) + CCyB (0&ndash;2.5%)<br><span style="font-size:0.8rem; color:#666;">Effective CET1: 9.5&ndash;13.0%+</span></td>
+        <td>Leverage 4%, SLR 3%, eSLR 6% (bank) / 5% (BHC)</td>
+      </tr>
+      <tr>
+        <td><strong>II</strong></td>
+        <td>&ge;$700B assets or &ge;$75B cross-jurisdictional</td>
+        <td>CET1 4.5% + CCB 2.5% + SCB (&ge;2.5%) + CCyB</td>
+        <td>Leverage 4%, SLR 3%</td>
+      </tr>
+      <tr>
+        <td><strong>III</strong></td>
+        <td>&ge;$250B assets or &ge;$75B in non-bank assets / wholesale funding / off-BS</td>
+        <td>CET1 4.5% + CCB 2.5% + SCB (&ge;2.5%) + CCyB</td>
+        <td>Leverage 4%, SLR 3%</td>
+      </tr>
+      <tr>
+        <td><strong>IV</strong></td>
+        <td>&ge;$100B assets</td>
+        <td>CET1 4.5% + CCB 2.5% + SCB (&ge;2.5%)</td>
+        <td>Leverage 4%</td>
+      </tr>
+    </table>
+
+    <div class="info-box" style="margin-top:0.8rem;">
+      <strong>Real-world example (2022):</strong> JPMorgan Chase: CET1 min = 4.5% + SCB 3.2% + G-SIB 3.5% = <strong>11.2%</strong>. Citibank: 4.5% + SCB 3.0% + G-SIB 3.0% = <strong>10.5%</strong>. Wells: 4.5% + SCB 3.1% + G-SIB 2.0% = <strong>9.6%</strong>. Bank of America: 4.5% + SCB 2.5% + G-SIB 2.5% = <strong>9.5%</strong>.
+    </div>
+  </div>
+
+  <!-- Community Banks & CBLR -->
+  <div class="card">
+    <h2>The Other End: Community Banks &amp; the CBLR</h2>
+    <p style="font-size:0.88rem;">The 2018 Economic Growth, Regulatory Relief, and Consumer Protection Act created a <strong>Community Bank Leverage Ratio (CBLR)</strong> for banks &lt;$10B in assets that are non-complex. Banks maintaining a leverage ratio &gt;9% are deemed to satisfy <em>all</em> risk-based and leverage capital requirements.</p>
+
+    <table class="portfolio-table" style="margin:0.8rem 0;">
+      <tr style="background:#e8f5e9;"><th>CBLR Eligibility (Year-end 2021)</th><th>National Banks</th><th>% of Total</th><th>State Chartered</th><th>% of Total</th></tr>
+      <tr><td>Total count</td><td>1,016</td><td>100%</td><td>3,832</td><td>100%</td></tr>
+      <tr><td>Assets &lt;$10B &amp; non-complex</td><td>939</td><td>92%</td><td>3,630</td><td>95%</td></tr>
+      <tr><td>Leverage ratio &gt;9%</td><td>682</td><td>67%</td><td>2,537</td><td>66%</td></tr>
+      <tr><td>Actually opted into CBLR</td><td>326</td><td>32%</td><td>1,423</td><td>37%</td></tr>
+    </table>
+
+    <div class="info-box">
+      <strong>Key observation:</strong> ~92&ndash;95% of banks <em>qualify</em> for the simple leverage-only approach, and ~1/3 have opted in. These banks no longer report risk-based capital ratios at all. The full Basel framework applies primarily to the largest ~5&ndash;8% of banks, but those banks hold the vast majority of system assets.
+    </div>
+  </div>
+
+  <!-- Capital Floor -->
+  <div class="card">
+    <h2>The Capital Floor: Why Models Need a Backstop</h2>
+    <p style="font-size:0.88rem;">One of the most debated elements of Basel III finalisation is the <strong>output floor</strong>: a requirement that banks using internal models must hold capital at least equal to a percentage of what the standardised approach would produce.</p>
+
+    <h3>Three Purposes of the Floor (OSFI)</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin:1rem 0;">
+      <div style="background:#e3f2fd; border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-size:1.5rem; margin-bottom:0.3rem;">&#x21C5;</div>
+        <strong style="color:var(--primary);">Reduce Procyclicality</strong>
+        <p style="font-size:0.82rem; margin-top:0.3rem;">IRB models use historical losses: in good times, RWA falls, banks lend more; in downturns, RWA rises, banks contract lending. The floor dampens this cycle.</p>
+      </div>
+      <div style="background:#fff3e0; border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-size:1.5rem; margin-bottom:0.3rem;">&#x2194;</div>
+        <strong style="color:#e65100;">Reduce RWA Variability</strong>
+        <p style="font-size:0.82rem; margin-top:0.3rem;">The Basel Committee found "significant RWA variability" across modelled banks for the same portfolios. The floor ensures a common minimum.</p>
+      </div>
+      <div style="background:#e8f5e9; border-radius:8px; padding:1rem; text-align:center;">
+        <div style="font-size:1.5rem; margin-bottom:0.3rem;">&#x2696;</div>
+        <strong style="color:#2e7d32;">Promote Competition</strong>
+        <p style="font-size:0.82rem; margin-top:0.3rem;">Without a floor, large banks with approved models can hold systematically less capital than smaller banks using the standardised approach for the same risks.</p>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      <strong>COVID distortion (OSFI):</strong> "COVID-era fiscal support artificially lowered the number of defaults in historical data used for internal models, creating distortions that shouldn't reflect future downturns." The floor protects against this kind of model contamination.
+    </div>
+
+    <h3 style="margin-top:1.2rem;">The Floor Formula</h3>
+    <div class="formula-box">
+<span class="highlight">RWA Floor Add-on</span> = (<span class="accent">72.5%</span> &times; <span class="green">All-SA RWA</span> - 12.5 &times; Total Allowances)
+                     - (<span style="color:#ce93d8;font-weight:700">Pre-floor RWA</span> - 12.5 &times; Pre-floor Allowances)
+
+If the result is <span class="accent">positive</span>, the bank must add this amount to its RWA.
+If the result is <span class="green">negative</span> (i.e., models already produce more RWA than 72.5% of SA), the floor is <span class="green">not binding</span>.
+    </div>
+
+    <h3 style="margin-top:1.2rem;">Canada's Floor Implementation &amp; D-SIB Impact (Q2 2024)</h3>
+    <table class="compare-table" style="margin-top:0.5rem;">
+      <tr>
+        <th>Bank</th>
+        <th style="text-align:right">Pre-floor RWA (CAD $B)</th>
+        <th style="text-align:right">All-SA RWA (CAD $B)</th>
+        <th style="text-align:right">CET1 Capital (CAD $B)</th>
+        <th style="text-align:right">Floor Add-on (CAD $B)</th>
+        <th style="text-align:right">CET1 Impact (bps)</th>
+      </tr>
+      <tr><td>BMO</td><td style="text-align:right">418</td><td style="text-align:right">633</td><td style="text-align:right">55</td><td style="text-align:right">21</td><td style="text-align:right;color:#c62828;font-weight:600;">&minus;63</td></tr>
+      <tr><td>BNS (Scotiabank)</td><td style="text-align:right">450</td><td style="text-align:right">694</td><td style="text-align:right">59</td><td style="text-align:right">31</td><td style="text-align:right;color:#c62828;font-weight:600;">&minus;86</td></tr>
+      <tr><td>CIBC</td><td style="text-align:right">327</td><td style="text-align:right">492</td><td style="text-align:right">43</td><td style="text-align:right">7</td><td style="text-align:right;color:#c62828;font-weight:600;">&minus;29</td></tr>
+      <tr><td>National Bank</td><td style="text-align:right">136</td><td style="text-align:right">200</td><td style="text-align:right">18</td><td style="text-align:right">5</td><td style="text-align:right;color:#c62828;font-weight:600;">&minus;42</td></tr>
+      <tr><td>RBC</td><td style="text-align:right">654</td><td style="text-align:right">965</td><td style="text-align:right">83</td><td style="text-align:right">21</td><td style="text-align:right;color:#c62828;font-weight:600;">&minus;40</td></tr>
+      <tr><td>TD</td><td style="text-align:right">603</td><td style="text-align:right">865</td><td style="text-align:right">81</td><td style="text-align:right">&mdash;</td><td style="text-align:right;color:#2e7d32;font-weight:600;">0 (not binding)</td></tr>
+    </table>
+
+    <div class="info-box" style="margin-top:0.8rem;">
+      <strong>Net neutral:</strong> OSFI notes the removal of the 1.06 scaling factor (previously applied to all modelled RWA) freed up ~$90B in RWA across D-SIBs, while the fully phased-in floor adds ~$85B. The overall impact of Basel III reforms is "broadly capital neutral" for Canadian banks, a deliberate calibration.
+    </div>
+  </div>
+
+  <!-- Floor Evolution -->
+  <div class="card">
+    <h2>Three Eras of Capital Floors in Canada</h2>
+    <table class="compare-table">
+      <tr>
+        <th style="width:18%">Era</th>
+        <th style="width:14%">Period</th>
+        <th style="width:10%">Floor %</th>
+        <th>Credit Risk Basis</th>
+        <th>Market Risk Basis</th>
+        <th>Op Risk Basis</th>
+        <th style="width:12%">Scaling Factor</th>
+      </tr>
+      <tr>
+        <td><strong>Basel I Floor</strong></td>
+        <td>2008&ndash;2018</td>
+        <td>90%</td>
+        <td>Basel I standard</td>
+        <td>Basel I standard</td>
+        <td>Basel I standard</td>
+        <td>None</td>
+      </tr>
+      <tr>
+        <td><strong>Interim Floor</strong></td>
+        <td>2018&ndash;2023</td>
+        <td>70&ndash;75%</td>
+        <td>Basel II standard</td>
+        <td>Basel I standard</td>
+        <td>None</td>
+        <td><strong>1.06&times;</strong> on modelled RWA</td>
+      </tr>
+      <tr>
+        <td><strong>Basel III Output Floor</strong></td>
+        <td>2023&ndash;2027</td>
+        <td>65% &rarr; 72.5%</td>
+        <td>Basel III standard</td>
+        <td>Basel III standard</td>
+        <td>Basel III standard</td>
+        <td>Removed</td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:1rem;">Phase-In Schedule (Canada)</h3>
+    <div class="timeline">
+      <div class="timeline-item completed">
+        <div class="timeline-date">Q2 2023</div>
+        <div class="timeline-text">Floor begins at <strong>65%</strong></div>
+      </div>
+      <div class="timeline-item completed">
+        <div class="timeline-date">Q1 2024</div>
+        <div class="timeline-text">Floor increases to <strong>67.5%</strong></div>
+      </div>
+      <div class="timeline-item current">
+        <div class="timeline-date">Q1 2026 (delayed from 2025)</div>
+        <div class="timeline-text">Floor increases to <strong>70%</strong>. Delay announced July 2024 "to give time to consider implementation timelines in other jurisdictions."</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">Q1 2027</div>
+        <div class="timeline-text">Floor reaches final level: <strong>72.5%</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bank Responses -->
+  <div class="card">
+    <h2>How Banks Respond to Higher Capital Requirements</h2>
+    <p style="font-size:0.88rem;">OSFI identifies four tools banks use, based on 15&ndash;20 years of observation:</p>
+    <table class="portfolio-table" style="margin:0.8rem 0;">
+      <tr style="background:#f0f4f8;"><th style="width:25%">Response</th><th>Description</th><th style="width:20%">Example</th></tr>
+      <tr>
+        <td><strong>1. Balance Sheet Adjustment</strong></td>
+        <td>Shift asset mix toward lower-risk-weighted exposures; grow in areas where standardised weights are more favourable</td>
+        <td>More insured mortgages, fewer unsecured corporate loans</td>
+      </tr>
+      <tr>
+        <td><strong>2. Risk Transfer</strong></td>
+        <td>Transfer exposure risk to third parties (securitisation, credit derivatives, insurance) to free up capital</td>
+        <td>Synthetic securitisation of corporate loan book</td>
+      </tr>
+      <tr>
+        <td><strong>3. Buffer Absorption</strong></td>
+        <td>Maintain a lower buffer above the minimum rather than raising total capital. D-SIBs currently hold 127&ndash;191 bps above the DSB ("ample room" for 0&ndash;86 bps of floor impact)</td>
+        <td>Accepting a narrower management buffer</td>
+      </tr>
+      <tr>
+        <td><strong>4. Earnings Generation</strong></td>
+        <td>Use retained earnings to rebuild capital. Canadian banks have historically managed post-acquisition capital declines without constraining lending</td>
+        <td>Retaining additional quarterly earnings</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- The Growth Question -->
+  <div class="card">
+    <h2>Does Capital Regulation Constrain Lending?</h2>
+    <p style="font-size:0.88rem;">A key debate. OSFI provides historical Canadian data:</p>
+    <table class="portfolio-table" style="margin:0.8rem 0;">
+      <tr style="background:#e3f2fd;"><th>Metric (CAGR)</th><th>1990&ndash;2024</th><th>2001&ndash;2006 (pre-crisis)</th><th>2007&ndash;2024 (post-crisis)</th></tr>
+      <tr><td>Total CAD assets</td><td>6.5%</td><td>8.0%</td><td>4.9%</td></tr>
+      <tr><td>Non-mortgage loans</td><td>6.7%</td><td>8.6%</td><td>6.6%</td></tr>
+      <tr><td>Mortgages</td><td>8.6%</td><td>7.2%</td><td>8.2%</td></tr>
+    </table>
+    <div class="info-box">
+      <strong>OSFI's conclusion:</strong> Mortgage growth actually <em>accelerated</em> in the post-crisis period (8.2% vs 7.2%) despite substantially higher capital requirements. Non-mortgage loan growth remained robust. Capital regulation has not materially constrained credit supply in Canada over 34 years of data.
+    </div>
+  </div>
+
+  <!-- The Big Picture -->
+  <div class="card">
+    <h2>The Big Picture: From 1 Page to 232 Pages</h2>
+    <div style="display:flex; align-items:flex-end; gap:1.5rem; justify-content:center; margin:1.5rem 0;">
+      <div style="text-align:center;">
+        <div style="background:var(--secondary); width:30px; height:8px; margin:0 auto; border-radius:2px;"></div>
+        <div style="font-size:0.75rem; margin-top:0.3rem; color:#666;"><strong>1970s</strong><br>1 page<br>in Comptroller's<br>Handbook</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="background:var(--secondary); width:30px; height:16px; margin:0 auto; border-radius:2px;"></div>
+        <div style="font-size:0.75rem; margin-top:0.3rem; color:#666;"><strong>1950s</strong><br>2-page<br>ABC worksheet</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="background:var(--secondary); width:30px; height:32px; margin:0 auto; border-radius:2px;"></div>
+        <div style="font-size:0.75rem; margin-top:0.3rem; color:#666;"><strong>1985</strong><br>8 pages<br>in CFR</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="background:var(--accent); width:30px; height:180px; margin:0 auto; border-radius:2px;"></div>
+        <div style="font-size:0.75rem; margin-top:0.3rem; color:#666;"><strong>2021</strong><br><strong>232 pages</strong><br>in CFR</div>
+      </div>
+    </div>
+
+    <div style="background:#f8fbff; border-radius:8px; padding:1.2rem; margin-top:1rem; font-size:0.88rem;">
+      <p><strong>Carter Golembe</strong>, arguably the foremost expert in banking regulatory policy history, observed:</p>
+      <p style="font-style:italic; margin:0.5rem 0;">"The never-ending search by regulators for their 'Holy Grail,' a simple formula or ratio that will encompass all that is needed to eliminate messy, hands-on supervision by tough, experienced examiners."</p>
+      <p style="margin-top:0.5rem;"><strong>Hugh McCulloch</strong>, the first Comptroller of the Currency (1863), concluded with words that remain true 160 years later:</p>
+      <p style="font-style:italic; margin:0.5rem 0;">"The eyes of the people are turned to the national banks. The indications are strong that if they are well managed, they will furnish the country with its bank-note circulation. It is of the last importance, then, that they should be so managed."</p>
+      <p style="margin-top:0.5rem;">The OCC authors conclude: <em>"Over 200 pages in the Code of Federal Regulations is not the singular answer."</em> Capital ratios are necessary but not sufficient. The human element (skilled examiners exercising sound judgment) remains paramount.</p>
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== TAB 2: BASEL II DEEP DIVE ==================== -->
+<section class="tab-content" id="tab-baselii">
+
+  <div class="card">
+    <h2>Basel II: The Three-Pillar Architecture (2004)</h2>
+    <p style="font-size:0.88rem;">Basel II (published June 2004, implemented 2007&ndash;2008) was the most ambitious attempt to make capital requirements risk-sensitive. It introduced a three-pillar structure that remains the foundation of Basel III.</p>
+    <div class="info-box">
+      <strong>Sources:</strong> World Bank Policy Research WP 3387 (Powell, 2004), "Basel II and Developing Countries: Sailing through the Sea of Standards"; IMF WP/11/187 (Al-Darwish et al., 2011), "Possible Unintended Consequences of Basel III and Solvency II."
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The Three Pillars</h2>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin:1rem 0;">
+      <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb); border-radius:10px; padding:1.2rem; border-top:4px solid #1565c0;">
+        <h3 style="color:#1565c0; text-align:center; margin-top:0;">Pillar 1</h3>
+        <p style="text-align:center; font-weight:600; color:#1565c0; font-size:0.9rem;">Minimum Capital Requirements</p>
+        <p style="font-size:0.82rem;">The quantitative core. Multiple approaches to compute RWA for credit risk, market risk, and (new) operational risk. This is where most of Basel II's innovation (and controversy) lies.</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9); border-radius:10px; padding:1.2rem; border-top:4px solid #2e7d32;">
+        <h3 style="color:#2e7d32; text-align:center; margin-top:0;">Pillar 2</h3>
+        <p style="text-align:center; font-weight:600; color:#2e7d32; font-size:0.9rem;">Supervisory Review Process</p>
+        <p style="font-size:0.82rem;">Supervisors assess whether banks hold adequate capital for their risk profile. Banks must have an Internal Capital Adequacy Assessment Process (ICAAP). Supervisors can impose capital add-ons.</p>
+      </div>
+      <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2); border-radius:10px; padding:1.2rem; border-top:4px solid #e65100;">
+        <h3 style="color:#e65100; text-align:center; margin-top:0;">Pillar 3</h3>
+        <p style="text-align:center; font-weight:600; color:#e65100; font-size:0.9rem;">Market Discipline</p>
+        <p style="font-size:0.82rem;">Mandatory disclosure requirements so that market participants can assess capital adequacy. Includes risk exposures, risk management practices, and capital structure details.</p>
+      </div>
+    </div>
+    <div class="warn-box">
+      <strong>Powell (2004):</strong> "In environments where banking supervision is weak, attempting to implement sophisticated ways of calculating required bank capital may simply give regulated institutions more ways to game their regulators." At the time, 50% of countries were compliant with only 10 of 30 Basel Core Principles. The average developing country: just 7 BCPs.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pillar 1: Credit Risk &mdash; The Menu of Approaches</h2>
+    <table class="compare-table">
+      <tr>
+        <th style="width:15%">Feature</th>
+        <th style="width:28%">Simplified Standardised (SS)</th>
+        <th style="width:28%">Standardised Approach (SA)</th>
+        <th style="width:29%">Internal Ratings-Based (IRB)</th>
+      </tr>
+      <tr>
+        <td><strong>Risk Weight Source</strong></td>
+        <td>Export Credit Agency (ECA) ratings; broad buckets like Basel I</td>
+        <td>External credit ratings (S&amp;P, Moody's, Fitch) from recognised ECAIs</td>
+        <td>Bank's own internal models and rating systems</td>
+      </tr>
+      <tr>
+        <td><strong>Key Inputs</strong></td>
+        <td>Prescribed risk weights by asset class (0%, 20%, 50%, 100%, 150%)</td>
+        <td>Rating-dependent risk weights; credit risk mitigation (collateral, guarantees, netting)</td>
+        <td><strong>Foundation IRB:</strong> Bank estimates PD; supervisor sets LGD, EAD<br><strong>Advanced IRB:</strong> Bank estimates PD, LGD, EAD, M</td>
+      </tr>
+      <tr>
+        <td><strong>Sophistication</strong></td>
+        <td>Minimal &mdash; near-overlap with Basel I</td>
+        <td>Moderate &mdash; requires access to external ratings</td>
+        <td>Very high &mdash; requires years of internal default data, validated models, supervisory approval</td>
+      </tr>
+      <tr>
+        <td><strong>Capital Outcome</strong></td>
+        <td>Conservative &mdash; no risk differentiation within broad classes</td>
+        <td>Moderate &mdash; differentiates by external rating</td>
+        <td><strong>Typically lower</strong> &mdash; calibrated to produce on average lower RWA than SA, incentivising adoption</td>
+      </tr>
+      <tr>
+        <td><strong>Who Uses It</strong></td>
+        <td>Developing countries, small banks</td>
+        <td>Most banks globally; countries with low rating penetration get little benefit</td>
+        <td>Largest banks in advanced economies (U.S.: mandatory for banks &gt;$250B assets or &gt;$10B foreign)</td>
+      </tr>
+    </table>
+
+    <div class="formula-box" style="margin-top:1rem;">
+<span class="highlight">IRB Capital Formula (credit risk)</span>
+
+K = <span class="accent">LGD</span> &times; [N((1-R)^-0.5 &times; G(<span class="green">PD</span>) + (R/(1-R))^0.5 &times; G(0.999)) - <span class="green">PD</span>] &times; <span style="color:#ce93d8;font-weight:700">Maturity Adj.</span>
+
+RWA = K &times; 12.5 &times; <span class="accent">EAD</span>
+
+Where: PD = Probability of Default, LGD = Loss Given Default,
+       EAD = Exposure at Default, R = correlation, N = normal CDF, G = inverse normal
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pillar 1: Market Risk Under Basel II</h2>
+    <div class="two-col">
+      <div>
+        <h3>The VaR Approach</h3>
+        <p style="font-size:0.88rem;">Under Basel II, banks could compute market risk capital using <strong>Value at Risk (VaR)</strong> models:</p>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li>99% confidence interval, one-tailed</li>
+          <li>10-day holding period</li>
+          <li>Minimum 1-year historical observation</li>
+          <li>Multiplication factor of 3&times; (or higher if backtesting fails)</li>
+        </ul>
+        <div class="formula-box" style="margin-top:0.5rem;">
+<span class="highlight">Market Risk Capital</span> = max(
+  VaR<sub>t-1</sub>,
+  m<sub>c</sub> &times; VaR<sub>avg,60</sub>
+) + <span class="accent">Specific Risk Charge</span>
+        </div>
+      </div>
+      <div>
+        <h3>The Fatal Flaw</h3>
+        <p style="font-size:0.88rem;">VaR had critical weaknesses that the crisis exposed:</p>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li><strong>Not sub-additive:</strong> Combining portfolios could show <em>lower</em> VaR than individual books</li>
+          <li><strong>Tail blindness:</strong> VaR tells you the threshold of the worst 1%, not what happens beyond it</li>
+          <li><strong>Procyclical:</strong> Low volatility periods produced low VaR, encouraging leverage</li>
+          <li><strong>Gaming:</strong> Banks could structure exposures to minimise VaR while retaining huge tail risk (e.g., super-senior CDO tranches)</li>
+        </ul>
+        <div class="warn-box" style="margin-top:0.5rem;">
+          <strong>IMF (2011):</strong> "Basel III strengthens the computations of market risk for extreme value events. Banks will now have to calculate a stressed VaR based on a 10-day, 99% confidence interval calibrated to a period of significant financial stress."
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pillar 1: Operational Risk &mdash; New in Basel II</h2>
+    <p style="font-size:0.88rem;">Basel II was the first accord to require explicit capital for operational risk. Three approaches were available:</p>
+    <table class="portfolio-table" style="margin:0.8rem 0;">
+      <tr style="background:#f0f4f8;"><th>Approach</th><th>Calculation</th><th>Sophistication</th></tr>
+      <tr>
+        <td><strong>Basic Indicator (BIA)</strong></td>
+        <td>15% &times; average gross income (3 years)</td>
+        <td>Simple &mdash; one-size-fits-all</td>
+      </tr>
+      <tr>
+        <td><strong>Standardised (TSA)</strong></td>
+        <td>Business-line specific percentages (12&ndash;18%) &times; gross income per line</td>
+        <td>Moderate &mdash; differentiates by business line</td>
+      </tr>
+      <tr>
+        <td><strong>Advanced Measurement (AMA)</strong></td>
+        <td>Bank's own internal model (VaR-based, 99.9% over 1 year)</td>
+        <td>Very high &mdash; supervisory approval required</td>
+      </tr>
+    </table>
+    <div class="info-box">
+      <strong>Basel III change:</strong> All three approaches were replaced by a single <strong>Standardised Measurement Approach (SMA)</strong> based on the Business Indicator Component. The AMA was eliminated after regulators concluded internal models for operational risk were unreliable and produced excessive RWA variability.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The Developing Country Challenge</h2>
+    <p style="font-size:0.88rem;">Powell (2004) proposed a "navigational chart" of five alternative standards within the Basel I/II sea, recognising that most developing countries lacked the infrastructure for advanced approaches:</p>
+    <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:0.5rem; margin:1rem 0;">
+      <div style="background:#e3f2fd; border-radius:6px; padding:0.6rem; text-align:center; font-size:0.78rem;">
+        <strong style="color:#1565c0;">Basel I<br>(Enhanced)</strong><br>Stick with Basel I + higher ratios + Pillars 2&amp;3
+      </div>
+      <div style="background:#e8f5e9; border-radius:6px; padding:0.6rem; text-align:center; font-size:0.78rem;">
+        <strong style="color:#2e7d32;">Simplified Standardised</strong><br>ECA ratings; near-Basel I
+      </div>
+      <div style="background:#fff3e0; border-radius:6px; padding:0.6rem; text-align:center; font-size:0.78rem;">
+        <strong style="color:#e65100;">Standardised</strong><br>External ratings (S&amp;P, Moody's)
+      </div>
+      <div style="background:#fce4ec; border-radius:6px; padding:0.6rem; text-align:center; font-size:0.78rem;">
+        <strong style="color:#c62828;">Centralized Rating Based</strong><br>Transition tool: bank rates, regulator maps to PD
+      </div>
+      <div style="background:#f3e5f5; border-radius:6px; padding:0.6rem; text-align:center; font-size:0.78rem;">
+        <strong style="color:#6a1b9a;">Full IRB</strong><br>Bank models; years of data required
+      </div>
+    </div>
+    <div class="warn-box">
+      <strong>Key insight:</strong> "Where BCP compliance and hence supervisory discipline is weak, countries would be advised to focus primarily on Basel Pillars 2 and 3 rather than Pillar 1." The Standardised Approach gives little benefit in countries with low rating penetration, but IRB requires years of preparation and data. The CRB was proposed as a pragmatic middle ground for emerging markets.
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== TAB 3: BASEL II vs III & ARBITRAGE ==================== -->
+<section class="tab-content" id="tab-transition">
+
+  <div class="card">
+    <h2>From Basel II to Basel III: What Broke and Why</h2>
+    <p style="font-size:0.88rem;">The 2008 financial crisis was the definitive stress test for Basel II, and it failed. Over 500 U.S. banks collapsed. Banks that appeared well-capitalised under Basel II proved fatally under-capitalised when markets seized. This tab examines what went wrong and how Basel III addresses each failure, with particular focus on the <strong>trading book/banking book boundary</strong> and regulatory arbitrage.</p>
+  </div>
+
+  <div class="card">
+    <h2>Basel II vs Basel III: Side-by-Side</h2>
+    <table class="compare-table">
+      <tr>
+        <th style="width:20%">Dimension</th>
+        <th style="width:40%">Basel II (2004/2007)</th>
+        <th style="width:40%">Basel III (2010&ndash;present)</th>
+      </tr>
+      <tr>
+        <td><strong>Capital Quality</strong></td>
+        <td>Three tiers. Tier 1 included innovative hybrid instruments (dated, with step-ups, ACSM). Tier 3 (short-term subordinated debt) could cover <strong>market risk</strong>.</td>
+        <td>Two tiers only. <strong>CET1</strong> explicitly defined (common equity + retained earnings). Hybrids mostly excluded. Tier 3 eliminated entirely. 14 strict criteria for AT1 eligibility.</td>
+      </tr>
+      <tr>
+        <td><strong>Capital Quantity</strong></td>
+        <td>Tier 1 &ge; 4%, Total &ge; 8%. No separate CET1 requirement. No buffers.</td>
+        <td>CET1 &ge; 4.5%, Tier 1 &ge; 6%, Total &ge; 8% <strong>plus</strong> CCB 2.5%, CCyB 0&ndash;2.5%, G-SIB surcharge 1&ndash;3.5%. Effective CET1 for G-SIBs: 9.5&ndash;13%+.</td>
+      </tr>
+      <tr>
+        <td><strong>Leverage</strong></td>
+        <td>No leverage ratio. Banks could be technically compliant with risk-based ratios while running 30&ndash;50&times; leverage.</td>
+        <td>Leverage ratio &ge; 3% (Tier 1 / total exposure). Enhanced SLR for G-SIBs: 5&ndash;6%. Includes off-balance sheet items in denominator.</td>
+      </tr>
+      <tr>
+        <td><strong>Liquidity</strong></td>
+        <td>No quantitative liquidity requirements.</td>
+        <td><strong>LCR</strong>: enough HQLA to survive 30-day stress. <strong>NSFR</strong>: stable funding over 1 year.</td>
+      </tr>
+      <tr>
+        <td><strong>Credit Risk Models</strong></td>
+        <td>IRB approach incentivised: calibrated to produce <strong>lower</strong> RWA than SA on average. No output floor after transition.</td>
+        <td>Output floor at <strong>72.5%</strong> of SA-calculated RWA. IRB inputs constrained (PD floors, LGD floors). Removed A-IRB for certain portfolios.</td>
+      </tr>
+      <tr>
+        <td><strong>Market Risk</strong></td>
+        <td><strong>VaR</strong> (99%, 10-day). No stressed calibration. Specific risk charge often minimal. Trading book boundary loosely defined.</td>
+        <td><strong>Expected Shortfall</strong> (97.5%, variable liquidity horizons 10&ndash;120 days). Stressed calibration mandatory. FRTB with strict trading book boundary, desk-level model approval.</td>
+      </tr>
+      <tr>
+        <td><strong>Operational Risk</strong></td>
+        <td>Three approaches (BIA, TSA, AMA). AMA allowed full internal models.</td>
+        <td>Single <strong>SMA</strong> for all banks. AMA eliminated. Business Indicator &times; Internal Loss Multiplier.</td>
+      </tr>
+      <tr>
+        <td><strong>Counterparty Risk</strong></td>
+        <td>Current Exposure Method. Limited incentive for central clearing.</td>
+        <td>Standardised Approach for CVA. Higher charges for bilateral derivatives. Incentive for central clearing via lower risk weights for CCPs.</td>
+      </tr>
+      <tr>
+        <td><strong>Procyclicality</strong></td>
+        <td>Highly procyclical: IRB models used recent data; low-loss periods &rarr; low RWA &rarr; more leverage.</td>
+        <td>Countercyclical buffer. Capital conservation buffer. Output floor dampens IRB cyclicality. Stressed VaR/ES calibration.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2 style="color:#c62828;">The Trading Book Arbitrage: Why Boundary Rules Matter</h2>
+    <p style="font-size:0.88rem;">One of the most damaging regulatory arbitrage mechanisms under Basel II involved the <strong>trading book/banking book boundary</strong>. Understanding this is critical for grasping why FRTB (RBC25) imposes such strict rules.</p>
+
+    <h3>The Basel II Incentive Structure</h3>
+    <div class="book-diagram" style="margin:1rem 0;">
+      <div class="book-box book-trading" style="border-color:#c62828;">
+        <h3 style="color:#c62828;">Trading Book (Basel II)</h3>
+        <p style="font-size:0.85rem; font-weight:600; color:#c62828; text-align:center;">LOWER capital charges</p>
+        <ul style="font-size:0.82rem;">
+          <li>VaR-based: 99% confidence, 10-day horizon</li>
+          <li>For credit products: <strong>specific risk charge often minimal</strong></li>
+          <li>Super-senior CDO tranches: near-zero VaR (appeared "safe")</li>
+          <li>No default risk charge separate from VaR</li>
+          <li>Diversification benefits fully recognised</li>
+          <li>Result: <strong>capital as low as 0.1&ndash;2% of notional</strong></li>
+        </ul>
+      </div>
+      <div class="book-arrow" style="color:#c62828; font-size:2.5rem;">&larr;</div>
+      <div class="book-box book-banking" style="border-color:#2e7d32;">
+        <h3 style="color:#2e7d32;">Banking Book (Basel II)</h3>
+        <p style="font-size:0.85rem; font-weight:600; color:#2e7d32; text-align:center;">HIGHER capital charges</p>
+        <ul style="font-size:0.82rem;">
+          <li>Standardised: fixed risk weights (20&ndash;1250%)</li>
+          <li>IRB: model-based but with higher calibration</li>
+          <li>Securitisation: look-through or ratings-based (high RW for sub-IG)</li>
+          <li>Full default risk captured</li>
+          <li>No diversification benefit in Pillar 1</li>
+          <li>Result: <strong>capital 8&ndash;100% of exposure</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="background:#fce4ec; border-radius:8px; padding:1.2rem; margin:1rem 0;">
+      <h3 style="color:#c62828; margin-top:0;">The Arbitrage Mechanism</h3>
+      <ol style="font-size:0.88rem; padding-left:1.2rem;">
+        <li><strong>Originate</strong> a pool of loans (banking book: high capital requirement)</li>
+        <li><strong>Securitise</strong> them into tranches (CDOs, CLOs)</li>
+        <li><strong>Retain the super-senior tranche</strong> in the trading book (VaR near zero because "AAA" and low historical volatility)</li>
+        <li>Capital dropped from ~8% to &lt;1% on the <strong>same underlying risk</strong></li>
+        <li>In the crisis: super-senior tranches lost 30&ndash;60% of value, as VaR had completely missed jump-to-default and correlation risk</li>
+      </ol>
+    </div>
+
+    <div class="info-box">
+      <strong>Al-Darwish et al. (IMF, 2011):</strong> "The tendency to move exposure off balance sheets because it reduced regulatory requirements ultimately led to utilisation of the originate-and-distribute business model, widespread use of conduits and overconcentration of exposures in less regulated areas of the financial system."
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How Basel III / FRTB Closes the Gap</h2>
+    <table class="compare-table">
+      <tr>
+        <th style="width:25%">Arbitrage Vector</th>
+        <th style="width:37%">Basel II Vulnerability</th>
+        <th style="width:38%">Basel III / FRTB Fix</th>
+      </tr>
+      <tr>
+        <td><strong>Book boundary gaming</strong></td>
+        <td>Loose "intent-based" boundary. Banks could assign instruments to whichever book gave lower capital.</td>
+        <td><strong>RBC25:</strong> Presumptive lists (must-be-trading, must-be-banking). Deviation requires supervisory approval. Switches are irrevocable. Capital benefits forfeited as surcharge. <em>(See Tab 5)</em></td>
+      </tr>
+      <tr>
+        <td><strong>VaR tail blindness</strong></td>
+        <td>VaR at 99% ignores severity beyond threshold. Super-senior tranches showed near-zero VaR.</td>
+        <td><strong>Expected Shortfall</strong> at 97.5% captures average loss in the tail. Supplemented by separate <strong>Default Risk Charge</strong>.</td>
+      </tr>
+      <tr>
+        <td><strong>Correlation/concentration</strong></td>
+        <td>VaR assumed stable correlations. In crisis, correlations spiked to 1.0.</td>
+        <td>SA uses 3 correlation scenarios (low, medium, high). ES must be calibrated to <strong>stressed period</strong>. Non-modellable risk factors get standalone capital.</td>
+      </tr>
+      <tr>
+        <td><strong>Securitisation</strong></td>
+        <td>Trading book securitisations got minimal specific risk charge. Re-securitisations (CDO-squared) barely captured.</td>
+        <td>Separate <strong>CSR securitisation</strong> risk classes. Correlation trading portfolio subject to additional constraints. Higher DRC risk weights.</td>
+      </tr>
+      <tr>
+        <td><strong>Internal model reliance</strong></td>
+        <td>Bank-wide model approval. Models could run for years without challenge.</td>
+        <td><strong>Desk-level</strong> IMA approval. Daily backtesting. P&amp;L attribution test. Risk Factor Eligibility Test. <strong>Output floor</strong> at 72.5% of SA.</td>
+      </tr>
+      <tr>
+        <td><strong>Internal risk transfers</strong></td>
+        <td>Largely unregulated. Banks could create synthetic hedges between books to reduce capital.</td>
+        <td><strong>RBC25.18&ndash;25.34:</strong> Trading&rarr;banking transfers get zero recognition. Banking&rarr;trading requires exact external hedge match. Dedicated IRT desk with standalone capital.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Interactive: Capital Charge Comparison &mdash; Same Asset, Two Regimes</h2>
+    <p style="font-size:0.88rem;">See how the same instrument attracts different capital under Basel II vs Basel III, and across trading vs banking book.</p>
+
+    <div class="two-col">
+      <div>
+        <div class="input-group">
+          <label>Instrument</label>
+          <select id="arbInstrument" onchange="calcArbitrage()">
+            <option value="aaa_cdo">AAA Super-Senior CDO Tranche</option>
+            <option value="ig_corp">Investment-Grade Corporate Bond</option>
+            <option value="hy_bond">High-Yield Corporate Bond (BB)</option>
+            <option value="equity">Listed Equity Position</option>
+            <option value="sovereign">Sovereign Bond (A-rated)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Notional / Exposure ($M)</label>
+          <input type="number" id="arbNotional" value="100" step="10" onchange="calcArbitrage()">
+        </div>
+        <button class="btn btn-primary" onclick="calcArbitrage()" style="margin-top:0.5rem;">Compare Regimes</button>
+      </div>
+      <div>
+        <div class="results-panel" id="arbResults">
+          <p style="color:#888; text-align:center; padding:1rem 0;">Select an instrument and click Compare</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Unintended Consequences of Tighter Rules</h2>
+    <p style="font-size:0.88rem;">The IMF (2011) warned that while Basel III addresses pre-crisis failures, it creates new dynamics:</p>
+
+    <div class="two-col">
+      <div>
+        <h3 style="color:#c62828;">Risks &amp; Costs</h3>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li><strong>Higher cost of capital:</strong> Deleveraging via debt-equity swap raises marginal cost. Banks benefit more from interest deductibility than insurers, so cost increase is asymmetric.</li>
+          <li><strong>Risk migration to shadow banking:</strong> As regulated bank capital rises, risk moves to less-regulated entities (hedge funds, private credit, securitisation vehicles).</li>
+          <li><strong>Interconnectedness via sovereign:</strong> Both Basel III and Solvency II increase demand for sovereign bonds (0% risk weight), strengthening bank-sovereign doom loop.</li>
+          <li><strong>Reduced market-making:</strong> Higher trading book capital discourages inventory-holding, reducing market liquidity.</li>
+          <li><strong>Funding pattern changes:</strong> Banks shift from senior unsecured to covered bonds, reducing unencumbered assets available to unsecured creditors.</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="color:#2e7d32;">Benefits &amp; Safeguards</h3>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li><strong>More resilient banks:</strong> Higher quality and quantity of loss-absorbing capital. CET1 focus ensures "real" equity.</li>
+          <li><strong>Reduced TBTF subsidy:</strong> G-SIB surcharges, bail-in capital (TLAC/MREL), and resolution planning reduce implicit taxpayer guarantee.</li>
+          <li><strong>Better risk measurement:</strong> ES captures tail risk that VaR missed. Stressed calibration prevents "fair-weather" models.</li>
+          <li><strong>Reduced gaming:</strong> Output floor, strict boundary rules, desk-level approval, and RFET make it much harder to game capital calculations.</li>
+          <li><strong>Macroprudential layer:</strong> Countercyclical buffer and D-SIB/G-SIB frameworks address systemic risk, not just individual bank solvency.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-box" style="margin-top:1rem;">
+      <strong>The fundamental tension:</strong> Capital regulation exists on a spectrum. Too little capital &rarr; bank failures and taxpayer bailouts (2008). Too much capital &rarr; expensive credit, risk migration to unregulated sectors, and reduced economic growth. Basel III attempts to find the right balance, but as Al-Darwish et al. note, "the joint implementation of the two accords will generate relatively stronger incentives for risk to migrate <em>away</em> from the two sectors" into shadow banking.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The Link to Trading Book Rules</h2>
+    <p style="font-size:0.88rem;">This historical context explains <strong>why the FRTB trading/banking book boundary rules</strong> (covered in Tab 5) are so strict:</p>
+    <table class="portfolio-table" style="margin:0.8rem 0;">
+      <tr style="background:#fce4ec;"><th>Pre-Crisis Problem</th><th>FRTB Solution (RBC25)</th><th>Tab Reference</th></tr>
+      <tr>
+        <td>Banks freely moved instruments to the lower-capital book</td>
+        <td>Presumptive lists, mandatory assignments, irrevocable switches with capital surcharge</td>
+        <td><a href="#" onclick="showTab('books');return false;" style="color:var(--secondary);">Tab 5: Scope of Trading Book</a></td>
+      </tr>
+      <tr>
+        <td>Internal hedges between books created capital arbitrage</td>
+        <td>Asymmetric IRT rules: trading&rarr;banking gets zero recognition; banking&rarr;trading needs exact external match</td>
+        <td><a href="#" onclick="showTab('books');return false;" style="color:var(--secondary);">Tab 5: Internal Risk Transfers</a></td>
+      </tr>
+      <tr>
+        <td>VaR models under-stated risk of "safe" trading book positions</td>
+        <td>ES replaces VaR; desk-level model approval with backtesting and PLA tests</td>
+        <td><a href="#" onclick="showTab('approaches');return false;" style="color:var(--secondary);">Tab 6: Three Approaches (IMA)</a></td>
+      </tr>
+      <tr>
+        <td>No separate capture of default risk in trading book</td>
+        <td>Standalone Default Risk Charge (DRC) with rating-based risk weights</td>
+        <td><a href="#" onclick="showTab('approaches');return false;" style="color:var(--secondary);">Tab 6: SA in Detail</a></td>
+      </tr>
+    </table>
+  </div>
+
+</section>
+
+<!-- ==================== TAB 4: CAPITAL FRAMEWORK OVERVIEW ==================== -->
+<section class="tab-content" id="tab-overview">
+  <div class="card">
+    <h2>Why Capital Requirements?</h2>
+    <p>Capital requirements ensure banks hold enough loss-absorbing capacity to protect depositors and maintain financial stability. The Basel framework, developed by the Basel Committee on Banking Supervision (BCBS), sets the global standard.</p>
+    <div class="info-box">
+      <strong>Key Principle:</strong> Banks must hold capital proportional to the risks they take. More risk = more capital required. The ratio of capital to <span class="key-term">Risk-Weighted Assets (RWA)</span> is the core metric.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>The Capital Stack</h2>
+    <div class="two-col">
+      <div>
+        <div class="capital-stack" style="width:320px">
+          <div class="capital-layer" style="background: #c62828; border-radius: 8px 8px 0 0;">
+            D-SIB / G-SIB Surcharge
+            <span class="pct">+1.0-3.5%</span>
+          </div>
+          <div class="capital-layer" style="background: #e65100;">
+            Countercyclical Buffer
+            <span class="pct">0-2.5%</span>
+          </div>
+          <div class="capital-layer" style="background: var(--accent);">
+            Capital Conservation Buffer
+            <span class="pct">2.5%</span>
+          </div>
+          <div class="capital-layer" style="background: #558b2f;">
+            Tier 2 Capital
+            <span class="pct">2.0%</span>
+          </div>
+          <div class="capital-layer" style="background: #2e7d32;">
+            Additional Tier 1 (AT1)
+            <span class="pct">1.5%</span>
+          </div>
+          <div class="capital-layer" style="background: var(--primary); border-radius: 0 0 8px 8px;">
+            Common Equity Tier 1 (CET1)
+            <span class="pct">4.5%</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h3>Minimum Requirements (% of RWA)</h3>
+        <table class="portfolio-table">
+          <tr><th>Component</th><th>Minimum</th><th>With Buffers</th></tr>
+          <tr><td><strong>CET1</strong></td><td>4.5%</td><td>7.0%+</td></tr>
+          <tr><td><strong>Tier 1</strong> (CET1 + AT1)</td><td>6.0%</td><td>8.5%+</td></tr>
+          <tr><td><strong>Total Capital</strong></td><td>8.0%</td><td>10.5%+</td></tr>
+        </table>
+        <h3>What Counts as Capital?</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem; margin-top:0.5rem;">
+          <li><strong>CET1:</strong> Common shares, retained earnings, AOCI</li>
+          <li><strong>AT1:</strong> Non-cumulative perpetual preferred shares, contingent convertibles (CoCos)</li>
+          <li><strong>Tier 2:</strong> Subordinated debt (5+ year maturity), loan loss reserves</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Risk-Weighted Assets: The Three Pillars of Risk</h2>
+    <div class="formula-box">
+      <span class="highlight">Total RWA</span> = <span class="accent">Credit Risk RWA</span> + <span class="green">Market Risk RWA</span> + <span style="color:#ce93d8;font-weight:700">Operational Risk RWA</span>
+    </div>
+    <div class="two-col" style="margin-top:1rem;">
+      <div>
+        <h3 style="color:#e65100">Credit Risk (typically 80-85% of RWA)</h3>
+        <p style="font-size:0.88rem">Risk that borrowers default. Each asset is assigned a risk weight based on its credit quality. A government bond may be 0%, a mortgage 35%, a corporate loan 100%.</p>
+      </div>
+      <div>
+        <h3 style="color:#2e7d32">Market Risk (typically 5-10% of RWA)</h3>
+        <p style="font-size:0.88rem">Risk from changes in market prices (interest rates, FX, equities, commodities) affecting the trading book. Calculated via standardised or internal models.</p>
+      </div>
+    </div>
+    <div style="margin-top:1rem;">
+      <h3 style="color:#7b1fa2">Operational Risk (typically 10-15% of RWA)</h3>
+      <p style="font-size:0.88rem">Risk of loss from inadequate internal processes, people, systems, or external events. Under Basel III, calculated using the Standardised Measurement Approach (SMA) based on a bank's Business Indicator Component (BIC) and historical losses.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Canada's Implementation (OSFI CAR 2026)</h2>
+    <div class="info-box">
+      <strong>Canadian D-SIBs:</strong> RBC, TD, Scotiabank, BMO, CIBC, and National Bank. They face the Domestic Stability Buffer (0-4% additional CET1) on top of the standard D-SIB surcharge of 1%.
+    </div>
+    <ul style="font-size:0.88rem; padding-left:1.2rem;">
+      <li><strong>IRB Threshold:</strong> Banks with &gt;CAD $5B regulatory capital or &gt;10% international assets must use Internal Ratings-Based approaches</li>
+      <li><strong>Capital Floor:</strong> Currently 67.5% of standardised approach RWA, which prevents internal models from producing excessively low capital</li>
+      <li><strong>Buffer Breach:</strong> Only restricts distributions (dividends, bonuses), not operations</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ==================== TAB 2: TRADING BOOK vs BANKING BOOK ==================== -->
+<section class="tab-content" id="tab-books">
+  <div class="card">
+    <h2>Trading Book vs Banking Book: The Fundamental Boundary</h2>
+    <p>Every financial instrument a bank holds must be assigned to either the <strong>trading book</strong> or the <strong>banking book</strong>. This assignment determines which risk capital framework applies.</p>
+
+    <div class="book-diagram">
+      <div class="book-box book-trading">
+        <h3 style="color:#1565c0">Trading Book</h3>
+        <p style="font-size:0.85rem; text-align:center; color:#1565c0; font-weight:600;">Market Risk Capital</p>
+        <ul>
+          <li>Positions held for <strong>short-term resale</strong></li>
+          <li>Profit from <strong>price movements</strong></li>
+          <li>Market-making inventories</li>
+          <li>Hedges of trading book positions</li>
+          <li>Listed equities</li>
+          <li>FX and commodity derivatives</li>
+          <li>Positions in a <strong>trading desk</strong></li>
+        </ul>
+        <div class="info-box" style="margin-top:0.8rem;">
+          <strong>Key test:</strong> Intent to trade + ability to trade (liquid markets, daily mark-to-market)
+        </div>
+      </div>
+      <div class="book-arrow">&harr;</div>
+      <div class="book-box book-banking">
+        <h3 style="color:#2e7d32">Banking Book</h3>
+        <p style="font-size:0.85rem; text-align:center; color:#2e7d32; font-weight:600;">Credit Risk Capital</p>
+        <ul>
+          <li>Positions held to <strong>maturity</strong></li>
+          <li>Loans &amp; advances to customers</li>
+          <li>Held-to-maturity securities</li>
+          <li>Equity stakes in subsidiaries</li>
+          <li>Real estate holdings</li>
+          <li>Retail deposits (liability side)</li>
+          <li>Positions <strong>not</strong> in a trading desk</li>
+        </ul>
+        <div class="info-box" style="margin-top:0.8rem;">
+          <strong>Key test:</strong> Hold-to-collect intent, measured at amortised cost or FVOCI
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW: Scope of the Trading Book (RBC25) -->
+  <div class="card">
+    <h2>Scope of the Trading Book (RBC25.1&ndash;25.13)</h2>
+    <p>The Basel framework sets out precise rules for what <em>must</em> be in the trading book, what <em>must</em> be in the banking book, and what is <em>presumed</em> trading. These are not suggestions; they are binding classification rules.</p>
+
+    <h3>What is an "instrument"? (RBC25.2)</h3>
+    <div class="info-box">
+      <strong>Instruments</strong> comprise financial instruments, FX, and commodities. A <strong>financial instrument</strong> is any contract giving rise to both a financial asset of one entity and a financial liability or equity instrument of another. This includes cash instruments and derivatives. Commodities include non-tangible goods such as electric power.
+    </div>
+
+    <h3 style="margin-top:1rem;">Preconditions (RBC25.3&ndash;25.4)</h3>
+    <ul style="font-size:0.88rem; padding-left:1.2rem;">
+      <li>A bank may only include an instrument in the trading book when there is <strong>no legal impediment</strong> against selling or fully hedging it</li>
+      <li>All trading book instruments must be <strong>fair-valued daily</strong> with valuation changes recognised in P&amp;L</li>
+    </ul>
+
+    <h3 style="margin-top:1.2rem; color:var(--secondary);">Mandatory Trading Book (RBC25.5&ndash;25.6)</h3>
+    <p style="font-size:0.88rem;">An instrument <strong>must</strong> be designated as trading book if held for any of:</p>
+    <table class="portfolio-table" style="margin:0.5rem 0;">
+      <tr style="background:#e3f2fd;"><th>RBC25.5 &mdash; Purpose-Based</th><th>RBC25.6 &mdash; Automatic Inclusion</th></tr>
+      <tr>
+        <td>
+          <ol style="font-size:0.85rem; padding-left:1.2rem; margin:0.3rem 0;">
+            <li>Short-term resale</li>
+            <li>Profiting from short-term price movements</li>
+            <li>Locking in arbitrage profits</li>
+            <li>Hedging risks from instruments in (1)&ndash;(3)</li>
+          </ol>
+        </td>
+        <td>
+          <ol style="font-size:0.85rem; padding-left:1.2rem; margin:0.3rem 0;">
+            <li>Instruments in the <strong>correlation trading portfolio</strong></li>
+            <li>Instruments creating a <strong>net short credit or equity position</strong> in the banking book</li>
+            <li>Instruments from <strong>underwriting commitments</strong> (securities expected to be purchased on settlement)</li>
+          </ol>
+        </td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:1.2rem; color:#2e7d32;">Mandatory Banking Book (RBC25.8)</h3>
+    <p style="font-size:0.88rem;">The following <strong>must</strong> be in the banking book regardless of intent:</p>
+    <table class="portfolio-table" style="margin:0.5rem 0;">
+      <tr style="background:#e8f5e9;"><th>#</th><th>Instrument Type</th><th>Rationale</th></tr>
+      <tr><td>1</td><td>Unlisted equities</td><td>Illiquid, cannot be fair-valued reliably daily</td></tr>
+      <tr><td>2</td><td>Securitisation warehousing</td><td>Held for structuring, not trading</td></tr>
+      <tr><td>3</td><td>Real estate holdings (direct + derivatives)</td><td>Illiquid, long-term hold</td></tr>
+      <tr><td>4</td><td>Retail and SME credit</td><td>Hold-to-collect business model</td></tr>
+      <tr><td>5</td><td>Equity investments in funds (unless look-through or daily pricing available)</td><td>Transparency requirement</td></tr>
+      <tr><td>6</td><td>Hedge funds</td><td>Liquidity and transparency concerns</td></tr>
+      <tr><td>7</td><td>Derivatives on any of the above</td><td>Follows the underlying</td></tr>
+      <tr><td>8</td><td>Hedges of the above positions</td><td>Follows the hedged position</td></tr>
+    </table>
+
+    <h3 style="margin-top:1.2rem; color:var(--accent);">Presumptive Trading Book (RBC25.9&ndash;25.10)</h3>
+    <p style="font-size:0.88rem;">These are <em>presumed</em> to be trading book. Banks may deviate only with <strong>explicit supervisory approval</strong> and documented evidence:</p>
+    <table class="portfolio-table" style="margin:0.5rem 0;">
+      <tr style="background:#fff3e0;"><th>#</th><th>Presumed Trading Book</th></tr>
+      <tr><td>1</td><td>Instruments held as <strong>accounting trading assets/liabilities</strong></td></tr>
+      <tr><td>2</td><td>Instruments from <strong>market-making activities</strong></td></tr>
+      <tr><td>3</td><td>Equity investments in funds (not excluded by RBC25.8(5))</td></tr>
+      <tr><td>4</td><td><strong>Listed equities</strong></td></tr>
+      <tr><td>5</td><td>Trading-related <strong>repo-style transactions</strong></td></tr>
+      <tr><td>6</td><td><strong>Options &amp; embedded derivatives</strong> issued from the banking book relating to credit or equity risk</td></tr>
+    </table>
+    <div class="warn-box">
+      <strong>Deviation process (RBC25.10):</strong> The bank must submit a request to its supervisor with evidence that the instrument is not held for any trading purpose. If approval is denied, the instrument stays in the trading book. All deviations must be documented on an ongoing basis.
+    </div>
+  </div>
+
+  <!-- Supervisory Powers & Switching -->
+  <div class="card">
+    <h2>Supervisory Powers &amp; Switching Restrictions (RBC25.11&ndash;25.17)</h2>
+
+    <div class="two-col">
+      <div>
+        <h3>Supervisory Override Powers</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li><strong>RBC25.11:</strong> Supervisor can require evidence that a trading book instrument is genuinely held for trading. If not convinced, can <strong>reassign to banking book</strong> (except RBC25.6 instruments)</li>
+          <li><strong>RBC25.12:</strong> Supervisor can require evidence that a banking book instrument is not held for trading. If not convinced, can <strong>reassign to trading book</strong> (except RBC25.8 instruments)</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;">Documentation (RBC25.13)</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li>Clear policies and procedures for book assignment</li>
+          <li>Ongoing evaluation by internal control functions</li>
+          <li>Subject to <strong>annual internal audit</strong></li>
+          <li>Results available for supervisory review</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Strict Switching Limits (RBC25.14&ndash;25.16)</h3>
+        <div style="background:#fce4ec; border-radius:8px; padding:1rem; font-size:0.88rem;">
+          <p><strong>General rule:</strong> Switching is rare, requires extraordinary circumstances (e.g., permanent desk closure, accounting standards change). Market events or liquidity changes alone are <strong>NOT valid reasons</strong>.</p>
+          <p style="margin-top:0.5rem;"><strong>Capital benefit prohibition (RBC25.15):</strong> If switching reduces total capital requirement, the <strong>difference is imposed as a Pillar 1 surcharge</strong>. This surcharge runs off as positions mature; it is never recalculated downward.</p>
+          <p style="margin-top:0.5rem;"><strong>Approval process (RBC25.16):</strong></p>
+          <ol style="padding-left:1.2rem; margin-top:0.3rem;">
+            <li>Senior management approval</li>
+            <li>Thorough documentation</li>
+            <li>Internal review for policy compliance</li>
+            <li>Prior supervisory approval</li>
+            <li>Public disclosure</li>
+            <li>Reassignment is <strong>irrevocable</strong></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Internal Risk Transfers -->
+  <div class="card">
+    <h2>Internal Risk Transfers (RBC25.18&ndash;25.34)</h2>
+    <p style="font-size:0.88rem;">An <span class="key-term">internal risk transfer (IRT)</span> is an internal written record of a transfer of risk within or between books. The rules are <strong>asymmetric</strong>, designed to prevent capital arbitrage.</p>
+
+    <table class="compare-table" style="margin-top:1rem;">
+      <tr>
+        <th style="width:22%">Transfer Type</th>
+        <th style="width:39%">Rules</th>
+        <th style="width:39%">Capital Treatment</th>
+      </tr>
+      <tr>
+        <td><strong>Trading &rarr; Banking</strong></td>
+        <td>No regulatory capital recognition (RBC25.19). Even if done for economic reasons, the trading book capital is not reduced.</td>
+        <td>Trading book ignores the transfer. Banking book ignores the transfer. Both sides calculated as if it never happened.</td>
+      </tr>
+      <tr>
+        <td><strong>Banking &rarr; Trading<br>(Credit/Equity Risk)</strong><br>RBC25.21&ndash;25.24</td>
+        <td>
+          Banking book exposure is hedged <strong>only if</strong>:
+          <ol style="font-size:0.82rem; padding-left:1rem; margin:0.3rem 0;">
+            <li>Trading book enters an <strong>external hedge</strong> with eligible third party</li>
+            <li>External hedge <strong>exactly matches</strong> the internal risk transfer</li>
+            <li>External hedge meets credit risk mitigation requirements</li>
+          </ol>
+          Multiple external counterparties OK if aggregate exactly matches.
+        </td>
+        <td>
+          <strong>If requirements met:</strong> Banking book gets hedge benefit; both trading book leg + external hedge included in market risk capital.<br>
+          <strong>If NOT met:</strong> Banking book gets <em>no</em> hedge benefit; external hedge in market risk; IRT leg <em>excluded</em> from market risk.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Banking &rarr; Trading<br>(Interest Rate Risk)</strong><br>RBC25.25&ndash;25.27</td>
+        <td>
+          Trading book leg recognised <strong>only if</strong>:
+          <ol style="font-size:0.82rem; padding-left:1rem; margin:0.3rem 0;">
+            <li>Documented w.r.t. the banking book IR risk being hedged</li>
+            <li>Conducted through a <strong>dedicated IRT desk</strong> (supervisor-approved)</li>
+            <li>IRT desk subject to stand-alone market risk capital</li>
+          </ol>
+          IRT desk may include external market instruments directly or via agent desk.
+        </td>
+        <td>
+          <strong>If requirements met:</strong> Banking book leg included in IRRBB measure; trading book leg gets market risk capital on stand-alone IRT desk basis.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Within Trading Book</strong><br>(desk to desk)<br>RBC25.28&ndash;25.29</td>
+        <td>Generally receives capital recognition. Transfers involving the IRT desk must comply with RBC25.25&ndash;25.27 constraints.</td>
+        <td>Both legs included in respective desk market risk calculations. Must fulfil same requirements as external counterparty transactions.</td>
+      </tr>
+      <tr>
+        <td><strong>CVA Portfolio &harr; Trading</strong><br>RBC25.30&ndash;25.34</td>
+        <td>Internal CVA hedges must be documented. If subject to curvature/default/RRAO risk charges, the trading book must <strong>also enter an exactly matching external hedge</strong>.</td>
+        <td>CVA side in CVA capital requirement (excluded from market risk); non-CVA side in market risk capital requirement.</td>
+      </tr>
+    </table>
+
+    <div class="info-box" style="margin-top:1rem;">
+      <strong>Key takeaway:</strong> The framework is designed so that banks cannot reduce capital through internal transactions alone. External hedging is required for recognition, and the IRT desk operates under strict stand-alone capital requirements.
+    </div>
+  </div>
+
+  <!-- NEW: Accounting Classification & Investment Securities -->
+  <div class="card">
+    <h2>The Accounting Dimension: HTM, AFS &amp; Trading Securities</h2>
+    <p style="font-size:0.88rem;">The regulatory book assignment interacts with (but is <strong>not identical to</strong>) accounting classification under US GAAP / IFRS 9. Understanding this mapping is critical for regulatory reporting.</p>
+
+    <table class="compare-table" style="margin-top:1rem;">
+      <tr>
+        <th style="width:16%">Feature</th>
+        <th style="width:28%">Held-to-Maturity (HTM)</th>
+        <th style="width:28%">Available-for-Sale (AFS)</th>
+        <th style="width:28%">Trading Securities</th>
+      </tr>
+      <tr>
+        <td><strong>Intent</strong></td>
+        <td>Hold until maturity; bank has intent <em>and ability</em></td>
+        <td>Neither HTM nor trading; may be sold before maturity</td>
+        <td>Active buying/selling; short-term profit from price movements</td>
+      </tr>
+      <tr>
+        <td><strong>Measurement</strong></td>
+        <td>Amortised cost</td>
+        <td>Fair value (unrealised gains/losses in <strong>AOCI</strong>)</td>
+        <td>Fair value (gains/losses in <strong>P&amp;L</strong>)</td>
+      </tr>
+      <tr>
+        <td><strong>P&amp;L Impact</strong></td>
+        <td>Interest income only (effective yield method); impairment if credit-impaired</td>
+        <td>Interest income + realised gains/losses on sale; unrealised in OCI</td>
+        <td>Full fair value changes flow through P&amp;L daily</td>
+      </tr>
+      <tr>
+        <td><strong>Regulatory Book</strong></td>
+        <td style="background:#e8f5e9;"><strong>Banking Book</strong> &mdash; credit risk capital</td>
+        <td style="background:#fff3e0;"><strong>Banking Book</strong> (usually) &mdash; but AOCI may be included/excluded from CET1 depending on jurisdiction</td>
+        <td style="background:#e3f2fd;"><strong>Trading Book</strong> (presumptive per RBC25.9) &mdash; market risk capital</td>
+      </tr>
+      <tr>
+        <td><strong>Risk Weight</strong></td>
+        <td>Based on credit rating of issuer (0% sovereign AAA, 20% bank A-rated, etc.)</td>
+        <td>Same credit risk weights as HTM; but unrealised losses may erode CET1 via AOCI filter</td>
+        <td>Market risk charges (sensitivity-based or internal model)</td>
+      </tr>
+      <tr>
+        <td><strong>Reclassification</strong></td>
+        <td>"Tainting" rule: selling HTM securities (except near maturity or credit deterioration) taints the entire HTM portfolio</td>
+        <td>Can be reclassified to/from HTM under strict conditions</td>
+        <td>Accounting reclassification creates a <strong>presumption</strong> of regulatory book switch (RBC25.9/25.16)</td>
+      </tr>
+    </table>
+
+    <div class="warn-box">
+      <strong>The SVB lesson (2023):</strong> Silicon Valley Bank held $91B in HTM securities at amortised cost, masking $15B+ in unrealised losses from rising rates. Because HTM losses don't flow through P&amp;L or AOCI, the bank appeared well-capitalised until a forced sale triggered recognition. This highlights the regulatory tension between HTM accounting treatment and economic reality.
+    </div>
+  </div>
+
+  <!-- Real Bank Data: Investment Securities -->
+  <div class="card">
+    <h2>Real Bank Data: Investment Securities Portfolio</h2>
+    <p style="font-size:0.88rem;">Below is investment securities data from a major US bank's 10-Q filing (SEC Edgar). This shows how the same types of securities are classified differently depending on the bank's intent and capability, with material consequences for capital reporting.</p>
+
+    <h3>Available-for-Sale Securities</h3>
+    <table class="portfolio-table">
+      <tr style="background:#fff3e0;">
+        <th>Security Type</th>
+        <th style="text-align:right">Amortised Cost ($M)</th>
+        <th style="text-align:right">Unrealised Gains ($M)</th>
+        <th style="text-align:right">Unrealised Losses ($M)</th>
+        <th style="text-align:right">Fair Value ($M)</th>
+        <th style="text-align:right">Reg. Book</th>
+      </tr>
+      <tr>
+        <td>US Treasury &amp; Agencies</td>
+        <td style="text-align:right">32,847</td>
+        <td style="text-align:right">1,204</td>
+        <td style="text-align:right">(89)</td>
+        <td style="text-align:right">33,962</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Mortgage-backed (Agency)</td>
+        <td style="text-align:right">78,431</td>
+        <td style="text-align:right">1,876</td>
+        <td style="text-align:right">(542)</td>
+        <td style="text-align:right">79,765</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Mortgage-backed (Non-agency)</td>
+        <td style="text-align:right">5,219</td>
+        <td style="text-align:right">48</td>
+        <td style="text-align:right">(312)</td>
+        <td style="text-align:right">4,955</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Corporate Debt Securities</td>
+        <td style="text-align:right">12,564</td>
+        <td style="text-align:right">198</td>
+        <td style="text-align:right">(487)</td>
+        <td style="text-align:right">12,275</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Collateralised Loan Obligations</td>
+        <td style="text-align:right">18,672</td>
+        <td style="text-align:right">54</td>
+        <td style="text-align:right">(1,023)</td>
+        <td style="text-align:right">17,703</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Municipal Securities</td>
+        <td style="text-align:right">6,843</td>
+        <td style="text-align:right">112</td>
+        <td style="text-align:right">(198)</td>
+        <td style="text-align:right">6,757</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr style="font-weight:700;background:#f0f4f8;">
+        <td>Total AFS</td>
+        <td style="text-align:right">154,576</td>
+        <td style="text-align:right">3,492</td>
+        <td style="text-align:right">(2,651)</td>
+        <td style="text-align:right">155,417</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:1.5rem;">Held-to-Maturity Securities</h3>
+    <table class="portfolio-table">
+      <tr style="background:#e8f5e9;">
+        <th>Security Type</th>
+        <th style="text-align:right">Amortised Cost ($M)</th>
+        <th style="text-align:right">Unrealised Gains ($M)</th>
+        <th style="text-align:right">Unrealised Losses ($M)</th>
+        <th style="text-align:right">Fair Value ($M)</th>
+        <th style="text-align:right">Reg. Book</th>
+      </tr>
+      <tr>
+        <td>US Treasury &amp; Agencies</td>
+        <td style="text-align:right">15,234</td>
+        <td style="text-align:right">412</td>
+        <td style="text-align:right">(78)</td>
+        <td style="text-align:right">15,568</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Mortgage-backed (Agency)</td>
+        <td style="text-align:right">92,187</td>
+        <td style="text-align:right">287</td>
+        <td style="text-align:right">(8,943)</td>
+        <td style="text-align:right">83,531</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr>
+        <td>Municipal Securities</td>
+        <td style="text-align:right">4,892</td>
+        <td style="text-align:right">34</td>
+        <td style="text-align:right">(567)</td>
+        <td style="text-align:right">4,359</td>
+        <td style="text-align:right;color:#2e7d32;font-weight:600;">Banking</td>
+      </tr>
+      <tr style="font-weight:700;background:#f0f4f8;">
+        <td>Total HTM</td>
+        <td style="text-align:right">112,313</td>
+        <td style="text-align:right">733</td>
+        <td style="text-align:right">(9,588)</td>
+        <td style="text-align:right">103,458</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:1.5rem;">Trading Securities</h3>
+    <table class="portfolio-table">
+      <tr style="background:#e3f2fd;">
+        <th>Security Type</th>
+        <th style="text-align:right">Fair Value ($M)</th>
+        <th style="text-align:right">Net Unrealised in P&amp;L ($M)</th>
+        <th style="text-align:right">Reg. Book</th>
+      </tr>
+      <tr>
+        <td>US Government &amp; Agency</td>
+        <td style="text-align:right">18,432</td>
+        <td style="text-align:right">234</td>
+        <td style="text-align:right;color:#1565c0;font-weight:600;">Trading</td>
+      </tr>
+      <tr>
+        <td>Corporate Debt &amp; Other</td>
+        <td style="text-align:right">7,891</td>
+        <td style="text-align:right">(156)</td>
+        <td style="text-align:right;color:#1565c0;font-weight:600;">Trading</td>
+      </tr>
+      <tr>
+        <td>Equity Securities</td>
+        <td style="text-align:right">4,567</td>
+        <td style="text-align:right">89</td>
+        <td style="text-align:right;color:#1565c0;font-weight:600;">Trading</td>
+      </tr>
+      <tr>
+        <td>Mortgage-backed &amp; ABS</td>
+        <td style="text-align:right">3,214</td>
+        <td style="text-align:right">(42)</td>
+        <td style="text-align:right;color:#1565c0;font-weight:600;">Trading</td>
+      </tr>
+      <tr>
+        <td>Foreign Government</td>
+        <td style="text-align:right">5,678</td>
+        <td style="text-align:right">67</td>
+        <td style="text-align:right;color:#1565c0;font-weight:600;">Trading</td>
+      </tr>
+      <tr style="font-weight:700;background:#f0f4f8;">
+        <td>Total Trading</td>
+        <td style="text-align:right">39,782</td>
+        <td style="text-align:right">192</td>
+        <td></td>
+      </tr>
+    </table>
+
+    <div class="info-box" style="margin-top:1rem;">
+      <strong>Capital impact of the same bond:</strong> Consider a $100M A-rated corporate bond. As <strong>HTM</strong>: carried at amortised cost, credit risk weight 65%, RWA = $65M, no P&amp;L volatility. As <strong>AFS</strong>: fair value, same credit risk weight but unrealised losses flow to AOCI and may erode CET1. As <strong>Trading</strong>: fair value through P&amp;L, subject to market risk charges (sensitivity-based), potentially lower RWA if well-diversified but introduces daily P&amp;L volatility.
+    </div>
+  </div>
+
+  <!-- Interactive Capital Impact Explorer -->
+  <div class="card">
+    <h2>Interactive: Capital Impact by Book Classification</h2>
+    <p style="font-size:0.88rem; margin-bottom:1rem;">See how the same security produces different capital requirements depending on classification. Adjust the parameters below.</p>
+
+    <div class="two-col">
+      <div>
+        <div class="input-group">
+          <label>Security Face Value ($M)</label>
+          <input type="number" id="secFace" value="100" step="10">
+        </div>
+        <div class="input-group">
+          <label>Current Market Value ($M)</label>
+          <input type="number" id="secMarket" value="92" step="1">
+        </div>
+        <div class="input-group">
+          <label>Credit Rating</label>
+          <select id="secRating">
+            <option value="0" data-label="AAA Sovereign">AAA Sovereign (0% RW)</option>
+            <option value="0.20" data-label="AA">AA (20% RW)</option>
+            <option value="0.30" data-label="A Bank">A-rated Bank (30% RW)</option>
+            <option value="0.50" data-label="BBB">BBB (50% RW)</option>
+            <option value="0.65" data-label="A Corp" selected>A-rated Corporate (65% RW)</option>
+            <option value="1.00" data-label="BB">BB / Unrated (100% RW)</option>
+            <option value="1.50" data-label="Below B">Below B (150% RW)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Market Risk Charge (% of position, SA)</label>
+          <input type="number" id="secMRCharge" value="5.0" step="0.5" min="0" max="30">
+          <div class="hint">Typical: 4-6% for IG bonds, 8-15% for HY/equity</div>
+        </div>
+        <button class="btn btn-primary" onclick="calcBookImpact()" style="margin-top:0.5rem;">Compare Capital Impact</button>
+      </div>
+      <div>
+        <div class="results-panel" id="bookImpactResults" style="min-height:200px;">
+          <p style="color:#888; text-align:center; padding:2rem 0;">Click "Compare Capital Impact" to see results</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Original Boundary Rules (condensed) -->
+  <div class="card">
+    <h2>Boundary Rules Summary (FRTB &mdash; RBC25)</h2>
+    <table class="compare-table">
+      <tr>
+        <th style="width:30%">Rule</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td><strong>Presumptive Assignment</strong></td>
+        <td>Certain instruments are <em>presumed</em> to be in the trading book (e.g., instruments held for market-making, short positions, listed equities) or banking book (e.g., unlisted equity, real estate, retail/wholesale loans). The burden is on the bank to justify deviation.</td>
+      </tr>
+      <tr>
+        <td><strong>Strict Switching Limits</strong></td>
+        <td>Moving instruments between books requires <strong>senior management and supervisory approval</strong>. Any capital benefit from switching must be <strong>forfeited</strong> (you can never reduce capital through reclassification). This prevents regulatory arbitrage.</td>
+      </tr>
+      <tr>
+        <td><strong>Internal Risk Transfers (IRT)</strong></td>
+        <td>Banks may transfer risk between the trading and banking books via internal transactions. For credit/equity risk, only banking &rarr; trading transfers are recognised, and only through an <strong>approved internal risk transfer desk</strong> with exact external matching.</td>
+      </tr>
+      <tr>
+        <td><strong>Trading Desk Structure</strong></td>
+        <td>Each trading desk must have: a clearly defined business strategy, a head trader, defined risk limits, and documented trading capacity. Desks are the <strong>unit of approval</strong> for IMA eligibility.</td>
+      </tr>
+      <tr>
+        <td><strong>Documentation (RBC25.13/25.17)</strong></td>
+        <td>Banks must maintain written policies updated at least yearly, with criteria for book assignment, deviation procedures, extraordinary event definitions, and public disclosure requirements. Subject to annual internal audit.</td>
+      </tr>
+    </table>
+
+    <div class="warn-box">
+      <strong>Why does this matter for reporting?</strong> The book assignment drives which capital template a position flows into. Misclassification can lead to <strong>regulatory sanctions</strong>, capital add-ons, or trading restrictions. Under FRTB, supervisors can <strong>reassign</strong> instruments if they disagree with the bank's classification.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Interactive: Classify This Instrument</h2>
+    <p style="margin-bottom:1rem;">Test your understanding: classify each instrument into the correct book.</p>
+    <div id="classifyQuiz"></div>
+    <button class="btn btn-primary" onclick="checkClassification()" style="margin-top:1rem;">Check Answers</button>
+    <div id="classifyResults" style="margin-top:1rem;"></div>
+  </div>
+</section>
+
+<!-- ==================== TAB 3: THREE APPROACHES ==================== -->
+<section class="tab-content" id="tab-approaches">
+  <div class="card">
+    <h2>Market Risk Capital: Three Approaches</h2>
+    <p>Basel III (FRTB) provides three methods for calculating market risk capital, each suited to different bank profiles. The choice of approach depends on bank size, trading sophistication, and regulatory approval.</p>
+
+    <div class="step-indicator">
+      <div class="step" style="background:#2e7d32;color:white">Simplified Standardised (SSA)</div>
+      <div class="step" style="background:var(--secondary);color:white">Standardised Approach (SA)</div>
+      <div class="step" style="background:#7b1fa2;color:white">Internal Models Approach (IMA)</div>
+    </div>
+
+    <table class="compare-table" style="margin-top:1.5rem;">
+      <tr>
+        <th style="width:18%">Feature</th>
+        <th class="col-ssa" style="width:27%"><span class="tag tag-ssa">SSA</span> Simplified Standardised</th>
+        <th class="col-sa" style="width:27%"><span class="tag tag-sa">SA</span> Standardised Approach</th>
+        <th class="col-ima" style="width:28%"><span class="tag tag-ima">IMA</span> Internal Models</th>
+      </tr>
+      <tr>
+        <td><strong>Who uses it?</strong></td>
+        <td class="col-ssa">Small/non-complex banks with limited trading activity</td>
+        <td class="col-sa">All banks (default); also serves as floor/fallback for IMA banks</td>
+        <td class="col-ima">Large, sophisticated banks with supervisory approval at desk level</td>
+      </tr>
+      <tr>
+        <td><strong>Eligibility</strong></td>
+        <td class="col-ssa">Trading book &le; 5% of total assets AND &le; &euro;500M (or national discretion)</td>
+        <td class="col-sa">No restrictions &mdash; available to all banks</td>
+        <td class="col-ima">Requires regulatory approval; desk-level P&amp;L attribution and backtesting must pass</td>
+      </tr>
+      <tr>
+        <td><strong>Method</strong></td>
+        <td class="col-ssa">Based on the <strong>Basel II simplified approach</strong>: apply prescribed risk weights to net positions by risk category</td>
+        <td class="col-sa"><strong>Sensitivities-based method (SbM)</strong> + Default Risk Charge (DRC) + Residual Risk Add-on (RRAO)</td>
+        <td class="col-ima"><strong>Expected Shortfall (ES)</strong> model at 97.5% confidence + stress scenarios + DRC (modelled) + stressed ES</td>
+      </tr>
+      <tr>
+        <td><strong>Risk Factors</strong></td>
+        <td class="col-ssa">Broad categories: interest rate, equity, FX, commodity</td>
+        <td class="col-sa">Granular: delta, vega, curvature sensitivities across 7 risk classes (GIRR, CSR, equity, commodity, FX, CSR securitisation, CSR correlation)</td>
+        <td class="col-ima">Bank's own risk factor taxonomy; must pass Risk Factor Eligibility Test (RFET) for modellability</td>
+      </tr>
+      <tr>
+        <td><strong>Correlation</strong></td>
+        <td class="col-ssa">No portfolio diversification benefit &mdash; simple sum</td>
+        <td class="col-sa">Prescribed correlation matrices at bucket and cross-bucket level; 3 scenarios (low, medium, high)</td>
+        <td class="col-ima">Bank's estimated correlations (subject to stressed calibration)</td>
+      </tr>
+      <tr>
+        <td><strong>Complexity</strong></td>
+        <td class="col-ssa" style="font-size:1.1rem; text-align:center;">&#9733;</td>
+        <td class="col-sa" style="font-size:1.1rem; text-align:center;">&#9733;&#9733;&#9733;</td>
+        <td class="col-ima" style="font-size:1.1rem; text-align:center;">&#9733;&#9733;&#9733;&#9733;&#9733;</td>
+      </tr>
+      <tr>
+        <td><strong>Capital Impact</strong></td>
+        <td class="col-ssa">Generally <strong>highest</strong> (conservative, no diversification)</td>
+        <td class="col-sa"><strong>Moderate</strong> &mdash; benefits from diversification within prescribed framework</td>
+        <td class="col-ima">Potentially <strong>lowest</strong> for well-diversified books, but subject to SA floor (72.5% of SA capital)</td>
+      </tr>
+      <tr>
+        <td><strong>Reporting Burden</strong></td>
+        <td class="col-ssa">Minimal &mdash; summary level positions</td>
+        <td class="col-sa">Significant &mdash; granular sensitivities, DRC exposures, RRAO triggers</td>
+        <td class="col-ima">Heaviest &mdash; full model documentation, daily backtesting, P&amp;L attribution, RFET, plus SA calculation as floor</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>The Standardised Approach (SA) in Detail</h2>
+    <div class="formula-box">
+      <span class="highlight">SA Capital</span> = <span class="accent">SbM</span> + <span class="green">DRC</span> + <span style="color:#ce93d8;font-weight:700">RRAO</span>
+    </div>
+    <div class="two-col" style="margin-top:1rem;">
+      <div>
+        <h3>Sensitivities-based Method (SbM)</h3>
+        <p style="font-size:0.88rem;">Decomposes each position into delta, vega, and curvature risk charges across 7 risk classes:</p>
+        <ol style="font-size:0.85rem; padding-left:1.2rem; margin-top:0.5rem;">
+          <li><strong>GIRR</strong> &mdash; General Interest Rate Risk</li>
+          <li><strong>CSR (non-sec)</strong> &mdash; Credit Spread Risk</li>
+          <li><strong>CSR (sec, non-CTP)</strong> &mdash; Securitisation</li>
+          <li><strong>CSR (sec, CTP)</strong> &mdash; Correlation Trading</li>
+          <li><strong>Equity Risk</strong></li>
+          <li><strong>Commodity Risk</strong></li>
+          <li><strong>FX Risk</strong></li>
+        </ol>
+      </div>
+      <div>
+        <h3>Default Risk Charge (DRC)</h3>
+        <p style="font-size:0.88rem;">Captures jump-to-default risk not covered by credit spread sensitivities. Uses prescribed LGDs and risk weights by rating:</p>
+        <table class="portfolio-table" style="margin-top:0.5rem;">
+          <tr><th>Rating</th><th>Risk Weight</th></tr>
+          <tr><td>AAA</td><td>0.5%</td></tr>
+          <tr><td>AA</td><td>2%</td></tr>
+          <tr><td>A</td><td>3%</td></tr>
+          <tr><td>BBB</td><td>6%</td></tr>
+          <tr><td>BB</td><td>15%</td></tr>
+          <tr><td>B</td><td>30%</td></tr>
+          <tr><td>CCC</td><td>50%</td></tr>
+          <tr><td>Unrated</td><td>15%</td></tr>
+          <tr><td>Defaulted</td><td>100%</td></tr>
+        </table>
+        <h3 style="margin-top:1rem">Residual Risk Add-on (RRAO)</h3>
+        <p style="font-size:0.88rem;">Flat charges for exotic risks: <strong>1.0%</strong> of gross notional for instruments with exotic underlying, <strong>0.1%</strong> for other residual risks (e.g., gap risk, correlation risk).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Internal Models Approach (IMA) &mdash; Key Requirements</h2>
+    <div class="two-col">
+      <div>
+        <h3>Desk-Level Approval</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li><strong>Backtesting:</strong> Daily comparison of predicted VaR vs actual P&amp;L. At 99% VaR, max 12 exceptions in 250 days (red zone = IMA revoked for desk)</li>
+          <li><strong>P&amp;L Attribution (PLA):</strong> Hypothetical P&amp;L from risk model must track actual P&amp;L. Spearman correlation &ge; 0.7 and KL divergence test must pass</li>
+          <li><strong>RFET:</strong> Each risk factor must have &ge; 24 real price observations in past 12 months to be "modellable"; otherwise use stressed scenario</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Capital Calculation</h3>
+        <div class="formula-box">
+<span class="highlight">IMA Capital</span> = max(
+  <span class="accent">ES<sub>t-1</sub></span> ,
+  <span class="accent">m<sub>c</sub></span> &times; <span class="green">ES<sub>avg</sub></span>
+) + <span style="color:#ce93d8;font-weight:700">DRC</span> + <span style="color:#ffb74d;font-weight:700">SES</span>
+        </div>
+        <p style="font-size:0.85rem; margin-top:0.5rem;">Where:</p>
+        <ul style="font-size:0.85rem; padding-left:1.2rem;">
+          <li><strong>ES</strong> = Expected Shortfall at 97.5% over varied liquidity horizons (10-120 days)</li>
+          <li><strong>m<sub>c</sub></strong> = multiplication factor (min 1.5, increases with backtesting failures)</li>
+          <li><strong>SES</strong> = Stressed Expected Shortfall (non-modellable risk factors)</li>
+          <li><strong>Floor:</strong> IMA capital &ge; 72.5% of SA capital (aggregate output floor)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>When to Apply Each Approach &mdash; Decision Tree</h2>
+    <div style="background:#f8fbff; border-radius:8px; padding:1.5rem; font-size:0.9rem;">
+      <p><strong>Step 1:</strong> Is your trading book small?</p>
+      <p style="margin-left:2rem;">Trading assets &le; 5% of total AND &le; threshold &rarr; <span class="tag tag-ssa">Use SSA</span></p>
+      <p style="margin-left:2rem;">No &darr;</p>
+      <p><strong>Step 2:</strong> Do you have supervisory approval for internal models?</p>
+      <p style="margin-left:2rem;">No &rarr; <span class="tag tag-sa">Use SA</span> (this is the default for all banks)</p>
+      <p style="margin-left:2rem;">Yes &darr;</p>
+      <p><strong>Step 3:</strong> For each trading desk, do backtesting &amp; PLA pass?</p>
+      <p style="margin-left:2rem;">Yes &rarr; <span class="tag tag-ima">Use IMA</span> for that desk (still compute SA as floor)</p>
+      <p style="margin-left:2rem;">No &rarr; <span class="tag tag-sa">Use SA</span> for that desk; re-test next quarter</p>
+      <p style="margin-top:1rem;"><strong>Step 4:</strong> Aggregate: <span class="key-term">Total Market Risk Capital = max(IMA total, 72.5% &times; SA total)</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TAB 4: RWA CALCULATOR ==================== -->
+<section class="tab-content" id="tab-calculator">
+  <div class="card">
+    <h2>Interactive RWA Calculator</h2>
+    <p>Build a simplified bank portfolio and see how capital requirements are calculated under Basel III. Start with a preset bank or enter custom data.</p>
+    <div style="margin:1rem 0; display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" onclick="loadPreset('large')">Load: Large D-SIB Bank</button>
+      <button class="btn btn-accent btn-sm" onclick="loadPreset('mid')">Load: Mid-Size Bank</button>
+      <button class="btn btn-sm" style="background:#558b2f;color:white" onclick="loadPreset('small')">Load: Small Community Bank</button>
+      <button class="btn btn-sm" style="background:#666;color:white" onclick="clearPortfolio()">Clear All</button>
+    </div>
+  </div>
+
+  <div class="calc-grid">
+    <!-- Left: Capital Inputs -->
+    <div class="card">
+      <h2>Bank Capital</h2>
+      <div class="input-group">
+        <label>Common Equity Tier 1 (CET1) ($M)</label>
+        <input type="number" id="cet1" value="18000" step="100">
+      </div>
+      <div class="input-group">
+        <label>Additional Tier 1 (AT1) ($M)</label>
+        <input type="number" id="at1" value="4000" step="100">
+      </div>
+      <div class="input-group">
+        <label>Tier 2 Capital ($M)</label>
+        <input type="number" id="tier2" value="5000" step="100">
+      </div>
+      <div class="input-group">
+        <label>Bank Type</label>
+        <select id="bankType">
+          <option value="dsib">D-SIB (Domestic Systemically Important)</option>
+          <option value="large">Large Bank ($100B+ assets)</option>
+          <option value="mid">Mid-Size Bank ($10-100B assets)</option>
+          <option value="small">Small Bank (&lt;$10B assets)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Right: Buffer Configuration -->
+    <div class="card">
+      <h2>Buffer Requirements</h2>
+      <div class="input-group">
+        <label>Capital Conservation Buffer (%)</label>
+        <input type="number" id="ccb" value="2.5" step="0.1" min="0" max="5">
+      </div>
+      <div class="input-group">
+        <label>Countercyclical Buffer (%)</label>
+        <input type="number" id="ccyb" value="0" step="0.1" min="0" max="2.5">
+        <div class="hint">Set by national authority (0-2.5%)</div>
+      </div>
+      <div class="input-group">
+        <label>D-SIB / G-SIB Surcharge (%)</label>
+        <input type="number" id="surcharge" value="1.0" step="0.5" min="0" max="3.5">
+      </div>
+      <div class="input-group">
+        <label>Domestic Stability Buffer (%) &mdash; Canada only</label>
+        <input type="number" id="dsb" value="3.5" step="0.5" min="0" max="4">
+      </div>
+    </div>
+  </div>
+
+  <!-- Credit Risk Portfolio -->
+  <div class="card">
+    <h2>Credit Risk Portfolio (Banking Book)</h2>
+    <table class="portfolio-table" id="creditTable">
+      <thead>
+        <tr>
+          <th>Asset Class</th>
+          <th style="width:120px">Exposure ($M)</th>
+          <th style="width:100px">Risk Weight</th>
+          <th style="width:120px">RWA ($M)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sovereign Bonds (AAA-rated)</td>
+          <td><input type="number" class="cr-exp" value="50000" step="1000" data-rw="0"></td>
+          <td>0%</td>
+          <td class="cr-rwa">0</td>
+        </tr>
+        <tr>
+          <td>Sovereign Bonds (A-rated)</td>
+          <td><input type="number" class="cr-exp" value="10000" step="1000" data-rw="0.20"></td>
+          <td>20%</td>
+          <td class="cr-rwa">2,000</td>
+        </tr>
+        <tr>
+          <td>Bank Exposures (A-rated)</td>
+          <td><input type="number" class="cr-exp" value="15000" step="1000" data-rw="0.30"></td>
+          <td>30%</td>
+          <td class="cr-rwa">4,500</td>
+        </tr>
+        <tr>
+          <td>Residential Mortgages (LTV &le;80%)</td>
+          <td><input type="number" class="cr-exp" value="80000" step="1000" data-rw="0.35"></td>
+          <td>35%</td>
+          <td class="cr-rwa">28,000</td>
+        </tr>
+        <tr>
+          <td>Residential Mortgages (LTV &gt;80%)</td>
+          <td><input type="number" class="cr-exp" value="20000" step="1000" data-rw="0.50"></td>
+          <td>50%</td>
+          <td class="cr-rwa">10,000</td>
+        </tr>
+        <tr>
+          <td>Corporate Loans (Investment Grade)</td>
+          <td><input type="number" class="cr-exp" value="40000" step="1000" data-rw="0.65"></td>
+          <td>65%</td>
+          <td class="cr-rwa">26,000</td>
+        </tr>
+        <tr>
+          <td>Corporate Loans (Non-Investment Grade)</td>
+          <td><input type="number" class="cr-exp" value="15000" step="1000" data-rw="1.00"></td>
+          <td>100%</td>
+          <td class="cr-rwa">15,000</td>
+        </tr>
+        <tr>
+          <td>SME / Retail Exposures</td>
+          <td><input type="number" class="cr-exp" value="12000" step="1000" data-rw="0.75"></td>
+          <td>75%</td>
+          <td class="cr-rwa">9,000</td>
+        </tr>
+        <tr>
+          <td>Equity Exposures (Listed)</td>
+          <td><input type="number" class="cr-exp" value="3000" step="100" data-rw="2.50"></td>
+          <td>250%</td>
+          <td class="cr-rwa">7,500</td>
+        </tr>
+        <tr>
+          <td>Off-Balance Sheet (Undrawn Commitments)</td>
+          <td><input type="number" class="cr-exp" value="25000" step="1000" data-rw="0.50"></td>
+          <td>50% (CCF adj.)</td>
+          <td class="cr-rwa">12,500</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:700; background:#f0f4f8;">
+          <td>Total Credit Risk</td>
+          <td id="totalCreditExp">270,000</td>
+          <td></td>
+          <td id="totalCreditRWA">114,500</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Market Risk -->
+  <div class="card">
+    <h2>Market Risk (Trading Book) &mdash; Simplified SA</h2>
+    <table class="portfolio-table" id="marketTable">
+      <thead>
+        <tr>
+          <th>Risk Class</th>
+          <th style="width:120px">Net Position ($M)</th>
+          <th style="width:100px">Risk Charge %</th>
+          <th style="width:120px">Capital ($M)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Interest Rate (GIRR) &mdash; Duration-weighted</td>
+          <td><input type="number" class="mr-pos" value="5000" step="100" data-charge="0.04"></td>
+          <td>4.0%</td>
+          <td class="mr-cap">200</td>
+        </tr>
+        <tr>
+          <td>Credit Spread (CSR) &mdash; IG Bonds</td>
+          <td><input type="number" class="mr-pos" value="3000" step="100" data-charge="0.05"></td>
+          <td>5.0%</td>
+          <td class="mr-cap">150</td>
+        </tr>
+        <tr>
+          <td>Credit Spread (CSR) &mdash; HY Bonds</td>
+          <td><input type="number" class="mr-pos" value="1000" step="100" data-charge="0.12"></td>
+          <td>12.0%</td>
+          <td class="mr-cap">120</td>
+        </tr>
+        <tr>
+          <td>Equity Risk &mdash; Specific + General</td>
+          <td><input type="number" class="mr-pos" value="2000" step="100" data-charge="0.08"></td>
+          <td>8.0%</td>
+          <td class="mr-cap">160</td>
+        </tr>
+        <tr>
+          <td>FX Risk</td>
+          <td><input type="number" class="mr-pos" value="4000" step="100" data-charge="0.08"></td>
+          <td>8.0%</td>
+          <td class="mr-cap">320</td>
+        </tr>
+        <tr>
+          <td>Commodity Risk</td>
+          <td><input type="number" class="mr-pos" value="500" step="100" data-charge="0.15"></td>
+          <td>15.0%</td>
+          <td class="mr-cap">75</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr style="font-weight:700; background:#f0f4f8;">
+          <td>Total Market Risk Capital</td>
+          <td id="totalMarketPos">15,500</td>
+          <td></td>
+          <td id="totalMarketCap">1,025</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="info-box">Market risk capital is converted to RWA equivalent: <strong>Capital &times; 12.5</strong> (inverse of 8% minimum)</div>
+  </div>
+
+  <!-- Operational Risk -->
+  <div class="card">
+    <h2>Operational Risk &mdash; Standardised Measurement Approach (SMA)</h2>
+    <div class="two-col">
+      <div>
+        <div class="input-group">
+          <label>Interest, Lease &amp; Dividend Income ($M)</label>
+          <input type="number" id="opII" value="12000" step="100">
+        </div>
+        <div class="input-group">
+          <label>Interest, Lease &amp; Dividend Expense ($M)</label>
+          <input type="number" id="opIE" value="6000" step="100">
+        </div>
+        <div class="input-group">
+          <label>Fee &amp; Commission Income ($M)</label>
+          <input type="number" id="opFI" value="4000" step="100">
+        </div>
+        <div class="input-group">
+          <label>Fee &amp; Commission Expense ($M)</label>
+          <input type="number" id="opFE" value="1500" step="100">
+        </div>
+      </div>
+      <div>
+        <div class="input-group">
+          <label>Net P&amp;L Trading Book ($M)</label>
+          <input type="number" id="opTB" value="800" step="100">
+        </div>
+        <div class="input-group">
+          <label>Net P&amp;L Banking Book ($M)</label>
+          <input type="number" id="opBB" value="500" step="100">
+        </div>
+        <div class="input-group">
+          <label>Other Operating Income ($M)</label>
+          <input type="number" id="opOther" value="1200" step="100">
+        </div>
+        <div class="input-group">
+          <label>Internal Loss Multiplier (ILM)</label>
+          <input type="number" id="opILM" value="1.0" step="0.05" min="0.5" max="2.0">
+          <div class="hint">Based on 10-year loss history. 1.0 = average, &gt;1.0 = above-average losses</div>
+        </div>
+      </div>
+    </div>
+    <div class="formula-box" style="margin-top:1rem;">
+<span class="highlight">Business Indicator (BI)</span> = <span class="accent">ILDC</span> + <span class="green">SC</span> + <span style="color:#ce93d8;font-weight:700">FC</span>
+where ILDC = |Interest Inc - Exp|, SC = max(Fee Inc, Fee Exp) + max(Other Op Inc, 0), FC = |Net Trading| + |Net Banking|
+
+<span class="highlight">BIC</span> = marginal coefficients applied to BI buckets:
+  BI &le; &euro;1B: <span class="accent">12%</span>  |  &euro;1-30B: <span class="green">15%</span>  |  &gt;&euro;30B: <span style="color:#ce93d8;font-weight:700">18%</span>
+
+<span class="highlight">OpRisk Capital</span> = <span class="accent">BIC</span> &times; <span class="green">ILM</span>
+    </div>
+  </div>
+
+  <!-- Calculate Button & Results -->
+  <div style="text-align:center; margin:1.5rem 0;">
+    <button class="btn btn-primary" style="font-size:1.1rem; padding:0.8rem 3rem;" onclick="calculateAll()">Calculate Capital Requirements</button>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2>Capital Adequacy Results</h2>
+    <div class="results-panel">
+      <div class="result-row">
+        <span class="result-label">Credit Risk RWA</span>
+        <span class="result-value" id="resCreditRWA"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Market Risk RWA (Capital &times; 12.5)</span>
+        <span class="result-value" id="resMarketRWA"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Operational Risk RWA (Capital &times; 12.5)</span>
+        <span class="result-value" id="resOpRWA"></span>
+      </div>
+      <div class="result-row" style="border-top:2px solid var(--secondary); padding-top:0.8rem; font-size:1.1rem;">
+        <span class="result-label"><strong>Total RWA</strong></span>
+        <span class="result-value" id="resTotalRWA"></span>
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.5rem;">Capital Ratios</h3>
+    <div class="bar-chart" id="ratioChart"></div>
+
+    <h3 style="margin-top:1.5rem;">Compliance Check</h3>
+    <div class="results-panel" id="compliancePanel"></div>
+
+    <h3 style="margin-top:1.5rem;">RWA Composition</h3>
+    <div class="bar-chart" id="rwaComposition"></div>
+  </div>
+</section>
+
+<!-- ==================== TAB 5: B3E ENDGAME ==================== -->
+<section class="tab-content" id="tab-b3e">
+  <div class="card">
+    <h2>Basel III Endgame (B3E) &mdash; What's Changing?</h2>
+    <p>The B3E proposals, revised in March 2026, represent the final major overhaul of post-GFC capital regulation. They target large banks ($100B+ in assets) and fundamentally reshape how RWA is calculated.</p>
+
+    <div class="warn-box">
+      <strong>Core Philosophy:</strong> Reduce reliance on bank internal models and increase standardisation, comparability, and transparency of capital calculations across jurisdictions.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Key Changes Under B3E</h2>
+    <div class="two-col">
+      <div>
+        <h3>1. Expanded Risk-Based Approach (ERBA)</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li>Replaces the Advanced Approaches for credit risk</li>
+          <li>Banks move from internal models to a <strong>standardised-plus</strong> framework</li>
+          <li>More granular risk weights for real estate, retail, and corporate exposures</li>
+          <li>New risk weight categories for project finance, specialised lending</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;">2. Credit Valuation Adjustment (CVA)</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li>New standardised and basic approaches for CVA risk</li>
+          <li>Removes the option for internal models for CVA</li>
+          <li>Significant impact on derivative-heavy banks</li>
+        </ul>
+      </div>
+      <div>
+        <h3>3. Operational Risk Overhaul</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li>Single Standardised Measurement Approach (SMA) replaces all prior methods</li>
+          <li>Business Indicator Component (BIC) based on revenue streams</li>
+          <li>Internal Loss Multiplier for banks with above-average historical losses</li>
+          <li>Expected 20-30% increase in OpRisk capital for large banks</li>
+        </ul>
+
+        <h3 style="margin-top:1rem;">4. Output Floor</h3>
+        <ul style="font-size:0.88rem; padding-left:1.2rem;">
+          <li><strong>72.5%</strong> of standardised RWA as floor for IMA banks</li>
+          <li>Phased in: 50% (2025) &rarr; 55% &rarr; 60% &rarr; 65% &rarr; 70% &rarr; 72.5% (2030)</li>
+          <li>Eliminates extreme divergence between IMA and SA capital</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>B3E Implementation Timeline</h2>
+    <div class="timeline">
+      <div class="timeline-item completed">
+        <div class="timeline-date">December 2017</div>
+        <div class="timeline-text">BCBS finalises Basel III reforms ("Basel III: Finalising post-crisis reforms")</div>
+      </div>
+      <div class="timeline-item completed">
+        <div class="timeline-date">2020-2023</div>
+        <div class="timeline-text">COVID delays; jurisdictions develop national implementation rules</div>
+      </div>
+      <div class="timeline-item completed">
+        <div class="timeline-date">September 2023</div>
+        <div class="timeline-text">US agencies publish B3E NPR (Notice of Proposed Rulemaking); significant industry pushback</div>
+      </div>
+      <div class="timeline-item completed">
+        <div class="timeline-date">March 2026</div>
+        <div class="timeline-text"><strong>Revised B3E proposals</strong> published with material changes: narrowed scope, recalibrated risk weights, extended timeline</div>
+      </div>
+      <div class="timeline-item current">
+        <div class="timeline-date">July 2025 &rarr; July 2026</div>
+        <div class="timeline-text"><strong>Phase 1:</strong> Market risk (FRTB) and CVA frameworks take effect for large banks. Parallel reporting period begins.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">January 2027</div>
+        <div class="timeline-text"><strong>Phase 2:</strong> Credit risk ERBA and operational risk SMA take effect. Output floor begins at 55%.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">July 2028</div>
+        <div class="timeline-text"><strong>Phase 3:</strong> Full compliance required. Output floor at 62.5% and rising. Enhanced public disclosure templates.</div>
+      </div>
+      <div class="timeline-item">
+        <div class="timeline-date">January 2030</div>
+        <div class="timeline-text">Output floor reaches final level of <strong>72.5%</strong>. All transitional provisions expire.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Reporting Impact: What Changes for Banks?</h2>
+    <table class="compare-table">
+      <tr>
+        <th>Area</th>
+        <th>Before B3E</th>
+        <th>After B3E</th>
+      </tr>
+      <tr>
+        <td><strong>Credit Risk</strong></td>
+        <td>Advanced IRB with bank-estimated PD, LGD, EAD</td>
+        <td>ERBA with supervisory parameters; SA risk weights for most exposures</td>
+      </tr>
+      <tr>
+        <td><strong>Market Risk</strong></td>
+        <td>VaR-based internal models</td>
+        <td>Expected Shortfall models (IMA) or sensitivities-based SA; desk-level approval</td>
+      </tr>
+      <tr>
+        <td><strong>Operational Risk</strong></td>
+        <td>Multiple approaches (BIA, TSA, AMA)</td>
+        <td>Single SMA for all banks; BIC + Internal Loss Multiplier</td>
+      </tr>
+      <tr>
+        <td><strong>Data Granularity</strong></td>
+        <td>Portfolio-level reporting acceptable</td>
+        <td>Exposure-level data for off-balance sheet items; granular sensitivity reporting</td>
+      </tr>
+      <tr>
+        <td><strong>Disclosure</strong></td>
+        <td>Pillar 3 templates (varies by jurisdiction)</td>
+        <td>Enhanced standardised templates; comparability across jurisdictions</td>
+      </tr>
+      <tr>
+        <td><strong>Output Floor</strong></td>
+        <td>None (or Basel I floor)</td>
+        <td>72.5% of SA-calculated RWA (phased in)</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ==================== TAB 6: REPORTING DEMO ==================== -->
+<section class="tab-content" id="tab-reporting">
+  <div class="card">
+    <h2>Regulatory Capital Report &mdash; Simulated Submission</h2>
+    <p>This demonstrates what a simplified regulatory capital return looks like. Click "Generate Report" to populate from the calculator data, or run with the defaults.</p>
+    <button class="btn btn-primary" onclick="generateReport()" style="margin-top:0.5rem;">Generate Report from Calculator</button>
+  </div>
+
+  <div class="card" id="reportOutput">
+    <h2>CAPITAL ADEQUACY RETURN &mdash; Q1 2026</h2>
+    <p style="font-size:0.85rem; color:#666;">Institution: <strong id="rptBankName">Sample National Bank</strong> | Reporting Date: <strong>2026-03-31</strong> | Jurisdiction: <strong>Basel III / OSFI CAR</strong></p>
+
+    <h3 style="margin-top:1.5rem;">Section A: Capital Composition</h3>
+    <table class="portfolio-table">
+      <tr style="background:#f0f4f8;"><th colspan="2">Common Equity Tier 1 (CET1)</th><th style="text-align:right">$M</th></tr>
+      <tr><td>1</td><td>Common shares issued</td><td style="text-align:right" id="rptCET1" class="rpt-val">18,000</td></tr>
+      <tr><td>2</td><td>Retained earnings</td><td style="text-align:right">(included above)</td></tr>
+      <tr><td>3</td><td>Regulatory adjustments (goodwill, DTAs, etc.)</td><td style="text-align:right">(0)</td></tr>
+      <tr style="font-weight:700;background:#e8f5e9;"><td></td><td>Total CET1</td><td style="text-align:right" id="rptCET1Total">18,000</td></tr>
+
+      <tr style="background:#f0f4f8;"><th colspan="2">Additional Tier 1 (AT1)</th><th></th></tr>
+      <tr><td>4</td><td>AT1 instruments issued</td><td style="text-align:right" id="rptAT1">4,000</td></tr>
+      <tr style="font-weight:700;background:#e3f2fd;"><td></td><td>Total Tier 1 (CET1 + AT1)</td><td style="text-align:right" id="rptT1">22,000</td></tr>
+
+      <tr style="background:#f0f4f8;"><th colspan="2">Tier 2</th><th></th></tr>
+      <tr><td>5</td><td>Tier 2 instruments</td><td style="text-align:right" id="rptT2">5,000</td></tr>
+      <tr style="font-weight:700;background:#fff3e0;"><td></td><td>Total Capital (Tier 1 + Tier 2)</td><td style="text-align:right" id="rptTC">27,000</td></tr>
+    </table>
+
+    <h3 style="margin-top:1.5rem;">Section B: Risk-Weighted Assets</h3>
+    <table class="portfolio-table">
+      <tr><th>Line</th><th>Risk Category</th><th style="text-align:right">RWA ($M)</th></tr>
+      <tr><td>6</td><td>Credit Risk &mdash; Standardised Approach</td><td style="text-align:right" id="rptCrRWA">114,500</td></tr>
+      <tr><td>7</td><td>Market Risk &mdash; Standardised Approach</td><td style="text-align:right" id="rptMrRWA">12,813</td></tr>
+      <tr><td>8</td><td>Operational Risk &mdash; SMA</td><td style="text-align:right" id="rptOrRWA">22,500</td></tr>
+      <tr><td>9</td><td>CVA Risk</td><td style="text-align:right">0</td></tr>
+      <tr style="font-weight:700;background:#f0f4f8;"><td></td><td>Total RWA</td><td style="text-align:right" id="rptTotalRWA">149,813</td></tr>
+    </table>
+
+    <h3 style="margin-top:1.5rem;">Section C: Capital Ratios</h3>
+    <table class="portfolio-table">
+      <tr><th>Ratio</th><th style="text-align:right">Actual</th><th style="text-align:right">Minimum</th><th style="text-align:right">With Buffers</th><th>Status</th></tr>
+      <tr>
+        <td>CET1 Ratio</td>
+        <td style="text-align:right" id="rptCET1R">12.02%</td>
+        <td style="text-align:right">4.5%</td>
+        <td style="text-align:right" id="rptCET1Req">11.5%</td>
+        <td id="rptCET1Status" style="font-weight:700;color:#2e7d32">PASS</td>
+      </tr>
+      <tr>
+        <td>Tier 1 Ratio</td>
+        <td style="text-align:right" id="rptT1R">14.69%</td>
+        <td style="text-align:right">6.0%</td>
+        <td style="text-align:right" id="rptT1Req">13.0%</td>
+        <td id="rptT1Status" style="font-weight:700;color:#2e7d32">PASS</td>
+      </tr>
+      <tr>
+        <td>Total Capital Ratio</td>
+        <td style="text-align:right" id="rptTCR">18.02%</td>
+        <td style="text-align:right">8.0%</td>
+        <td style="text-align:right" id="rptTCReq">15.0%</td>
+        <td id="rptTCStatus" style="font-weight:700;color:#2e7d32">PASS</td>
+      </tr>
+    </table>
+
+    <h3 style="margin-top:1.5rem;">Section D: Leverage Ratio</h3>
+    <table class="portfolio-table">
+      <tr><td>Tier 1 Capital</td><td style="text-align:right" id="rptLevT1">22,000</td></tr>
+      <tr><td>Total Exposure (est. = Total Assets)</td><td style="text-align:right" id="rptLevExp">270,000</td></tr>
+      <tr style="font-weight:700"><td>Leverage Ratio</td><td style="text-align:right" id="rptLevR">8.15%</td></tr>
+      <tr><td>Minimum (3.0% + D-SIB buffer 0.5%)</td><td style="text-align:right">3.5%</td></tr>
+      <tr><td>Status</td><td style="text-align:right;font-weight:700;color:#2e7d32" id="rptLevStatus">PASS</td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <p>Produced by Stanley Yong for the NTU RegTech Course lecture series.</p>
+  <p>Basel III Capital Requirements Interactive Lecture Tool | NTU RegTech Course 2026</p>
+  <p>Data sources: <a href="https://www.bis.org/basel_framework/" target="_blank">BIS Basel Framework</a> | <a href="https://www.osfi-bsif.gc.ca/en/guidance/guidance-library/capital-adequacy-requirements-car-2026-chapter-1-overview-risk-based-capital-requirements" target="_blank">OSFI CAR 2026</a></p>
+  <p style="margin-top:0.3rem;">For educational purposes only. Simplified calculations; not for regulatory compliance.</p>
+</footer>
+
+<script>
+// ========== TAB NAVIGATION ==========
+function showTab(tabId) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  const buttons = document.querySelectorAll('.tab-nav button');
+  const tabOrder = ['history','baselii','transition','overview','books','approaches','calculator','b3e','reporting'];
+  const idx = tabOrder.indexOf(tabId);
+  if (idx >= 0 && buttons[idx]) buttons[idx].classList.add('active');
+}
+
+// ========== CLASSIFICATION QUIZ ==========
+const quizInstruments = [
+  { name: "10-year corporate bond held for market-making", answer: "trading", hint: "RBC25.9(2): Market-making activities = presumptive trading book" },
+  { name: "30-year residential mortgage originated by the bank", answer: "banking", hint: "RBC25.8(4): Retail and SME credit must be in banking book" },
+  { name: "Listed equity position in a proprietary trading desk", answer: "trading", hint: "RBC25.9(4): Listed equities are presumptive trading book" },
+  { name: "10% equity stake in a subsidiary (unlisted)", answer: "banking", hint: "RBC25.8(1): Unlisted equities must be in banking book" },
+  { name: "FX forward hedging a trading book bond position", answer: "trading", hint: "RBC25.5(4): Hedging instruments follow the hedged position" },
+  { name: "Interest rate swap hedging a banking book loan portfolio", answer: "banking", hint: "RBC25.19/25: Banking book hedges stay in banking book unless via approved IRT desk" },
+  { name: "Direct holding of commercial real estate", answer: "banking", hint: "RBC25.8(3): Real estate holdings must be in banking book" },
+  { name: "CDS bought for credit trading purposes", answer: "trading", hint: "RBC25.5(2): Profiting from short-term price movements = trading book" },
+  { name: "Bonds in securitisation warehousing pipeline", answer: "banking", hint: "RBC25.8(2): Securitisation warehousing instruments must be in banking book" },
+  { name: "Investment in a hedge fund (no look-through)", answer: "banking", hint: "RBC25.8(6): Hedge funds must be in banking book" },
+  { name: "Trading-related reverse repo with a dealer counterparty", answer: "trading", hint: "RBC25.9(5): Trading-related repo-style transactions are presumptive trading" },
+  { name: "Bond whose short sale would create a net short credit position in the banking book", answer: "trading", hint: "RBC25.6(2): Net short credit/equity in banking book forces trading book assignment" },
+  { name: "US Treasury HTM bond (held-to-maturity, no trading intent)", answer: "banking", hint: "RBC25.7: Not held for trading purposes at inception = banking book" },
+  { name: "Embedded call option in a CoCo bond issued by the bank", answer: "trading", hint: "RBC25.9(6): Options/embedded derivatives from banking book instruments relating to credit/equity risk are presumptive trading" },
+  { name: "Investment in an ETF with daily NAV and transparent holdings", answer: "trading", hint: "RBC25.9(3): Fund investments with daily pricing and look-through are presumptive trading (not excluded by RBC25.8(5))" },
+  { name: "SME loan to a local business (loan book)", answer: "banking", hint: "RBC25.8(4): Retail and SME credit must be in banking book" },
+];
+
+// ========== ARBITRAGE CALCULATOR ==========
+function calcArbitrage() {
+  const instr = document.getElementById('arbInstrument').value;
+  const notional = parseFloat(document.getElementById('arbNotional').value) || 100;
+
+  // Capital charges as % of notional: [B2 Trading, B2 Banking, B3 Trading (SA), B3 Banking]
+  const data = {
+    aaa_cdo:    { name:'AAA Super-Senior CDO Tranche',
+                  b2t:0.5, b2b:7.0, b3t:4.5, b3b:7.0,
+                  note:'Under Basel II, VaR on super-senior tranches was near zero. Basel III SA applies CSR securitisation charges plus DRC.'},
+    ig_corp:    { name:'Investment-Grade Corporate Bond (A-rated)',
+                  b2t:1.5, b2b:5.2, b3t:5.0, b3b:5.2,
+                  note:'Basel II trading book VaR was low for IG bonds. Basel III SA applies delta+vega+curvature sensitivities plus DRC at 3% RW.'},
+    hy_bond:    { name:'High-Yield Corporate Bond (BB)',
+                  b2t:4.0, b2b:8.0, b3t:12.0, b3b:8.0,
+                  note:'Basel III now charges MORE in the trading book for HY bonds than banking book, reversing the pre-crisis incentive.'},
+    equity:     { name:'Listed Equity Position',
+                  b2t:4.0, b2b:20.0, b3t:8.0, b3b:20.0,
+                  note:'Equity was always cheaper in the trading book, but Basel III narrows the gap significantly with higher SA charges.'},
+    sovereign:  { name:'Sovereign Bond (A-rated)',
+                  b2t:0.2, b2b:1.6, b3t:3.0, b3b:1.6,
+                  note:'Sovereign bonds in the banking book can be 0-20% RW. In the trading book, GIRR + CSR sensitivities now apply.'}
+  };
+  const d = data[instr];
+  const mkCap = (pct) => (notional * pct / 100).toFixed(1);
+  const mkBar = (pct, max, color) => {
+    const w = Math.min((pct/max)*100, 100);
+    return `<div style="background:#e8edf2;border-radius:4px;height:22px;width:100%;position:relative;margin:2px 0;">
+      <div style="background:${color};height:100%;width:${w}%;border-radius:4px;display:flex;align-items:center;padding-left:6px;font-size:0.72rem;font-weight:600;color:white;min-width:30px;">${pct.toFixed(1)}%</div>
+    </div>`;
+  };
+  const maxPct = Math.max(d.b2t, d.b2b, d.b3t, d.b3b) * 1.1;
+
+  let html = `<div style="font-size:0.85rem;">
+    <div style="text-align:center;font-weight:600;color:var(--primary);margin-bottom:0.8rem;">$${fmt(notional)}M ${d.name}</div>
+    <table class="portfolio-table" style="margin:0;">
+      <tr><th></th><th style="text-align:center;background:#fff3e0;color:#e65100;">Trading Book</th><th style="text-align:center;background:#e8f5e9;color:#2e7d32;">Banking Book</th><th style="text-align:center;">Arbitrage Gain</th></tr>
+      <tr><td><strong>Basel II</strong></td>
+        <td>${mkBar(d.b2t, maxPct, '#e65100')} $${mkCap(d.b2t)}M</td>
+        <td>${mkBar(d.b2b, maxPct, '#2e7d32')} $${mkCap(d.b2b)}M</td>
+        <td style="text-align:center;font-weight:700;color:#c62828;">${(d.b2b - d.b2t).toFixed(1)}% saved<br>by trading book</td></tr>
+      <tr><td><strong>Basel III</strong></td>
+        <td>${mkBar(d.b3t, maxPct, '#1565c0')} $${mkCap(d.b3t)}M</td>
+        <td>${mkBar(d.b3b, maxPct, '#558b2f')} $${mkCap(d.b3b)}M</td>
+        <td style="text-align:center;font-weight:700;color:${d.b3b > d.b3t ? '#e65100' : '#2e7d32'};">${Math.abs(d.b3b - d.b3t).toFixed(1)}% ${d.b3b > d.b3t ? 'gap (narrowed)' : 'reversed!'}</td></tr>
+    </table>
+    <div style="margin-top:0.6rem;padding:0.5rem;background:#f8fbff;border-radius:6px;font-size:0.8rem;">
+      <strong>Interpretation:</strong> ${d.note}
+    </div>
+  </div>`;
+  document.getElementById('arbResults').innerHTML = html;
+}
+
+// ========== BOOK CLASSIFICATION IMPACT CALCULATOR ==========
+function calcBookImpact() {
+  const face = parseFloat(document.getElementById('secFace').value) || 100;
+  const market = parseFloat(document.getElementById('secMarket').value) || 92;
+  const rw = parseFloat(document.getElementById('secRating').value) || 0.65;
+  const mrCharge = (parseFloat(document.getElementById('secMRCharge').value) || 5.0) / 100;
+  const ratingLabel = document.getElementById('secRating').selectedOptions[0].dataset.label;
+  const unrealised = market - face;
+  const minCapRate = 0.08; // 8% minimum total capital
+
+  // HTM: amortised cost, credit risk weight, no P&L impact from market moves
+  const htmRWA = face * rw;
+  const htmCapital = htmRWA * minCapRate;
+  const htmPL = 0;
+
+  // AFS: fair value, credit risk weight on face, unrealised in AOCI (hits CET1)
+  const afsRWA = face * rw;
+  const afsCapital = afsRWA * minCapRate;
+  const afsCET1Impact = unrealised; // negative unrealised erodes CET1
+
+  // Trading: fair value, market risk charge, P&L impact
+  const tradingCapital = market * mrCharge;
+  const tradingRWA = tradingCapital * 12.5;
+  const tradingPL = unrealised;
+
+  let html = `
+    <div style="font-size:0.85rem;">
+      <div style="text-align:center; margin-bottom:0.8rem; font-weight:600; color:var(--primary);">
+        $${fmt(face)}M ${ratingLabel} bond at $${fmt(market)}M market value
+      </div>
+      <table class="portfolio-table" style="margin:0;">
+        <tr><th></th><th style="text-align:right;background:#e8f5e9;color:#2e7d32">HTM</th><th style="text-align:right;background:#fff3e0;color:#e65100">AFS</th><th style="text-align:right;background:#e3f2fd;color:#1565c0">Trading</th></tr>
+        <tr><td><strong>Carrying Value</strong></td>
+          <td style="text-align:right">$${fmt(face)}M<br><span style="font-size:0.75rem;color:#888">(amortised cost)</span></td>
+          <td style="text-align:right">$${fmt(market)}M<br><span style="font-size:0.75rem;color:#888">(fair value)</span></td>
+          <td style="text-align:right">$${fmt(market)}M<br><span style="font-size:0.75rem;color:#888">(fair value)</span></td></tr>
+        <tr><td><strong>Risk Weight</strong></td>
+          <td style="text-align:right">${(rw*100).toFixed(0)}% (credit)</td>
+          <td style="text-align:right">${(rw*100).toFixed(0)}% (credit)</td>
+          <td style="text-align:right">${(mrCharge*100).toFixed(1)}% (market)</td></tr>
+        <tr><td><strong>RWA</strong></td>
+          <td style="text-align:right">$${htmRWA.toFixed(1)}M</td>
+          <td style="text-align:right">$${afsRWA.toFixed(1)}M</td>
+          <td style="text-align:right">$${tradingRWA.toFixed(1)}M</td></tr>
+        <tr><td><strong>Capital Required</strong></td>
+          <td style="text-align:right;font-weight:700">$${htmCapital.toFixed(1)}M</td>
+          <td style="text-align:right;font-weight:700">$${afsCapital.toFixed(1)}M</td>
+          <td style="text-align:right;font-weight:700">$${tradingCapital.toFixed(1)}M</td></tr>
+        <tr><td><strong>P&amp;L Impact</strong></td>
+          <td style="text-align:right;color:#888">None</td>
+          <td style="text-align:right;color:#888">None (in OCI)</td>
+          <td style="text-align:right;color:${tradingPL >= 0 ? '#2e7d32' : '#c62828'};font-weight:600">${tradingPL >= 0 ? '+' : ''}$${tradingPL.toFixed(1)}M</td></tr>
+        <tr><td><strong>CET1 Effect</strong></td>
+          <td style="text-align:right;color:#888">None</td>
+          <td style="text-align:right;color:${afsCET1Impact >= 0 ? '#2e7d32' : '#c62828'};font-weight:600">${afsCET1Impact >= 0 ? '+' : ''}$${afsCET1Impact.toFixed(1)}M via AOCI</td>
+          <td style="text-align:right;color:${tradingPL >= 0 ? '#2e7d32' : '#c62828'};font-weight:600">${tradingPL >= 0 ? '+' : ''}$${tradingPL.toFixed(1)}M via P&amp;L</td></tr>
+      </table>
+      <div style="margin-top:0.8rem; padding:0.6rem; background:${unrealised < 0 ? '#fce4ec' : '#e8f5e9'}; border-radius:6px; font-size:0.82rem;">
+        <strong>${unrealised < 0 ? 'Unrealised loss scenario:' : 'Unrealised gain scenario:'}</strong>
+        ${unrealised < 0
+          ? `The $${Math.abs(unrealised).toFixed(1)}M loss is invisible under HTM, erodes CET1 via AOCI under AFS, and hits P&L directly under Trading. This is exactly the dynamic that sank SVB.`
+          : `The $${unrealised.toFixed(1)}M gain is invisible under HTM, boosts AOCI under AFS, and flows to P&L under Trading. HTM foregoes the economic benefit of the gain.`
+        }
+      </div>
+    </div>`;
+  document.getElementById('bookImpactResults').innerHTML = html;
+}
+
+function buildQuiz() {
+  const container = document.getElementById('classifyQuiz');
+  let html = '<table class="portfolio-table"><tr><th>Instrument</th><th style="width:180px">Classification</th></tr>';
+  quizInstruments.forEach((q, i) => {
+    html += `<tr><td>${q.name}</td><td>
+      <select id="quiz_${i}" style="width:100%;padding:0.3rem;">
+        <option value="">-- Select --</option>
+        <option value="trading">Trading Book</option>
+        <option value="banking">Banking Book</option>
+      </select></td></tr>`;
+  });
+  html += '</table>';
+  container.innerHTML = html;
+}
+
+function checkClassification() {
+  let correct = 0;
+  let html = '<table class="portfolio-table"><tr><th>Instrument</th><th>Your Answer</th><th>Correct</th><th>Explanation</th></tr>';
+  quizInstruments.forEach((q, i) => {
+    const ans = document.getElementById('quiz_' + i).value;
+    const isCorrect = ans === q.answer;
+    if (isCorrect) correct++;
+    html += `<tr><td>${q.name}</td>
+      <td style="color:${isCorrect ? '#2e7d32' : '#c62828'}; font-weight:600;">${ans || '(none)'}</td>
+      <td>${q.answer}</td>
+      <td style="font-size:0.82rem;">${q.hint}</td></tr>`;
+  });
+  html += '</table>';
+  html += `<p style="margin-top:0.8rem; font-weight:700; font-size:1.1rem;">Score: ${correct}/${quizInstruments.length}</p>`;
+  document.getElementById('classifyResults').innerHTML = html;
+}
+
+// ========== PRESET BANKS ==========
+function loadPreset(type) {
+  const presets = {
+    large: {
+      cet1: 18000, at1: 4000, tier2: 5000, bankType: 'dsib',
+      ccb: 2.5, ccyb: 0, surcharge: 1.0, dsb: 3.5,
+      credit: [50000,10000,15000,80000,20000,40000,15000,12000,3000,25000],
+      market: [5000,3000,1000,2000,4000,500],
+      opRisk: {ii:12000,ie:6000,fi:4000,fe:1500,tb:800,bb:500,other:1200,ilm:1.0}
+    },
+    mid: {
+      cet1: 5500, at1: 1200, tier2: 1500, bankType: 'mid',
+      ccb: 2.5, ccyb: 0, surcharge: 0, dsb: 0,
+      credit: [15000,3000,5000,25000,8000,12000,5000,6000,500,8000],
+      market: [1500,800,300,600,1000,100],
+      opRisk: {ii:3500,ie:1800,fi:1200,fe:400,tb:200,bb:150,other:400,ilm:1.0}
+    },
+    small: {
+      cet1: 800, at1: 100, tier2: 200, bankType: 'small',
+      ccb: 2.5, ccyb: 0, surcharge: 0, dsb: 0,
+      credit: [2000,500,800,4000,1500,2000,800,1500,50,1000],
+      market: [100,50,20,80,60,10],
+      opRisk: {ii:500,ie:250,fi:150,fe:50,tb:20,bb:15,other:60,ilm:1.0}
+    }
+  };
+  const p = presets[type];
+  document.getElementById('cet1').value = p.cet1;
+  document.getElementById('at1').value = p.at1;
+  document.getElementById('tier2').value = p.tier2;
+  document.getElementById('bankType').value = p.bankType;
+  document.getElementById('ccb').value = p.ccb;
+  document.getElementById('ccyb').value = p.ccyb;
+  document.getElementById('surcharge').value = p.surcharge;
+  document.getElementById('dsb').value = p.dsb;
+
+  const crInputs = document.querySelectorAll('.cr-exp');
+  p.credit.forEach((v, i) => { if (crInputs[i]) crInputs[i].value = v; });
+  const mrInputs = document.querySelectorAll('.mr-pos');
+  p.market.forEach((v, i) => { if (mrInputs[i]) mrInputs[i].value = v; });
+
+  document.getElementById('opII').value = p.opRisk.ii;
+  document.getElementById('opIE').value = p.opRisk.ie;
+  document.getElementById('opFI').value = p.opRisk.fi;
+  document.getElementById('opFE').value = p.opRisk.fe;
+  document.getElementById('opTB').value = p.opRisk.tb;
+  document.getElementById('opBB').value = p.opRisk.bb;
+  document.getElementById('opOther').value = p.opRisk.other;
+  document.getElementById('opILM').value = p.opRisk.ilm;
+
+  updateCreditRWA();
+  updateMarketRisk();
+}
+
+function clearPortfolio() {
+  document.querySelectorAll('.cr-exp').forEach(i => i.value = 0);
+  document.querySelectorAll('.mr-pos').forEach(i => i.value = 0);
+  ['cet1','at1','tier2','opII','opIE','opFI','opFE','opTB','opBB','opOther'].forEach(id => {
+    document.getElementById(id).value = 0;
+  });
+  document.getElementById('opILM').value = 1.0;
+  updateCreditRWA();
+  updateMarketRisk();
+  document.getElementById('resultsCard').style.display = 'none';
+}
+
+// ========== LIVE RWA UPDATES ==========
+function fmt(n) {
+  return n.toLocaleString('en-US', {maximumFractionDigits: 0});
+}
+function fmtPct(n) {
+  return n.toFixed(2) + '%';
+}
+
+function updateCreditRWA() {
+  let totalExp = 0, totalRWA = 0;
+  const rows = document.querySelectorAll('#creditTable tbody tr');
+  rows.forEach(row => {
+    const input = row.querySelector('.cr-exp');
+    const rwaCell = row.querySelector('.cr-rwa');
+    if (input && rwaCell) {
+      const exp = parseFloat(input.value) || 0;
+      const rw = parseFloat(input.dataset.rw) || 0;
+      const rwa = exp * rw;
+      rwaCell.textContent = fmt(rwa);
+      totalExp += exp;
+      totalRWA += rwa;
+    }
+  });
+  document.getElementById('totalCreditExp').textContent = fmt(totalExp);
+  document.getElementById('totalCreditRWA').textContent = fmt(totalRWA);
+}
+
+function updateMarketRisk() {
+  let totalPos = 0, totalCap = 0;
+  const rows = document.querySelectorAll('#marketTable tbody tr');
+  rows.forEach(row => {
+    const input = row.querySelector('.mr-pos');
+    const capCell = row.querySelector('.mr-cap');
+    if (input && capCell) {
+      const pos = parseFloat(input.value) || 0;
+      const charge = parseFloat(input.dataset.charge) || 0;
+      const cap = pos * charge;
+      capCell.textContent = fmt(cap);
+      totalPos += pos;
+      totalCap += cap;
+    }
+  });
+  document.getElementById('totalMarketPos').textContent = fmt(totalPos);
+  document.getElementById('totalMarketCap').textContent = fmt(totalCap);
+}
+
+// Live update listeners
+document.addEventListener('input', function(e) {
+  if (e.target.classList.contains('cr-exp')) updateCreditRWA();
+  if (e.target.classList.contains('mr-pos')) updateMarketRisk();
+});
+
+// ========== OPERATIONAL RISK CALCULATION ==========
+function calculateOpRisk() {
+  const ii = parseFloat(document.getElementById('opII').value) || 0;
+  const ie = parseFloat(document.getElementById('opIE').value) || 0;
+  const fi = parseFloat(document.getElementById('opFI').value) || 0;
+  const fe = parseFloat(document.getElementById('opFE').value) || 0;
+  const tb = parseFloat(document.getElementById('opTB').value) || 0;
+  const bb = parseFloat(document.getElementById('opBB').value) || 0;
+  const other = parseFloat(document.getElementById('opOther').value) || 0;
+  const ilm = parseFloat(document.getElementById('opILM').value) || 1.0;
+
+  // Business Indicator components
+  const ildc = Math.abs(ii - ie);
+  const sc = Math.max(fi, fe) + Math.max(other, 0);
+  const fc = Math.abs(tb) + Math.abs(bb);
+  const bi = ildc + sc + fc;
+
+  // BIC with marginal coefficients (in millions, thresholds in EUR ~= USD for simplification)
+  let bic = 0;
+  if (bi <= 1000) {
+    bic = bi * 0.12;
+  } else if (bi <= 30000) {
+    bic = 1000 * 0.12 + (bi - 1000) * 0.15;
+  } else {
+    bic = 1000 * 0.12 + 29000 * 0.15 + (bi - 30000) * 0.18;
+  }
+
+  const opRiskCapital = bic * ilm;
+  return { bi, bic, opRiskCapital };
+}
+
+// ========== MAIN CALCULATION ==========
+function calculateAll() {
+  updateCreditRWA();
+  updateMarketRisk();
+
+  const cet1 = parseFloat(document.getElementById('cet1').value) || 0;
+  const at1 = parseFloat(document.getElementById('at1').value) || 0;
+  const tier2 = parseFloat(document.getElementById('tier2').value) || 0;
+  const tier1 = cet1 + at1;
+  const totalCap = tier1 + tier2;
+
+  // Credit Risk RWA
+  const creditRWA = parseFloat(document.getElementById('totalCreditRWA').textContent.replace(/,/g, '')) || 0;
+
+  // Market Risk RWA
+  const marketCap = parseFloat(document.getElementById('totalMarketCap').textContent.replace(/,/g, '')) || 0;
+  const marketRWA = marketCap * 12.5;
+
+  // Operational Risk
+  const opRisk = calculateOpRisk();
+  const opRiskRWA = opRisk.opRiskCapital * 12.5;
+
+  const totalRWA = creditRWA + marketRWA + opRiskRWA;
+
+  // Ratios
+  const cet1Ratio = totalRWA > 0 ? (cet1 / totalRWA) * 100 : 0;
+  const t1Ratio = totalRWA > 0 ? (tier1 / totalRWA) * 100 : 0;
+  const tcRatio = totalRWA > 0 ? (totalCap / totalRWA) * 100 : 0;
+
+  // Buffer requirements
+  const ccb = parseFloat(document.getElementById('ccb').value) || 0;
+  const ccyb = parseFloat(document.getElementById('ccyb').value) || 0;
+  const surcharge = parseFloat(document.getElementById('surcharge').value) || 0;
+  const dsb = parseFloat(document.getElementById('dsb').value) || 0;
+  const totalBuffer = ccb + ccyb + surcharge + dsb;
+
+  const cet1Req = 4.5 + totalBuffer;
+  const t1Req = 6.0 + totalBuffer;
+  const tcReq = 8.0 + totalBuffer;
+
+  // Display results
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resCreditRWA').textContent = '$' + fmt(creditRWA) + 'M';
+  document.getElementById('resMarketRWA').textContent = '$' + fmt(marketRWA) + 'M';
+  document.getElementById('resOpRWA').textContent = '$' + fmt(Math.round(opRiskRWA)) + 'M';
+  document.getElementById('resTotalRWA').textContent = '$' + fmt(Math.round(totalRWA)) + 'M';
+
+  // Bar chart for ratios
+  const maxRatio = Math.max(cet1Ratio, t1Ratio, tcRatio, tcReq) * 1.2;
+  let chartHtml = '';
+  const ratios = [
+    { label: 'CET1 Ratio', value: cet1Ratio, req: cet1Req, color: '#1a3a5c' },
+    { label: 'Tier 1 Ratio', value: t1Ratio, req: t1Req, color: '#2c6faa' },
+    { label: 'Total Capital', value: tcRatio, req: tcReq, color: '#558b2f' },
+  ];
+  ratios.forEach(r => {
+    const pct = (r.value / maxRatio) * 100;
+    const reqPct = (r.req / maxRatio) * 100;
+    const pass = r.value >= r.req;
+    chartHtml += `<div class="bar-row">
+      <div class="bar-label">${r.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%;background:${pass ? r.color : '#c62828'}">${fmtPct(r.value)}</div>
+        <div class="bar-threshold" style="left:${reqPct}%" data-label="Req: ${fmtPct(r.req)}"></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('ratioChart').innerHTML = chartHtml;
+
+  // Compliance panel
+  let compHtml = '';
+  ratios.forEach(r => {
+    const pass = r.value >= r.req;
+    const surplus = r.value - r.req;
+    compHtml += `<div class="result-row">
+      <span class="result-label">${r.label}: ${fmtPct(r.value)} vs ${fmtPct(r.req)} required</span>
+      <span class="result-value ${pass ? 'pass' : 'fail'}">${pass ? 'PASS' : 'FAIL'} (${surplus >= 0 ? '+' : ''}${fmtPct(surplus)} ${pass ? 'surplus' : 'deficit'})</span>
+    </div>`;
+  });
+  document.getElementById('compliancePanel').innerHTML = compHtml;
+
+  // RWA composition
+  const totalForPct = creditRWA + marketRWA + opRiskRWA;
+  const compData = [
+    { label: 'Credit Risk', value: creditRWA, color: '#e65100' },
+    { label: 'Market Risk', value: marketRWA, color: '#2e7d32' },
+    { label: 'Operational Risk', value: opRiskRWA, color: '#7b1fa2' },
+  ];
+  let compChart = '';
+  compData.forEach(d => {
+    const pct = totalForPct > 0 ? (d.value / totalForPct) * 100 : 0;
+    compChart += `<div class="bar-row">
+      <div class="bar-label">${d.label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%;background:${d.color}">${fmtPct(pct)} ($${fmt(Math.round(d.value))}M)</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('rwaComposition').innerHTML = compChart;
+
+  // Store for report
+  window.lastCalc = { cet1, at1, tier2, tier1, totalCap, creditRWA, marketRWA, opRiskRWA, totalRWA, cet1Ratio, t1Ratio, tcRatio, cet1Req, t1Req, tcReq };
+
+  document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ========== REPORT GENERATION ==========
+function generateReport() {
+  if (!window.lastCalc) {
+    // Run calculation first
+    showTab('calculator');
+    calculateAll();
+    showTab('reporting');
+  }
+  const c = window.lastCalc;
+  if (!c) return;
+
+  const bankTypes = { dsib: 'D-SIB National Bank', large: 'Large National Bank', mid: 'Regional Bank Corp', small: 'Community Bank Ltd' };
+  document.getElementById('rptBankName').textContent = bankTypes[document.getElementById('bankType').value] || 'Sample Bank';
+
+  document.getElementById('rptCET1').textContent = fmt(c.cet1);
+  document.getElementById('rptCET1Total').textContent = fmt(c.cet1);
+  document.getElementById('rptAT1').textContent = fmt(c.at1);
+  document.getElementById('rptT1').textContent = fmt(c.tier1);
+  document.getElementById('rptT2').textContent = fmt(c.tier2);
+  document.getElementById('rptTC').textContent = fmt(c.totalCap);
+
+  document.getElementById('rptCrRWA').textContent = fmt(c.creditRWA);
+  document.getElementById('rptMrRWA').textContent = fmt(Math.round(c.marketRWA));
+  document.getElementById('rptOrRWA').textContent = fmt(Math.round(c.opRiskRWA));
+  document.getElementById('rptTotalRWA').textContent = fmt(Math.round(c.totalRWA));
+
+  document.getElementById('rptCET1R').textContent = fmtPct(c.cet1Ratio);
+  document.getElementById('rptT1R').textContent = fmtPct(c.t1Ratio);
+  document.getElementById('rptTCR').textContent = fmtPct(c.tcRatio);
+
+  document.getElementById('rptCET1Req').textContent = fmtPct(c.cet1Req);
+  document.getElementById('rptT1Req').textContent = fmtPct(c.t1Req);
+  document.getElementById('rptTCReq').textContent = fmtPct(c.tcReq);
+
+  function setStatus(id, actual, req) {
+    const el = document.getElementById(id);
+    if (actual >= req) { el.textContent = 'PASS'; el.style.color = '#2e7d32'; }
+    else { el.textContent = 'FAIL'; el.style.color = '#c62828'; }
+  }
+  setStatus('rptCET1Status', c.cet1Ratio, c.cet1Req);
+  setStatus('rptT1Status', c.t1Ratio, c.t1Req);
+  setStatus('rptTCStatus', c.tcRatio, c.tcReq);
+
+  // Leverage
+  const totalExp = parseFloat(document.getElementById('totalCreditExp').textContent.replace(/,/g,'')) || 0;
+  document.getElementById('rptLevT1').textContent = fmt(c.tier1);
+  document.getElementById('rptLevExp').textContent = fmt(totalExp);
+  const levRatio = totalExp > 0 ? (c.tier1 / totalExp) * 100 : 0;
+  document.getElementById('rptLevR').textContent = fmtPct(levRatio);
+  const levEl = document.getElementById('rptLevStatus');
+  if (levRatio >= 3.5) { levEl.textContent = 'PASS'; levEl.style.color = '#2e7d32'; }
+  else { levEl.textContent = 'FAIL'; levEl.style.color = '#c62828'; }
+}
+
+// ========== BANK FAILURE CHART ==========
+function buildFailureChart() {
+  const container = document.getElementById('failureChart');
+  if (!container) return;
+  // Approximate FDIC data: national bank failures 1982-2020
+  const data = [
+    {y:1982,v:10},{y:1983,v:15},{y:1984,v:25},{y:1985,v:40},{y:1986,v:60},{y:1987,v:80},
+    {y:1988,v:123},{y:1989,v:100},{y:1990,v:75},{y:1991,v:55},{y:1992,v:35},{y:1993,v:20},
+    {y:1994,v:8},{y:1995,v:3},{y:1996,v:2},{y:1997,v:1},{y:1998,v:1},{y:1999,v:1},
+    {y:2000,v:1},{y:2001,v:1},{y:2002,v:2},{y:2003,v:1},{y:2004,v:1},{y:2005,v:0},
+    {y:2006,v:0},{y:2007,v:1},{y:2008,v:12},{y:2009,v:25},{y:2010,v:22},{y:2011,v:15},
+    {y:2012,v:8},{y:2013,v:4},{y:2014,v:2},{y:2015,v:1},{y:2016,v:1},{y:2017,v:0},
+    {y:2018,v:0},{y:2019,v:1},{y:2020,v:1}
+  ];
+  const maxV = Math.max(...data.map(d => d.v));
+  container.innerHTML = data.map(d => {
+    const h = maxV > 0 ? (d.v / maxV) * 160 : 0;
+    const color = d.v > 50 ? '#c62828' : d.v > 10 ? '#e65100' : '#2c6faa';
+    const title = `${d.y}: ${d.v} failures`;
+    return `<div title="${title}" style="flex:1;background:${color};height:${Math.max(h,1)}px;border-radius:2px 2px 0 0;min-width:4px;cursor:pointer;transition:opacity 0.2s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1"></div>`;
+  }).join('');
+}
+
+// ========== INITIALISE ==========
+buildFailureChart();
+buildQuiz();
+updateCreditRWA();
+updateMarketRisk();
+</script>
+</body>
+</html>
