@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Homework 2: OTC Derivatives Compliance Engine | NTU RegTech</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>document.addEventListener('DOMContentLoaded',()=>hljs.highlightAll());</script>
+<style>
+  :root {
+    --navy:   #0B2447;
+    --navy2:  #173669;
+    --amber:  #F5A623;
+    --teal:   #17A589;
+    --red:    #C0392B;
+    --light:  #F4F7FB;
+    --border: #D5E0EE;
+    --text:   #1A2537;
+    --muted:  #5A6A7E;
+    --code-bg:#161F2E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;font-size:16px}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       color:var(--text);background:#fff;line-height:1.65}
+
+  /* ---- NAV ---- */
+  nav{position:sticky;top:0;z-index:100;background:var(--navy);
+      display:flex;align-items:center;gap:0;overflow-x:auto;
+      box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  nav a{color:#c8d8f0;text-decoration:none;font-size:.78rem;font-weight:600;
+        letter-spacing:.04em;padding:.65rem 1rem;white-space:nowrap;
+        border-bottom:2px solid transparent;transition:all .2s}
+  nav a:hover,nav a.active{color:#fff;border-bottom-color:var(--amber)}
+
+  /* ---- HEADER ---- */
+  header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);
+         color:#fff;padding:3rem 2rem 2.5rem;position:relative;overflow:hidden}
+  header::after{content:"";position:absolute;right:-60px;top:-60px;
+                width:320px;height:320px;border-radius:50%;
+                background:rgba(245,166,35,.07);pointer-events:none}
+  .header-inner{max-width:960px;margin:0 auto}
+  .grade-badge{display:inline-block;background:var(--amber);color:var(--navy);
+               font-size:.75rem;font-weight:800;letter-spacing:.08em;
+               padding:.25rem .75rem;border-radius:2rem;margin-bottom:.9rem;
+               text-transform:uppercase}
+  header h1{font-size:1.95rem;font-weight:800;line-height:1.25;margin-bottom:.5rem}
+  header .subtitle{font-size:1rem;color:#a8c2e0;margin-bottom:1rem}
+  .meta-row{display:flex;flex-wrap:wrap;gap:1.5rem;font-size:.85rem;color:#8ab0d0;margin-top:.5rem}
+  .meta-row span strong{color:#c8d8f0}
+
+  /* ---- MAIN LAYOUT ---- */
+  main{max-width:960px;margin:0 auto;padding:2rem 1.5rem 4rem}
+  section{margin-bottom:3.5rem}
+  section:target{scroll-margin-top:48px}
+  h2{font-size:1.4rem;font-weight:800;color:var(--navy);
+     border-bottom:2px solid var(--border);padding-bottom:.5rem;margin-bottom:1.25rem}
+  h3{font-size:1.05rem;font-weight:700;color:var(--navy2);margin:1.5rem 0 .6rem}
+  h4{font-size:.95rem;font-weight:700;color:var(--muted);margin:1.2rem 0 .4rem;
+     text-transform:uppercase;letter-spacing:.05em}
+  p{margin-bottom:.9rem}
+  ul,ol{padding-left:1.4rem;margin-bottom:.9rem}
+  li{margin-bottom:.3rem}
+  a{color:var(--navy2);text-decoration:underline;text-decoration-color:var(--border)}
+  a:hover{color:var(--amber);text-decoration-color:var(--amber)}
+
+  /* ---- MODULE HEADER BADGES ---- */
+  .module-header{display:flex;align-items:baseline;gap:.75rem;margin-bottom:1rem}
+  .module-badge{font-size:.72rem;font-weight:800;letter-spacing:.07em;
+                text-transform:uppercase;padding:.2rem .65rem;border-radius:3px;
+                white-space:nowrap}
+  .badge-blue  {background:#1A5276;color:#fff}
+  .badge-teal  {background:var(--teal);color:#fff}
+  .badge-amber {background:var(--amber);color:var(--navy)}
+  .badge-red   {background:var(--red);color:#fff}
+  .badge-purple{background:#6C3483;color:#fff}
+  .badge-bonus {background:#0E6655;color:#fff}
+
+  /* ---- CALLOUT BOXES ---- */
+  .callout{border-radius:6px;padding:1rem 1.1rem;margin:1.2rem 0;font-size:.9rem;
+           border-left:4px solid}
+  .callout p:last-child{margin-bottom:0}
+  .callout.note  {background:#EBF5FB;border-color:#2E86C1;color:#1a3a52}
+  .callout.tip   {background:#E8F8F5;border-color:var(--teal);color:#0d3d35}
+  .callout.warn  {background:#FEF9E7;border-color:var(--amber);color:#4d3800}
+  .callout.danger{background:#FDEDEC;border-color:var(--red);color:#5b1a14}
+  .callout strong{display:block;margin-bottom:.3rem;font-size:.82rem;
+                  text-transform:uppercase;letter-spacing:.06em}
+
+  /* ---- CODE BLOCKS ---- */
+  .code-wrap{background:var(--code-bg);border-radius:8px;
+             overflow:hidden;margin:1rem 0 1.4rem;position:relative}
+  .code-label{background:rgba(255,255,255,.06);color:#7c99b8;
+              font-size:.72rem;font-family:monospace;letter-spacing:.04em;
+              padding:.35rem .8rem;border-bottom:1px solid rgba(255,255,255,.07)}
+  .code-wrap pre{margin:0!important;border-radius:0!important;
+                 background:transparent!important;padding:1rem!important;
+                 overflow-x:auto;font-size:.82rem;line-height:1.55}
+
+  /* ---- TABLES ---- */
+  table{width:100%;border-collapse:collapse;margin:1rem 0 1.5rem;font-size:.86rem}
+  th{background:var(--navy);color:#fff;padding:.55rem .75rem;text-align:left;
+     font-weight:700;font-size:.8rem;letter-spacing:.03em}
+  td{padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+  tr:nth-child(even) td{background:var(--light)}
+  td code,th code{font-size:.82rem;background:rgba(0,0,0,.07);
+                  padding:.05em .3em;border-radius:3px}
+
+  /* ---- PILL TAGS ---- */
+  .tag{display:inline-block;background:var(--light);color:var(--navy2);
+       font-size:.74rem;font-weight:700;border:1px solid var(--border);
+       padding:.15rem .5rem;border-radius:3px;margin:.1rem}
+
+  /* ---- DELIVERABLE CARDS ---- */
+  .deliverable-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+  @media(max-width:600px){.deliverable-grid{grid-template-columns:1fr}}
+  .dcard{border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;
+         background:var(--light)}
+  .dcard h4{margin-top:0;color:var(--navy);font-size:.9rem}
+  .dcard p{font-size:.87rem;color:var(--muted);margin-bottom:0}
+
+  /* ---- ASSESSMENT TABLE ---- */
+  .grade-total{font-weight:800;font-size:1.05rem;color:var(--navy)}
+
+  /* ---- TIMELINE ---- */
+  .timeline{border-left:3px solid var(--border);padding-left:1.5rem;margin:1rem 0}
+  .timeline-week{margin-bottom:1.2rem;position:relative}
+  .timeline-week::before{content:"";position:absolute;left:-1.85rem;top:.35rem;
+    width:.7rem;height:.7rem;border-radius:50%;background:var(--amber);
+    border:2px solid #fff;box-shadow:0 0 0 2px var(--amber)}
+  .timeline-week h4{margin:0 0 .3rem;font-size:.9rem;color:var(--navy2)}
+  .timeline-week p{margin:0;font-size:.87rem;color:var(--muted)}
+
+  /* ---- RESOURCE TABLE ---- */
+  .resource-category{font-size:.78rem;font-weight:800;text-transform:uppercase;
+                     letter-spacing:.06em;color:var(--muted);
+                     background:var(--light)!important}
+
+  /* ---- FOOTER ---- */
+  footer{background:var(--navy);color:#7090b8;text-align:center;
+         font-size:.78rem;padding:1.5rem;margin-top:2rem}
+  footer strong{color:#a8c2e0}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#background">Background</a>
+  <a href="#frontier">Prediction Markets</a>
+  <a href="#module1">Module 1</a>
+  <a href="#module2">Module 2</a>
+  <a href="#module3">Module 3</a>
+  <a href="#module4">Module 4</a>
+  <a href="#module5">Module 5</a>
+  <a href="#deliverables">Deliverables</a>
+  <a href="#assessment">Assessment</a>
+  <a href="#timeline">Timeline</a>
+  <a href="#resources">Resources</a>
+</nav>
+
+<header>
+  <div class="header-inner">
+    <div class="grade-badge">Worth 35% of Final Grade</div>
+    <h1>OTC Derivatives Reporting and the Classification Frontier</h1>
+    <div class="subtitle">NTU RegTech Lecture Series &mdash; Team Homework 2</div>
+    <div class="meta-row">
+      <span><strong>Team size:</strong> 3 to 4 students</span>
+      <span><strong>Effort estimate:</strong> 25 to 30 hours per team over 3 weeks</span>
+      <span><strong>Deliverable format:</strong> GitHub repo, compliance report, written analysis, 5-min recording</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- =====================================================================
+     OVERVIEW
+     ===================================================================== -->
+<section id="overview">
+  <h2>Overview and Learning Objectives</h2>
+
+  <p>
+    The global OTC derivatives market carried roughly <strong>846 trillion US dollars in
+    notional outstanding</strong> as of mid-2025, according to the Bank for International
+    Settlements. These instruments span interest rate swaps, foreign exchange forwards,
+    credit default swaps, equity options, and commodity derivatives. After the 2008 crisis
+    exposed the near total opacity of this market, the G20 mandated that every OTC
+    derivative be reported to a <strong>Trade Repository</strong> (known in the United
+    States as a Swap Data Repository, or SDR). Every major jurisdiction now operates a
+    reporting regime, and a shared set of standardised identifiers makes the data
+    globally comparable.
+  </p>
+  <p>
+    In this homework your team builds a working <strong>automated compliance engine</strong>
+    that reads a portfolio of trade records, looks up product identifiers against a real
+    regulatory database, and checks whether each trade satisfies the reporting requirements
+    of two jurisdictions. Along the way you will encounter three trades that do not fit
+    anywhere in the current taxonomy: prediction contracts, also known as event contracts.
+    The central question of the assignment is why they fall outside the framework and what
+    it would take to bring them in.
+  </p>
+
+  <h3>What you will learn</h3>
+  <ul>
+    <li>How the three identifier pillars (UPI, UTI, LEI) underpin global trade reporting</li>
+    <li>How to navigate and parse the ANNA-DSB product definition library used in production today</li>
+    <li>How reporting obligations differ across CFTC, EMIR Refit, and APAC regimes for identical trades</li>
+    <li>How classification decisions, not just reporting rules, determine what is visible to regulators</li>
+    <li>How prediction markets create a regulatory gap that reporting systems are not yet built to handle</li>
+  </ul>
+
+  <h3>Team composition</h3>
+  <p>
+    Assign roles that match each member's background. Adjust them as your team sees fit.
+  </p>
+  <table>
+    <tr><th>Role</th><th>Background</th><th>Primary contribution</th></tr>
+    <tr>
+      <td><strong>Domain Expert</strong></td>
+      <td>Finance or business</td>
+      <td>Interprets regulatory requirements, validates trade economics, leads Module 4 policy analysis, writes the regulatory landscape section</td>
+    </tr>
+    <tr>
+      <td><strong>Engineer</strong></td>
+      <td>Computer science or engineering</td>
+      <td>Designs the module architecture, builds the CLI entry point, owns the repository structure</td>
+    </tr>
+    <tr>
+      <td><strong>Validation Specialist</strong></td>
+      <td>Data science or quantitative</td>
+      <td>Implements codeset validation, LEI check digit algorithm, UTI format checks, and the compliance report generator</td>
+    </tr>
+    <tr>
+      <td><strong>Researcher</strong> (4th member)</td>
+      <td>Any background</td>
+      <td>Deepens analysis of the chosen second jurisdiction, designs five additional trades, and builds the bonus dashboard</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <strong>On using AI assistants</strong>
+    You are encouraged to use Claude, Deepseek, or any other AI assistant to understand
+    the ANNA-DSB JSON schemas, generate boilerplate parsing code, and interpret
+    regulatory documentation. Every team member must be able to explain any part of
+    the submitted work in the Q&amp;A session.
+  </div>
+</section>
+
+<!-- =====================================================================
+     BACKGROUND
+     ===================================================================== -->
+<section id="background">
+  <h2>Background: The Three Identifier Pillars</h2>
+
+  <p>
+    The global reporting framework rests on three standardised identifiers that together
+    allow regulators in different jurisdictions to match, aggregate, and analyse the same
+    trade consistently.
+  </p>
+
+  <table>
+    <tr><th>Identifier</th><th>Abbreviation</th><th>What it identifies</th><th>Standard</th><th>Issued by</th></tr>
+    <tr><td>Unique Product Identifier</td><td><strong>UPI</strong></td><td>The type of derivative product</td><td>ISO 4914</td><td>ANNA-DSB</td></tr>
+    <tr><td>Unique Transaction Identifier</td><td><strong>UTI</strong></td><td>A specific trade</td><td>ISO 23897</td><td>Agreed between counterparties</td></tr>
+    <tr><td>Legal Entity Identifier</td><td><strong>LEI</strong></td><td>A legal entity (bank, fund, corporate)</td><td>ISO 17442</td><td>GLEIF and accredited LOUs</td></tr>
+  </table>
+
+  <h3>The Unique Product Identifier</h3>
+  <p>
+    The UPI identifies the <em>type</em> of OTC derivative product, not any individual
+    trade. Two different deals on a USD five-year fixed to floating interest rate swap
+    referencing SOFR share the same UPI because they represent the same product
+    category. The ANNA-DSB (Association of National Numbering Agencies, Derivatives
+    Service Bureau Limited) was designated by the Financial Stability Board in 2019 as
+    the sole global UPI provider. Their product definition library is publicly available
+    on GitHub:
+  </p>
+  <p>
+    <a href="https://github.com/ANNA-DSB/Product-Definitions" target="_blank">https://github.com/ANNA-DSB/Product-Definitions</a>
+  </p>
+  <p>
+    The library contains JSON templates for five asset classes: Rates (27 product types),
+    Credit (13), FX (27), Equity (60), and Commodities (16). Each template specifies the
+    enumerated attribute values that together uniquely identify a product, including
+    reference rate, currency, tenor, delivery type, and notional schedule. UPI reporting
+    became mandatory in the US in January 2024, in the EU in April 2024, in the UK in
+    September 2024, and across Australia, Singapore, and Japan between October 2024 and
+    April 2025.
+  </p>
+  <p>
+    The library has no product definition for prediction contracts or event contracts,
+    which is where Module 4 begins.
+  </p>
+
+  <h3>The Unique Transaction Identifier</h3>
+  <p>
+    The UTI identifies a specific trade. Its format under ISO 23897 is a namespace
+    (the 20-character LEI of the generating party) followed by a suffix of up to 32
+    characters (uppercase alphanumeric and hyphens only), giving a maximum total length
+    of 52 characters. Both sides of a bilateral trade report the same UTI to enable
+    matching and deduplication at the trade repository. For exchange-traded contracts
+    on regulated platforms like Kalshi, the exchange itself generates the UTI.
+  </p>
+
+  <h3>The Legal Entity Identifier</h3>
+  <p>
+    The LEI is a 20-character code identifying legal entities. The first 18 characters
+    are alphanumeric; the last two are check digits computed using the ISO 7064 MOD
+    97-10 algorithm, the same method used for IBAN bank account validation. Both the
+    reporting counterparty and the other counterparty in every reportable trade must
+    hold an LEI. For prediction contracts traded by retail participants on blockchain
+    platforms, no LEI exists for either party, which is itself a compliance finding
+    your engine must capture.
+  </p>
+</section>
+
+<!-- =====================================================================
+     CLASSIFICATION FRONTIER
+     ===================================================================== -->
+<section id="frontier">
+  <h2>Prediction Markets and the Reporting Gap</h2>
+
+  <p>
+    The reporting infrastructure described above assumes that the instrument in question
+    has already been classified as a derivative. A UPI exists for it, the ANNA-DSB library
+    has a template, and the SDR has a data field to receive it. The framework handles
+    instruments that regulators have already decided are in scope.
+  </p>
+  <p>
+    <strong>Prediction markets</strong> are where that assumption breaks down.
+    A prediction market contract pays a fixed amount if a specified observable event
+    occurs: an election result, a central bank rate decision, a macroeconomic data release.
+    In the United States, Kalshi, a CFTC-regulated Designated Contract Market, processed
+    over <strong>13 billion US dollars in notional volume in March 2026 alone</strong>.
+    The CFTC issued an Advance Notice of Proposed Rulemaking on prediction markets in
+    March 2026 (91 FR 12516, RIN 3038-AF65), signalling that formal classification under
+    derivatives law is under active consideration.
+  </p>
+  <p>
+    In Europe, the same instruments are classified as <strong>illegal gambling</strong>
+    under Germany's Glücksspielstaatsvertrag (GlüStV 2021) and equivalent national
+    frameworks. A renewable energy firm in Sachsen-Anhalt whose revenue depends on
+    state election outcomes can hedge electricity prices on the European Energy Exchange,
+    hedge interest rate movements through standard derivatives, and insure against
+    weather risk through parametric products. It cannot purchase any instrument that
+    offsets its exposure to the political outcome that determines whether its business
+    model survives.
+  </p>
+
+  <div class="callout warn">
+    <strong>Key insight from Brandes (2026)</strong>
+    Nobody decided that political risk should be unhedgeable. Prediction market
+    contracts are prohibited as gambling because they were classified before anyone
+    examined what economic function they serve. The same description — wagering money
+    on an uncertain outcome — fits every interest rate swap, every credit default swap,
+    and every agricultural futures contract. Derivatives regulation does not distinguish
+    between instruments on the basis of uncertainty. It distinguishes on the basis of
+    economic function: hedging, price discovery, or risk transfer.
+  </div>
+
+  <p>
+    In practice, the prohibition has not made prediction market activity go away.
+    German residents access Polymarket through VPN services, a workaround described
+    openly in mainstream technology publications, and in doing so give up any consumer
+    protection. The prohibition stops <em>regulated</em> trading, not trading itself.
+    These instruments sit entirely outside the reporting infrastructure: no UPI, no UTI
+    obligation, no SDR visibility, no ANNA-DSB product definition.
+  </p>
+  <p>
+    Trades T026, T027, and T028 in the portfolio represent this gap. They are in the
+    dataset so that your engine has to reason about instruments that fall <em>outside</em>
+    the taxonomy, not just those that fit neatly within it.
+  </p>
+
+  <div class="callout note">
+    <strong>Required reading</strong>
+    Brandes, A. (2026). <em>The Unhedgeable State: Political Risk, Prediction Markets,
+    and the Gap in Europe's Risk Management Architecture.</em> Policy Brief, April 2026.
+    Provided as <code>ssrn-6571938.pdf</code>. Read this before attempting Module 4.
+  </div>
+</section>
+
+<!-- =====================================================================
+     MODULE 1
+     ===================================================================== -->
+<section id="module1">
+  <div class="module-header">
+    <div class="module-badge badge-blue">Module 1</div>
+    <h2 style="border:none;margin:0;padding:0">Trade Parser and Instrument Classifier</h2>
+    <span style="color:var(--muted);font-size:.85rem">20 points</span>
+  </div>
+
+  <h3>What to build</h3>
+  <p>
+    Write a parser that reads <a href="trades.json" target="_blank">trades.json</a> and
+    produces a structured record for each trade containing the asset class, instrument
+    type, use case, a classification flag, and any parse errors encountered.
+  </p>
+  <p>
+    The classification flag is a new field your engine introduces. It must take one of
+    three values:
+  </p>
+  <ul>
+    <li><code>CONVENTIONAL_DERIVATIVE</code>: the asset class is present in the ANNA-DSB library (Rates, Credit, FX, Equity, Commodities)</li>
+    <li><code>NOVEL_INSTRUMENT_NO_TAXONOMY</code>: the asset class falls outside the ANNA-DSB library (used for trades T026, T027, T028)</li>
+    <li><code>CLASSIFICATION_AMBIGUOUS</code>: insufficient or contradictory fields prevent a determination</li>
+  </ul>
+  <p>
+    Your parser must handle missing fields, null values, invalid timestamp formats, and
+    unknown instrument types without crashing. Every trade should produce an output
+    record regardless of data quality.
+  </p>
+
+  <h3>Expected output per trade</h3>
+  <div class="code-wrap">
+    <div class="code-label">Expected JSON output (one record per trade)</div>
+    <pre><code class="language-json">{
+  "trade_id": "T001",
+  "parse_status": "SUCCESS",
+  "asset_class": "Rates",
+  "instrument_type": "Swap",
+  "use_case": "Fixed_Float",
+  "classification_flag": "CONVENTIONAL_DERIVATIVE",
+  "parse_errors": [],
+  "classified_fields": {
+    "notional_currency": "USD",
+    "notional_amount": 50000000,
+    "cleared": true,
+    "uti": "5493001KJTIIGC8Y1R1220241219TRD00001"
+  }
+}</code></pre>
+  </div>
+
+  <h3>Code stub</h3>
+  <p>
+    A starting stub is provided in <code>stubs/module1_parser.py</code>. The timestamp
+    regex and date validator are fully implemented. You need to complete
+    <code>classify_instrument()</code> and <code>parse_trade()</code>.
+  </p>
+  <div class="code-wrap">
+    <div class="code-label">stubs/module1_parser.py (key functions to complete)</div>
+    <pre><code class="language-python">def classify_instrument(trade: dict) -> str:
+    """
+    Determine the regulatory taxonomy classification flag for a trade.
+    Returns: CONVENTIONAL_DERIVATIVE | NOVEL_INSTRUMENT_NO_TAXONOMY | CLASSIFICATION_AMBIGUOUS
+    """
+    asset_class = trade.get("asset_class")
+    if asset_class is None:
+        return "CLASSIFICATION_AMBIGUOUS"
+    if asset_class in CONVENTIONAL_ASSET_CLASSES:
+        return "CONVENTIONAL_DERIVATIVE"
+    if asset_class in NOVEL_ASSET_CLASSES:
+        return "NOVEL_INSTRUMENT_NO_TAXONOMY"
+    # TODO: handle additional unknown asset classes
+    return "CLASSIFICATION_AMBIGUOUS"
+
+
+def parse_trade(trade: dict) -> ParsedTrade:
+    """
+    Parse a single raw trade dict.
+    Steps:
+      1. Extract asset_class, instrument_type, use_case
+      2. Call classify_instrument()
+      3. Validate execution_timestamp (ISO 8601 UTC required)
+      4. Validate effective_date and maturity_date
+      5. Collect all errors; set parse_status to SUCCESS / PARTIAL / FAILED
+    """
+    errors: list[str] = []
+    # TODO: implement all five steps above
+    raise NotImplementedError</code></pre>
+  </div>
+
+  <h3>Useful libraries</h3>
+  <ul>
+    <li>Standard library <code>json</code> and <code>re</code> are sufficient for this module</li>
+    <li><a href="https://github.com/ijl/orjson" target="_blank">orjson</a> for faster JSON parsing on large portfolios</li>
+    <li><a href="https://github.com/pydantic/pydantic" target="_blank">pydantic</a> for schema-validated dataclasses if you want stronger typing</li>
+  </ul>
+
+  <h3>Marking criteria</h3>
+  <table>
+    <tr><th>Criterion</th><th>Points</th></tr>
+    <tr><td>Parser runs on all 28 trades without crashing</td><td>8</td></tr>
+    <tr><td>Asset class and instrument type correctly identified for all conventional trades</td><td>7</td></tr>
+    <tr><td>Trades T026 to T028 correctly flagged as <code>NOVEL_INSTRUMENT_NO_TAXONOMY</code></td><td>5</td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     MODULE 2
+     ===================================================================== -->
+<section id="module2">
+  <div class="module-header">
+    <div class="module-badge badge-teal">Module 2</div>
+    <h2 style="border:none;margin:0;padding:0">UPI Lookup Engine</h2>
+    <span style="color:var(--muted);font-size:.85rem">25 points</span>
+  </div>
+
+  <h3>Setup: clone the ANNA-DSB product definitions</h3>
+  <div class="code-wrap">
+    <div class="code-label">Terminal</div>
+    <pre><code class="language-bash">git clone https://github.com/ANNA-DSB/Product-Definitions.git \
+    data/product_definitions</code></pre>
+  </div>
+  <p>
+    The repository structure relevant to this module is:
+  </p>
+  <div class="code-wrap">
+    <div class="code-label">Repository layout (abbreviated)</div>
+    <pre><code class="language-text">PROD/OTC-Products/UPI/
+  Rates/
+    Rates.Swap.Fixed_Float.UPI.V1.json
+    Rates.Swap.Basis.UPI.V1.json
+    Rates.Option.Swaption.UPI.V1.json
+    ...
+  Credit/
+  FX/
+  Equity/
+  Commodities/
+  Other/
+PROD/OTC-Products/codesets/
+  FpmlRatesReferenceRate.json   (600+ valid rate codes)
+  ISOCurrencyCode.json          (ISO 4217 currency codes)
+  CreditIndex.json
+  EquityIndex.json
+  ...</code></pre>
+  </div>
+
+  <h3>What to build</h3>
+  <p>
+    Given a classified trade from Module 1, the lookup engine must:
+  </p>
+  <ol>
+    <li>Select the matching product definition template from the ANNA-DSB library based on asset class, instrument type, and use case</li>
+    <li>Validate the trade's attribute values against the codeset enumerations in the codesets directory</li>
+    <li>Return a structured result with status, matched template name, validation errors, and warnings</li>
+    <li>For trades T026 to T028: return a <code>NO_PRODUCT_DEFINITION</code> status with a structured explanatory note rather than a generic error</li>
+  </ol>
+
+  <div class="callout note">
+    <strong>On LIBOR and deprecated rate codes</strong>
+    The codeset file <code>FpmlRatesReferenceRate.json</code> contains over 600 rate
+    codes. LIBOR codes (e.g. <code>GBP-LIBOR-BBA</code>) are deprecated following the
+    cessation of LIBOR in June 2023 but still appear in legacy trade records. Your
+    engine must flag these as <strong>warnings</strong>, not hard errors, since legacy
+    trades reported under prior rules remain valid. Look for the substring
+    <code>LIBOR</code> in the rate code string as a pragmatic detection heuristic.
+  </div>
+
+  <h3>Expected output per trade</h3>
+  <div class="code-wrap">
+    <div class="code-label">Conventional derivative: matched and valid</div>
+    <pre><code class="language-json">{
+  "trade_id": "T001",
+  "status": "FOUND",
+  "matched_template": "Rates.Swap.Fixed_Float",
+  "upi_code": "E5PNQBPNQ7JLLM7THFMD",
+  "classification_note": null,
+  "validation_errors": [],
+  "warnings": []
+}</code></pre>
+  </div>
+  <div class="code-wrap">
+    <div class="code-label">Prediction contract: no product definition</div>
+    <pre><code class="language-json">{
+  "trade_id": "T026",
+  "status": "NO_PRODUCT_DEFINITION",
+  "matched_template": null,
+  "upi_code": null,
+  "classification_note": "Instrument type 'BinaryEventContract' under asset class 'EventContract' has no product definition in the ANNA-DSB UPI library. This reflects the current regulatory classification of prediction and event contracts as outside the OTC derivatives taxonomy in most jurisdictions. Refer to Module 4 for classification analysis.",
+  "validation_errors": [],
+  "warnings": []
+}</code></pre>
+  </div>
+
+  <h3>Code stub</h3>
+  <div class="code-wrap">
+    <div class="code-label">stubs/module2_upi_lookup.py (key functions to complete)</div>
+    <pre><code class="language-python">def find_product_template(
+    asset_class: str, instrument_type: str, use_case: str
+) -> Optional[dict]:
+    """
+    Search the ANNA-DSB product definition library for a matching template.
+    Hint: Path.glob("*.json") on the asset_class subdirectory,
+    then match on instrument_type and use_case in the filename stem.
+    """
+    # TODO: implement
+    raise NotImplementedError
+
+
+def validate_attributes(trade: dict, template: dict) -> tuple[list, list]:
+    """
+    Validate trade attributes against template constraints.
+    Returns (errors, warnings).
+    Checks: currency (ISO 4217), reference rate (codeset), term unit,
+    term value range, debt seniority, delivery type.
+    Deprecated LIBOR rates -> warnings, not errors.
+    """
+    errors, warnings = [], []
+    # Partially implemented in the stub file: currency and rate checks are stubs
+    # TODO: complete all validation checks
+    return errors, warnings
+
+
+def lookup_upi(parsed_trade: ParsedTrade) -> UpiLookupResult:
+    """
+    Full UPI lookup flow:
+      NOVEL_INSTRUMENT_NO_TAXONOMY -> NO_PRODUCT_DEFINITION (with note)
+      No matching template found   -> NOT_FOUND
+      Template found, errors       -> INVALID_ATTRIBUTES
+      Template found, no errors    -> FOUND
+    """
+    # TODO: implement
+    raise NotImplementedError</code></pre>
+  </div>
+
+  <h3>Useful libraries</h3>
+  <ul>
+    <li><a href="https://github.com/pycountry/pycountry" target="_blank">pycountry</a> for ISO 4217 currency code validation (note: XAU for gold is valid and must pass)</li>
+    <li><a href="https://github.com/python-jsonschema/jsonschema" target="_blank">jsonschema</a> for validating trade records against a JSON Schema derived from the ANNA-DSB templates</li>
+    <li>Standard library <code>pathlib</code> and <code>glob</code> for template file search</li>
+    <li>Standard library <code>json</code> for codeset loading; cache loaded codesets in a module-level dict to avoid repeated file reads</li>
+  </ul>
+
+  <h3>Marking criteria</h3>
+  <table>
+    <tr><th>Criterion</th><th>Points</th></tr>
+    <tr><td>Correct product template identified for each valid conventional trade</td><td>12</td></tr>
+    <tr><td>Attribute validation against codesets with specific, informative error messages</td><td>8</td></tr>
+    <tr><td>Structured <code>NO_PRODUCT_DEFINITION</code> with classification note for T026 to T028</td><td>5</td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     MODULE 3
+     ===================================================================== -->
+<section id="module3">
+  <div class="module-header">
+    <div class="module-badge badge-amber">Module 3</div>
+    <h2 style="border:none;margin:0;padding:0">Multi-Jurisdictional Compliance Checker</h2>
+    <span style="color:var(--muted);font-size:.85rem">25 points</span>
+  </div>
+
+  <h3>What to build</h3>
+  <p>
+    For each trade, determine whether a reporting obligation exists under two regulatory
+    regimes and validate that all mandatory fields are present and correctly formatted.
+    All teams must implement <strong>CFTC</strong>. Choose one of EMIR Refit (EU), ASIC
+    (Australia), MAS (Singapore), or CSA (Canada) as your second regime.
+  </p>
+
+  <h3>The jurisdictional asymmetry problem: trades T026 to T028</h3>
+  <p>
+    The same economic transaction, a binary event contract on a political or
+    macroeconomic outcome, generates three entirely different compliance outcomes
+    depending on which regulatory regime applies. Your engine must model this
+    explicitly. The table below summarises the expected outputs.
+  </p>
+  <table>
+    <tr><th>Regime</th><th>Status for T026 (Kalshi, CFTC DCM)</th><th>Status for T027 (Polymarket, offshore via VPN)</th><th>Status for T028 (Kalshi, regulatory decision)</th></tr>
+    <tr>
+      <td>CFTC</td>
+      <td><span class="tag">CONDITIONAL</span></td>
+      <td><span class="tag">NOT_APPLICABLE</span> (not a CFTC DCM)</td>
+      <td><span class="tag">CONDITIONAL</span></td>
+    </tr>
+    <tr>
+      <td>EMIR</td>
+      <td><span class="tag">NOT_APPLICABLE</span> (gambling classification)</td>
+      <td><span class="tag">NOT_APPLICABLE</span></td>
+      <td><span class="tag">NOT_APPLICABLE</span></td>
+    </tr>
+    <tr>
+      <td>ASIC / MAS</td>
+      <td colspan="3"><span class="tag">NOT_APPLICABLE</span> (classification uncertain)</td>
+    </tr>
+  </table>
+
+  <h3>Jurisdictional field requirements</h3>
+  <table>
+    <tr><th>Field</th><th>CFTC</th><th>EMIR Refit</th><th>ASIC</th><th>MAS</th></tr>
+    <tr><td>UTI</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>UPI (since Jan 2024 / Apr 2024)</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Reporting counterparty LEI</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Other counterparty LEI</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Execution timestamp (ISO 8601 UTC)</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Effective date</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Maturity or expiry date</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Notional currency (ISO 4217)</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Notional amount</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Action type (NEW, MODIFY, etc.)</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Cleared indicator</td><td>Required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Collateral portfolio code</td><td>Not required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Initial margin posted</td><td>Not required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+    <tr><td>Variation margin posted</td><td>Not required</td><td>Required</td><td>Required</td><td>Required</td></tr>
+  </table>
+
+  <h3>LEI validation: ISO 7064 MOD 97-10</h3>
+  <p>
+    An LEI is 20 characters: 18 uppercase alphanumeric characters followed by 2 numeric
+    check digits. The check digits are computed as follows:
+  </p>
+  <ol>
+    <li>Convert the 18-character LEI body to a numeric string: digits 0 to 9 stay as digits; letters A through Z become 10 through 35</li>
+    <li>Append <code>00</code> to produce the verification string</li>
+    <li>Compute <code>98 minus (verification_number mod 97)</code>, zero-padded to two digits</li>
+    <li>The result must match the last two characters of the LEI</li>
+  </ol>
+  <p>
+    This is the same algorithm as IBAN bank account validation. The stub in
+    <code>stubs/module3_compliance.py</code> provides a nearly complete implementation;
+    you need to fill in the final comparison step. Alternatively, use the
+    <a href="https://github.com/arthurdejong/python-stdnum" target="_blank">python-stdnum</a>
+    library which exposes <code>stdnum.iso.lei.validate()</code>.
+  </p>
+
+  <h3>UTI validation</h3>
+  <p>Rules to implement:</p>
+  <ol>
+    <li>Total length must not exceed 52 characters</li>
+    <li>The first 20 characters must form a syntactically valid LEI (format check at minimum)</li>
+    <li>The namespace LEI (first 20 characters) must equal the reporting counterparty LEI in the trade record</li>
+    <li>The suffix (characters 21 onward) must contain only uppercase letters, digits, and hyphens</li>
+  </ol>
+
+  <h3>Code stub</h3>
+  <div class="code-wrap">
+    <div class="code-label">stubs/module3_compliance.py (key functions to complete)</div>
+    <pre><code class="language-python">def validate_lei(lei: Optional[str]) -> tuple[bool, str]:
+    """
+    Validate an LEI string. Returns (is_valid, error_message).
+    The check digit logic is nearly complete in the stub.
+    You need to call compute_lei_check_digits(lei[:18]) and
+    compare the result with lei[18:].
+    Shortcut: from stdnum.iso import lei; lei.validate(value)
+    """
+    ...
+
+def validate_uti(uti: Optional[str], reporting_lei: Optional[str]) -> tuple[bool, str]:
+    """
+    Validate a UTI string. Returns (is_valid, error_message).
+    Rules: max 52 chars, first 20 = valid LEI namespace = reporting_lei,
+    suffix = uppercase alphanumeric and hyphens only.
+    """
+    ...
+
+def check_cftc_compliance(parsed_trade, upi_result, raw_trade) -> ComplianceResult:
+    """
+    EventContract on CFTC DCM -> CONDITIONAL with explanatory note.
+    Conventional derivative -> validate all CDE + CFTC fields,
+    validate UTI and both LEIs, return COMPLIANT or NONCOMPLIANT.
+    """
+    ...
+
+def check_emir_compliance(parsed_trade, upi_result, raw_trade) -> ComplianceResult:
+    """
+    EventContract -> NOT_APPLICABLE (GlüStV 2021 gambling classification).
+    Conventional derivative -> validate all CDE + EMIR fields including
+    collateral fields (required even when margin is zero).
+    """
+    ...</code></pre>
+  </div>
+
+  <h3>Useful libraries</h3>
+  <ul>
+    <li><a href="https://github.com/arthurdejong/python-stdnum" target="_blank">python-stdnum</a>: provides <code>stdnum.iso.lei.validate()</code> and <code>stdnum.iban</code> for reference on MOD 97-10</li>
+    <li><a href="https://search.gleif.org" target="_blank">GLEIF LEI search</a> (web) to manually verify that test LEIs in the portfolio are real (they are not all real; that is part of the exercise)</li>
+    <li><a href="https://api.gleif.org/api/v1/lei-records/" target="_blank">GLEIF open data API</a> if you want to extend the engine to do live LEI lookups</li>
+  </ul>
+
+  <h3>Marking criteria</h3>
+  <table>
+    <tr><th>Criterion</th><th>Points</th></tr>
+    <tr><td>Correct field validation and reporting obligation determination under CFTC</td><td>10</td></tr>
+    <tr><td>Correct field validation and reporting obligation determination under chosen second regime</td><td>8</td></tr>
+    <tr><td>UTI and LEI validation logic correctly implemented</td><td>5</td></tr>
+    <tr><td>Jurisdictional asymmetry correctly modelled for trades T026 to T028</td><td>2</td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     MODULE 4
+     ===================================================================== -->
+<section id="module4">
+  <div class="module-header">
+    <div class="module-badge badge-red">Module 4</div>
+    <h2 style="border:none;margin:0;padding:0">Classification Analysis: Prediction Contracts and the Reporting Frontier</h2>
+    <span style="color:var(--muted);font-size:.85rem">20 points (written analysis)</span>
+  </div>
+
+  <p>
+    This module has no coding requirement. Submit your answers as Section 4 of your
+    written report and present a three-minute segment during your team presentation.
+  </p>
+
+  <h3>Task 4A: Economic function test (5 points)</h3>
+  <p>
+    Apply the following three-question test to trades T026, T027, and T028:
+  </p>
+  <ol>
+    <li>Does an identifiable economic actor exist with measurable contractual exposure to the outcome being traded?</li>
+    <li>Would the prediction contract, if freely tradeable, allow that actor to manage that exposure?</li>
+    <li>Does the contract provide price discovery, meaning continuously updated, market-derived probability estimates, that has informational value beyond existing sources such as opinion polls?</li>
+  </ol>
+  <p>
+    Answer each question for each trade and state a conclusion: does the instrument
+    perform a hedging or price discovery function analogous to recognised derivatives?
+    Justify your reasoning by reference to specific actors named in the trade records.
+  </p>
+
+  <h3>Task 4B: What would a UPI look like? (5 points)</h3>
+  <p>
+    The ANNA-DSB product definition schema identifies instruments by AssetClass,
+    InstrumentType, UseCase, and a set of enumerated attribute values. Propose a
+    product definition schema for one of the three event contract trades. Specifically:
+  </p>
+  <ul>
+    <li>What AssetClass and InstrumentType designations would you propose?</li>
+    <li>What attributes uniquely identify the product? (What is the analogue of ReferenceRate and NotionalCurrency for an event contract?)</li>
+    <li>What DeliveryType applies?</li>
+    <li>What validation constraints would you impose on the event description field?</li>
+  </ul>
+  <p>
+    Write a partial JSON product definition template in the same format as an ANNA-DSB
+    product definition file. You do not need a real UPI code; propose the schema
+    structure.
+  </p>
+  <div class="code-wrap">
+    <div class="code-label">Template structure reference (from an existing ANNA-DSB definition)</div>
+    <pre><code class="language-json">{
+  "AssetClass": "Rates",
+  "InstrumentType": "Swap",
+  "UseCase": "Fixed_Float",
+  "Level": "UPI",
+  "UPI": "E5PNQBPNQ7JLLM7THFMD",
+  "Attributes": {
+    "NotionalCurrency": { "type": "string", "codeset": "ISOCurrencyCode" },
+    "ReferenceRate":    { "type": "string", "codeset": "FpmlRatesReferenceRate" },
+    "ReferenceRateTermValue": { "type": "integer", "minimum": -999, "maximum": 999, "not": 0 },
+    "ReferenceRateTermUnit": { "type": "string", "enum": ["DAYS","WEEK","MNTH","YEAR"] },
+    "NotionalSchedule": { "type": "string", "enum": ["Constant","Accreting","Amortizing","Custom"] },
+    "DeliveryType":     { "type": "string", "enum": ["CASH","PHYS","OPTL"] }
+  }
+}</code></pre>
+  </div>
+
+  <h3>Task 4C: Jurisdictional arbitrage and regulatory design (7 points)</h3>
+  <p>Three questions, each requiring substantive analysis:</p>
+  <ol>
+    <li>
+      <strong>Identify the regulatory arbitrage.</strong> The same instrument is freely
+      tradeable on a CFTC-regulated exchange in the United States and classified as
+      illegal gambling in most EU member states, yet EU residents access it via VPN on
+      offshore platforms with no consumer protection. Who benefits from this gap? Who
+      is harmed? Be specific about the actors named in trades T026 to T028.
+    </li>
+    <li>
+      <strong>Pick two of Brandes's five framework elements</strong> (operator
+      neutrality, contract scope limitations, participant restrictions, market integrity
+      supervision, position limits and consumer protection) and explain what their
+      operational implementation would require from a RegTech perspective. What data
+      must be collected? What validation logic must exist? What reporting infrastructure
+      is needed? Aim for one specific concrete mechanism per element.
+    </li>
+    <li>
+      <strong>What changes to the reporting stack?</strong> If prediction contracts were
+      brought within the EMIR framework, what would need to change in the ANNA-DSB
+      product definition library, the UTI generation rules, and the SDR reporting
+      infrastructure? Be specific about the technical changes each component requires.
+    </li>
+  </ol>
+
+  <h3>Task 4D: Reflection on the limits of the compliance engine (3 points)</h3>
+  <p>
+    In two to three paragraphs, reflect on the following:
+  </p>
+  <ul>
+    <li>What systemic risks are invisible to a compliance engine built on the current taxonomy? What volume of activity does this represent given Kalshi's reported 13 billion US dollar monthly notional in March 2026?</li>
+    <li>Is the absence of a UPI itself a systemic risk indicator? What would you recommend to regulators?</li>
+    <li>If you were advising the CFTC on the technical requirements for the prediction market rulemaking (ANPR 91 FR 12516), what two changes to the ANNA-DSB library and SDR data standards would you prioritise?</li>
+  </ul>
+</section>
+
+<!-- =====================================================================
+     MODULE 5 (BONUS)
+     ===================================================================== -->
+<section id="module5">
+  <div class="module-header">
+    <div class="module-badge badge-bonus">Module 5</div>
+    <h2 style="border:none;margin:0;padding:0">Compliance Dashboard</h2>
+    <span style="color:var(--muted);font-size:.85rem">Bonus: 15 points</span>
+  </div>
+
+  <p>
+    Build a visual dashboard using either a Jupyter notebook with interactive plots
+    or a minimal web application (Flask or FastAPI plus HTML). Running
+    <code>python dashboard.py</code> or opening the notebook must reproduce all charts
+    from the provided output report without modification.
+  </p>
+
+  <h3>Required visualisations</h3>
+  <ol>
+    <li><strong>Portfolio compliance heatmap</strong>: rows are trade IDs, columns are regimes, cells are colour-coded by status (COMPLIANT, NONCOMPLIANT, CONDITIONAL, NOT_APPLICABLE)</li>
+    <li><strong>Error frequency chart</strong>: horizontal bar chart of the most commonly failing fields across all trades</li>
+    <li><strong>Asset class breakdown</strong>: compliance rate grouped by asset class for each regime</li>
+    <li><strong>Classification frontier panel</strong>: a dedicated table or chart for trades T026 to T028 showing the jurisdictional asymmetry clearly, including the compliance note text</li>
+  </ol>
+
+  <h3>Useful libraries</h3>
+  <ul>
+    <li><a href="https://github.com/plotly/plotly.py" target="_blank">plotly</a>: interactive charts including heatmaps; works in both Jupyter and Flask</li>
+    <li><a href="https://github.com/pandas-dev/pandas" target="_blank">pandas</a>: load the JSON report and pivot into a compliance matrix with one line</li>
+    <li><a href="https://github.com/pallets/flask" target="_blank">Flask</a> or <a href="https://github.com/tiangolo/fastapi" target="_blank">FastAPI</a> for a web interface</li>
+    <li><a href="https://github.com/mwaskom/seaborn" target="_blank">seaborn</a> for a static heatmap if you prefer matplotlib-style output</li>
+  </ul>
+
+  <h3>Bonus marking criteria</h3>
+  <table>
+    <tr><th>Criterion</th><th>Points</th></tr>
+    <tr><td>All four required visualisations present and correctly labelled</td><td>8</td></tr>
+    <tr><td>Code reproducibility: charts regenerate correctly from the provided output file</td><td>4</td></tr>
+    <tr><td>Two to three paragraphs of written interpretation of the results embedded in the notebook or dashboard</td><td>3</td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     DELIVERABLES
+     ===================================================================== -->
+<section id="deliverables">
+  <h2>Deliverables</h2>
+
+  <div class="deliverable-grid">
+    <div class="dcard">
+      <h4>Deliverable 1: GitHub Repository</h4>
+      <p>A public or private repository shared with the lecturer. Must contain
+      <code>trades.json</code>, all source modules under <code>src/</code>,
+      a copy of or submodule reference to the ANNA-DSB product definitions,
+      the output report, and a <code>README.md</code> with clear run instructions.</p>
+    </div>
+    <div class="dcard">
+      <h4>Deliverable 2: Compliance Report</h4>
+      <p>Engine output for all 28 provided trades plus at least five additional trades
+      of your own design (at least one per additional asset class, plus at least one
+      further event contract variant). Two of your five additional trades must contain
+      intentional errors that your engine correctly catches.</p>
+    </div>
+    <div class="dcard">
+      <h4>Deliverable 3: Technical and Regulatory Report</h4>
+      <p>Approximately 2500 words covering: regulatory landscape overview, system
+      architecture and design decisions, portfolio findings, Module 4 classification
+      analysis, limitations and future work, and one
+      paragraph per team member describing their contribution.</p>
+    </div>
+    <div class="dcard">
+      <h4>Deliverable 4: Recorded Presentation</h4>
+      <p>A five-minute recorded presentation submitted as an audio or video file (MP3,
+      MP4, or a shared Drive link). No live session. Follow the four-segment structure
+      below exactly — teams that ignore the structure or run over five minutes will
+      lose marks regardless of content quality.</p>
+    </div>
+  </div>
+
+  <h3>Recorded presentation format</h3>
+  <p>
+    Five minutes hard limit. Audio-only is acceptable; you do not need a camera or slides.
+    If you record over slides, no more than eight slides. Use the following four segments
+    in order, keeping to the times shown. Do not rearrange them.
+  </p>
+  <table>
+    <tr><th>Segment</th><th>Time</th><th>What to cover</th></tr>
+    <tr>
+      <td><strong>1. Live demo</strong></td>
+      <td>90 sec</td>
+      <td>Run the engine on one trade and narrate what you see. Pick a trade with at
+      least one interesting finding — a compliance failure, a deprecation warning, or
+      a NO_PRODUCT_DEFINITION result. Show that it works.</td>
+    </tr>
+    <tr>
+      <td><strong>2. One finding</strong></td>
+      <td>60 sec</td>
+      <td>The single most interesting compliance result from the full portfolio run.
+      Not a summary of all trades — pick one and explain why it matters.</td>
+    </tr>
+    <tr>
+      <td><strong>3. Policy argument</strong></td>
+      <td>90 sec</td>
+      <td>Your Module 4 position on T026, T027, and T028. State one claim about how
+      these instruments should be classified or regulated, and give the strongest
+      reason for it. This is the segment that shows whether you understood the material.</td>
+    </tr>
+    <tr>
+      <td><strong>4. What the engine cannot see</strong></td>
+      <td>60 sec</td>
+      <td>One specific systemic risk that is invisible to a compliance engine built
+      on the current taxonomy. Be concrete — name a number, an actor, or a mechanism.</td>
+    </tr>
+  </table>
+  <p>
+    Submit as an MP3 or MP4 file, or share a Google Drive or OneDrive link with
+    view access enabled, alongside your GitHub repository link. Include the recording
+    link in your README.
+  </p>
+
+  <h3>Running your engine</h3>
+  <p>Your submission must run with the following commands on a clean Python environment:</p>
+  <div class="code-wrap">
+    <div class="code-label">Installation and execution</div>
+    <pre><code class="language-bash">pip install -r requirements.txt
+python run_compliance_check.py --input trades.json --regimes CFTC,EMIR</code></pre>
+  </div>
+
+  <h3>Report structure</h3>
+  <table>
+    <tr><th>Section</th><th>Word count</th><th>Content</th></tr>
+    <tr><td>1. Regulatory Landscape</td><td>~400</td><td>The global OTC reporting framework, the three identifier pillars, how the regimes relate to one another</td></tr>
+    <tr><td>2. System Architecture</td><td>~500</td><td>Your engine design, key design decisions, hardest validation problems solved</td></tr>
+    <tr><td>3. Portfolio Findings</td><td>~400</td><td>What errors you found, what patterns emerged, what you would recommend to a compliance team</td></tr>
+    <tr><td>4. Module 4 Analysis</td><td>~800</td><td>Tasks 4A through 4D in full: economic function test, UPI schema proposal, jurisdictional arbitrage analysis, reflection on engine limitations</td></tr>
+    <tr><td>5. Limitations and Future Work</td><td>~400</td><td>What production systems do that your engine does not: lifecycle events, valuation reporting, UTI pairing, live SDR connectivity, prediction market extensions</td></tr>
+    <tr><td>Team Contribution Statement</td><td>One paragraph per member</td><td></td></tr>
+  </table>
+</section>
+
+<!-- =====================================================================
+     ASSESSMENT
+     ===================================================================== -->
+<section id="assessment">
+  <h2>Assessment Criteria</h2>
+
+  <div class="callout warn">
+    <strong>Grade weight</strong>
+    This homework is worth <strong>35 percent of the final course grade</strong>.
+  </div>
+
+  <table>
+    <tr><th>Component</th><th>Weight within homework</th><th>Description</th></tr>
+    <tr>
+      <td>Module 1: Trade Parser</td>
+      <td>20%</td>
+      <td>Correctness, error handling, <code>NOVEL_INSTRUMENT_NO_TAXONOMY</code> flagging</td>
+    </tr>
+    <tr>
+      <td>Module 2: UPI Lookup Engine</td>
+      <td>25%</td>
+      <td>Template matching, codeset validation, <code>NO_PRODUCT_DEFINITION</code> handling</td>
+    </tr>
+    <tr>
+      <td>Module 3: Compliance Checker</td>
+      <td>25%</td>
+      <td>Field validation, UTI and LEI logic, jurisdictional asymmetry for T026 to T028</td>
+    </tr>
+    <tr>
+      <td>Module 4: Classification Analysis (written)</td>
+      <td>20%</td>
+      <td>Depth of economic function analysis, UPI schema proposal, regulatory design insight, quality of recommendations</td>
+    </tr>
+    <tr>
+      <td>Recorded presentation</td>
+      <td>10%</td>
+      <td>Demo shows a working engine, one finding is specific and clearly explained,
+      policy argument takes a position and defends it, reflection on engine limits is
+      concrete. Presentations over five minutes are capped at half marks.</td>
+    </tr>
+    <tr style="background:var(--light)">
+      <td><strong class="grade-total">Total</strong></td>
+      <td><strong class="grade-total">100% of homework = 35% of final grade</strong></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Module 5 Dashboard (bonus)</td>
+      <td>Up to +15 bonus points on the homework score</td>
+      <td>Four required visualisations, reproducibility, written interpretation</td>
+    </tr>
+  </table>
+
+  <p>
+    Each module is assessed on three dimensions: correctness (does it produce the right
+    answer for each trade?), robustness (does it handle edge cases without crashing?),
+    and code quality (is the code readable and reasonably structured?).
+  </p>
+</section>
+
+<!-- =====================================================================
+     TIMELINE
+     ===================================================================== -->
+<section id="timeline">
+  <h2>Suggested Timeline</h2>
+
+  <div class="timeline">
+    <div class="timeline-week">
+      <h4>Week 1</h4>
+      <p>Form teams and divide the work today. Clone the ANNA-DSB product definitions
+      repository and read the JSON file structure before your first team meeting. Read
+      Brandes (2026) over the weekend. Agree on your second regulatory regime. By end
+      of week: Module 1 parser running on all 28 trades with correct classification
+      flags, and your system architecture sketched out.</p>
+    </div>
+    <div class="timeline-week">
+      <h4>Week 2</h4>
+      <p>Build Module 2 early in the week: template matching and codeset validation,
+      including the NO_PRODUCT_DEFINITION path for T026 to T028. Then move straight
+      into Module 3: LEI check digit, UTI format validation, and field checks for both
+      regimes. Run the full pipeline by Friday and produce the compliance report. Design
+      your five additional trades, including two with intentional errors.</p>
+    </div>
+    <div class="timeline-week">
+      <h4>Week 3</h4>
+      <p>Write the report in the first half of the week. Module 4 needs the most time,
+      so draft it first. If you are attempting the bonus dashboard, build it in parallel
+      with report writing, not after. Rehearse your presentation mid-week. Clean up the
+      repository and verify a clean install works before submission day.</p>
+    </div>
+    <div class="timeline-week">
+      <h4>Submission day</h4>
+      <p>Submit the GitHub link, compliance report, written report, and recording link
+      by the deadline. Late submissions are not accepted.</p>
+    </div>
+  </div>
+</section>
+
+<!-- =====================================================================
+     RESOURCES
+     ===================================================================== -->
+<section id="resources">
+  <h2>Resources and Reference Links</h2>
+
+  <table>
+    <tr><td class="resource-category" colspan="2">Core Data: ANNA-DSB Product Definitions</td></tr>
+    <tr>
+      <td><a href="https://github.com/ANNA-DSB/Product-Definitions" target="_blank">ANNA-DSB Product Definitions (GitHub)</a></td>
+      <td>Clone this repository as the data foundation for Module 2</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/ANNA-DSB/Product-Definitions/tree/master/PROD/OTC-Products/UPI" target="_blank">UPI product definition templates</a></td>
+      <td>JSON templates by asset class; 143 files across Rates, Credit, FX, Equity, Commodities</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/ANNA-DSB/Product-Definitions/tree/master/PROD/OTC-Products/codesets" target="_blank">Codesets (validation enumerations)</a></td>
+      <td>FpmlRatesReferenceRate, ISOCurrencyCode, CreditIndex, and others</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.anna-dsb.com" target="_blank">ANNA-DSB website</a></td>
+      <td>UPI documentation, API specifications, onboarding guides</td>
+    </tr>
+
+    <tr><td class="resource-category" colspan="2">Python Libraries</td></tr>
+    <tr>
+      <td><a href="https://github.com/arthurdejong/python-stdnum" target="_blank">python-stdnum</a></td>
+      <td>LEI validation via <code>stdnum.iso.lei.validate()</code>; also covers IBAN, ISIN, and other financial identifiers</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/pycountry/pycountry" target="_blank">pycountry</a></td>
+      <td>ISO 4217 currency code validation; covers XAU (gold) and all standard codes</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/python-jsonschema/jsonschema" target="_blank">jsonschema</a></td>
+      <td>Validate trade records against JSON Schema derived from ANNA-DSB templates</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/pandas-dev/pandas" target="_blank">pandas</a></td>
+      <td>Load the JSON compliance report and pivot into a compliance matrix with one line</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/plotly/plotly.py" target="_blank">plotly</a></td>
+      <td>Interactive heatmaps and bar charts for the Module 5 dashboard</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/pallets/flask" target="_blank">Flask</a></td>
+      <td>Lightweight web server if you build a browser-based dashboard</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/tiangolo/fastapi" target="_blank">FastAPI</a></td>
+      <td>Alternative to Flask with automatic OpenAPI docs; useful if you expose a compliance API endpoint</td>
+    </tr>
+    <tr>
+      <td><a href="https://github.com/pydantic/pydantic" target="_blank">pydantic</a></td>
+      <td>Schema-validated Python dataclasses; consider for stricter trade record modelling</td>
+    </tr>
+
+    <tr><td class="resource-category" colspan="2">Regulatory Specifications</td></tr>
+    <tr>
+      <td><a href="https://www.cftc.gov/LawRegulation/DoddFrankAct/index.htm" target="_blank">CFTC Dodd-Frank reporting rules</a></td>
+      <td>Part 43 (real time), Part 45 (transaction), Part 49 (SDR) technical specifications</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.esma.europa.eu" target="_blank">ESMA EMIR Refit guidelines</a></td>
+      <td>EMIR Refit field requirements and technical standards (April 2024 go-live)</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.mas.gov.sg/regulation/capital-markets/trade-reporting" target="_blank">MAS trade reporting</a></td>
+      <td>Singapore Securities and Futures Act reporting requirements (October 2024)</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.asic.gov.au/regulatory-resources/markets/market-infrastructure/otc-derivatives-regulation/" target="_blank">ASIC derivative rules</a></td>
+      <td>Australian Derivative Transaction Rules (October 2024)</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.bis.org/cpmi/publ/d185.htm" target="_blank">CPMI-IOSCO CDE Technical Guidance</a></td>
+      <td>The 57-field Common Data Elements specification underpinning all regimes</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.kaizenreporting.com" target="_blank">Kaizen Reporting</a></td>
+      <td>Plain-English summaries of all major OTC reporting regime changes; excellent for the written report background section</td>
+    </tr>
+
+    <tr><td class="resource-category" colspan="2">Prediction Markets</td></tr>
+    <tr>
+      <td>Brandes (2026): The Unhedgeable State</td>
+      <td>Provided as <code>ssrn-6571938.pdf</code>. Required reading for Module 4.</td>
+    </tr>
+    <tr>
+      <td><a href="https://kalshi.com" target="_blank">Kalshi (CFTC-regulated DCM)</a></td>
+      <td>Context for trades T026 and T028; CFTC-designated exchange for event contracts</td>
+    </tr>
+    <tr>
+      <td><a href="https://polymarket.com" target="_blank">Polymarket</a></td>
+      <td>Context for trade T027; decentralised blockchain-based prediction market</td>
+    </tr>
+    <tr>
+      <td>CFTC ANPR on Prediction Markets: 91 FR 12516, RIN 3038-AF65, 16 March 2026</td>
+      <td>The active US rulemaking that may bring event contracts within the derivatives taxonomy</td>
+    </tr>
+    <tr>
+      <td>Diercks, Katz &amp; Wright (2026): Kalshi and the Rise of Macro Markets. NBER WP 34702 / Fed Reserve FEDS 2026-010.</td>
+      <td>Academic analysis of prediction market volumes and macroeconomic forecast accuracy</td>
+    </tr>
+
+    <tr><td class="resource-category" colspan="2">Identity and Reference Data</td></tr>
+    <tr>
+      <td><a href="https://search.gleif.org" target="_blank">GLEIF LEI search</a></td>
+      <td>Look up any LEI to verify it is real; useful when designing your five additional trades</td>
+    </tr>
+    <tr>
+      <td><a href="https://api.gleif.org/api/v1/lei-records/" target="_blank">GLEIF open data API</a></td>
+      <td>Programmatic LEI lookup if you want to extend the engine to validate LEIs against the live registry</td>
+    </tr>
+    <tr>
+      <td><a href="https://fred.stlouisfed.org/series/FEDFUNDS" target="_blank">FRED: Federal Funds Rate</a></td>
+      <td>Macro context for the rate environment that drove SVB losses and prediction market volumes</td>
+    </tr>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  <strong>NTU RegTech Lecture Series</strong> &nbsp;|&nbsp;
+  Homework 2: OTC Derivatives Reporting and the Classification Frontier &nbsp;|&nbsp;
+  Worth 35% of final grade &nbsp;|&nbsp;
+  Trade portfolio: <a href="trades.json" style="color:#7090b8">trades.json</a> &nbsp;|&nbsp;
+  Code stubs: <a href="stubs/" style="color:#7090b8">stubs/</a>
+</footer>
+
+</body>
+</html>
