@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOB Manipulation Simulator — ES Futures</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:       #0a0c0f;
+  --bg1:      #0f1217;
+  --bg2:      #141820;
+  --bg3:      #1c2230;
+  --bg4:      #222a3a;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #cdd6e8;
+  --text2:    #7a8ba8;
+  --text3:    #4a5870;
+  --amber:    #f0a500;
+  --amber2:   #ffc850;
+  --green:    #00c97a;
+  --green2:   #00ff9d;
+  --red:      #e84040;
+  --red2:     #ff6060;
+  --blue:     #2979ff;
+  --blue2:    #6ea8ff;
+  --purple:   #a855f7;
+  --cyan:     #06b6d4;
+  --white:    #f0f4ff;
+
+  /* Agent colors */
+  --agent-noise:   #4a6080;
+  --agent-mm:      #059669;
+  --agent-fund:    #2563eb;
+  --agent-arb:     #7c3aed;
+  --agent-manip:   #dc2626;
+  --agent-manip2:  #f59e0b;
+  --agent-insider: #db2777;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 16px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.tb-logo {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.tb-instrument {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.04em;
+}
+
+.tb-price {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--green2);
+  letter-spacing: -0.01em;
+  min-width: 90px;
+}
+
+.tb-change { font-size: 12px; }
+.tb-change.pos { color: var(--green); }
+.tb-change.neg { color: var(--red); }
+
+.tb-stat { display: flex; flex-direction: column; }
+.tb-stat-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.tb-stat-value { font-size: 11px; color: var(--text2); }
+
+.tb-sep { width: 1px; height: 24px; background: var(--border2); }
+.tb-spacer { flex: 1; }
+
+/* Clock */
+.clock-wrap {
+  display: flex; flex-direction: column; align-items: flex-end;
+}
+.clock-time { font-size: 16px; font-weight: 600; color: var(--amber2); letter-spacing: 0.05em; }
+.clock-session { font-size: 9px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* Speed control */
+.speed-wrap { display: flex; align-items: center; gap: 6px; }
+.speed-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.speed-btn {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 3px 8px; cursor: pointer; border-radius: 2px; transition: all 0.1s;
+}
+.speed-btn:hover { background: var(--bg4); color: var(--white); }
+.speed-btn.active { background: var(--amber); color: var(--bg); border-color: var(--amber); font-weight: 600; }
+
+/* Sim control */
+.sim-btn {
+  background: transparent; border: 1px solid var(--green); color: var(--green);
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  padding: 5px 16px; cursor: pointer; border-radius: 2px; letter-spacing: 0.08em;
+  transition: all 0.15s; text-transform: uppercase;
+}
+.sim-btn:hover, .sim-btn.running { background: var(--green); color: var(--bg); }
+.sim-btn.paused { border-color: var(--amber); color: var(--amber); }
+.sim-btn.paused:hover { background: var(--amber); color: var(--bg); }
+
+/* ── MANIPULATION SELECTOR ── */
+.manip-bar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 16px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.manip-label {
+  font-size: 9px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase;
+  white-space: nowrap; margin-right: 4px;
+}
+
+.manip-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 4px 12px; cursor: pointer; border-radius: 2px; white-space: nowrap;
+  transition: all 0.15s; letter-spacing: 0.04em;
+}
+.manip-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+
+.manip-btn[data-mode="none"].active       { background: rgba(74,96,128,0.3); border-color: var(--agent-noise); color: var(--text); }
+.manip-btn[data-mode="spoofing"].active   { background: rgba(220,38,38,0.2); border-color: var(--agent-manip); color: var(--red2); }
+.manip-btn[data-mode="layering"].active   { background: rgba(245,158,11,0.2); border-color: var(--agent-manip2); color: var(--amber2); }
+.manip-btn[data-mode="marking"].active    { background: rgba(168,85,247,0.2); border-color: var(--purple); color: var(--purple); }
+.manip-btn[data-mode="frontrun"].active   { background: rgba(6,182,212,0.2); border-color: var(--cyan); color: var(--cyan); }
+.manip-btn[data-mode="wash"].active       { background: rgba(219,39,119,0.2); border-color: var(--agent-insider); color: #f472b6; }
+.manip-btn[data-mode="insider"].active    { background: rgba(167,139,250,0.2); border-color: #8b5cf6; color: #c4b5fd; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  grid-template-rows: 1fr 160px;
+  gap: 1px;
+  background: var(--border);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--bg1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--text3);
+}
+.panel-badge {
+  font-size: 9px; padding: 1px 6px; border-radius: 2px;
+  background: rgba(240,165,0,0.15); color: var(--amber); border: 1px solid rgba(240,165,0,0.3);
+  letter-spacing: 0.08em;
+}
+
+/* ── ORDER BOOK ── */
+#ob-panel { grid-row: 1; grid-column: 1; }
+
+.ob-cols {
+  display: grid; grid-template-columns: 1fr 72px 1fr;
+  padding: 4px 8px 2px;
+  flex-shrink: 0;
+}
+.ob-col-hdr { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.ob-col-hdr:nth-child(3) { text-align: right; }
+.ob-col-hdr:nth-child(2) { text-align: center; }
+
+.ob-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+.ob-asks, .ob-bids {
+  flex: 1; overflow: hidden; display: flex; flex-direction: column;
+  padding: 0 4px;
+}
+.ob-asks { justify-content: flex-end; }
+
+.ob-row {
+  display: grid; grid-template-columns: 1fr 72px 1fr;
+  padding: 1px 4px;
+  position: relative;
+  align-items: center;
+  cursor: default;
+  transition: background 0.15s;
+}
+.ob-row:hover { background: rgba(255,255,255,0.03); }
+
+.ob-bar {
+  position: absolute; top: 0; bottom: 0;
+  opacity: 0.12; pointer-events: none; transition: width 0.2s ease;
+}
+.ob-bar.ask { right: 0; background: var(--red); }
+.ob-bar.bid { left: 0; background: var(--green); }
+
+.ob-qty { font-size: 11px; color: var(--text2); font-weight: 400; }
+.ob-qty.ask { color: var(--red2); text-align: left; }
+.ob-qty.bid { color: var(--green2); text-align: right; }
+.ob-price { font-size: 11px; font-weight: 600; text-align: center; }
+.ob-price.ask { color: var(--red2); }
+.ob-price.bid { color: var(--green2); }
+
+/* Agent tag dot on orders */
+.ob-row.manip-order::after {
+  content: '●';
+  position: absolute;
+  font-size: 8px;
+  top: 50%; transform: translateY(-50%);
+}
+.ob-row.manip-spoof::after  { color: var(--agent-manip); right: 2px; }
+.ob-row.manip-layer::after  { color: var(--agent-manip2); right: 2px; }
+.ob-row.manip-spoof.bid-row::after { right: auto; left: 2px; }
+.ob-row.manip-layer.bid-row::after { right: auto; left: 2px; }
+
+.ob-spread-row {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 3px 8px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+.ob-spread-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.ob-spread-val { font-size: 11px; color: var(--amber); font-weight: 600; }
+
+/* ── CHART + ACTIVITY ── */
+#chart-panel { grid-row: 1; grid-column: 2; }
+
+.chart-wrap { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+canvas#price-chart { width: 100%; height: 100%; display: block; }
+
+/* Session overlay */
+.session-indicator {
+  position: absolute; top: 8px; left: 10px;
+  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 2px;
+  pointer-events: none;
+}
+.session-indicator.open   { background: rgba(0,201,122,0.15); color: var(--green); border: 1px solid rgba(0,201,122,0.3); }
+.session-indicator.close  { background: rgba(168,85,247,0.15); color: var(--purple); border: 1px solid rgba(168,85,247,0.3); }
+.session-indicator.pre    { background: rgba(74,96,128,0.2); color: var(--text2); border: 1px solid var(--border2); }
+.session-indicator.mid    { background: rgba(37,99,235,0.15); color: var(--blue2); border: 1px solid rgba(37,99,235,0.3); }
+
+/* Event pins on chart */
+.chart-events { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; }
+.event-pin {
+  position: absolute; transform: translateX(-50%);
+  font-size: 8px; padding: 1px 4px;
+  border-radius: 2px; white-space: nowrap;
+}
+
+/* ── TAPE / T&S ── */
+#tape-panel { grid-row: 1; grid-column: 3; }
+
+.tape-body { flex: 1; overflow-y: auto; padding: 2px 0; min-height: 0; }
+.tape-body::-webkit-scrollbar { width: 3px; }
+.tape-body::-webkit-scrollbar-track { background: transparent; }
+.tape-body::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+.tape-row {
+  display: grid; grid-template-columns: 52px 1fr 1fr 52px;
+  padding: 2px 8px;
+  font-size: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  align-items: center;
+  animation: tape-in 0.2s ease;
+}
+@keyframes tape-in { from { background: rgba(255,255,255,0.06); } to { background: transparent; } }
+
+.tape-row.buy  .tape-price { color: var(--green2); }
+.tape-row.sell .tape-price { color: var(--red2); }
+.tape-row.wash { opacity: 0.7; }
+
+.tape-time  { color: var(--text3); font-size: 9px; }
+.tape-price { font-weight: 600; text-align: right; }
+.tape-qty   { text-align: right; color: var(--text2); }
+.tape-tag   { font-size: 8px; text-align: right; padding: 1px 4px; border-radius: 2px; }
+
+.tag-manip  { background: rgba(220,38,38,0.25); color: var(--red2); border: 1px solid rgba(220,38,38,0.4); }
+.tag-fund   { background: rgba(37,99,235,0.2); color: var(--blue2); border: 1px solid rgba(37,99,235,0.3); }
+.tag-mm     { background: rgba(5,150,105,0.2); color: #34d399; border: 1px solid rgba(5,150,105,0.3); }
+.tag-wash   { background: rgba(219,39,119,0.25); color: #f472b6; border: 1px solid rgba(219,39,119,0.4); }
+.tag-inside { background: rgba(167,139,250,0.25); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.4); }
+.tag-front  { background: rgba(6,182,212,0.25); color: var(--cyan); border: 1px solid rgba(6,182,212,0.4); }
+
+/* ── BOTTOM ROW ── */
+#news-panel  { grid-row: 2; grid-column: 1 / 3; background: var(--bg1); }
+#agent-panel { grid-row: 2; grid-column: 3; }
+
+.news-body {
+  flex: 1; overflow-y: auto; padding: 4px 0;
+}
+.news-body::-webkit-scrollbar { width: 3px; }
+.news-body::-webkit-scrollbar-thumb { background: var(--bg4); }
+
+.news-item {
+  padding: 5px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  animation: news-flash 1s ease;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+@keyframes news-flash {
+  0%   { background: rgba(240,165,0,0.12); }
+  100% { background: transparent; }
+}
+
+.news-time { font-size: 9px; color: var(--text3); flex-shrink: 0; padding-top: 1px; }
+.news-text { font-size: 10px; color: var(--text2); line-height: 1.45; flex: 1; }
+
+.news-item.event-info {
+  background: rgba(219,39,119,0.06);
+  border-left: 2px solid var(--agent-insider);
+}
+.news-item.event-info .news-text { color: #f9a8d4; }
+.news-item.event-info::before {
+  content: 'ℹ INFO LEAK';
+  font-size: 8px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--agent-insider); flex-shrink: 0; padding-top: 1px;
+}
+
+.news-item.event-order { border-left: 2px solid var(--cyan); }
+.news-item.event-order .news-text { color: #a5f3fc; }
+.news-item.event-order::before {
+  content: '⬆ FLOW';
+  font-size: 8px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--cyan); flex-shrink: 0; padding-top: 1px;
+}
+
+.news-item.event-close { border-left: 2px solid var(--purple); }
+.news-item.event-close .news-text { color: #d8b4fe; }
+.news-item.event-close::before {
+  content: '◆ CLOSE';
+  font-size: 8px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--purple); flex-shrink: 0; padding-top: 1px;
+}
+
+.news-item.event-manip { border-left: 2px solid var(--red); }
+.news-item.event-manip .news-text { color: #fca5a5; }
+.news-item.event-manip::before {
+  content: '⚠ SIGNAL';
+  font-size: 8px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--red2); flex-shrink: 0; padding-top: 1px;
+}
+
+/* Agent legend */
+.agent-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.agent-row {
+  display: grid; grid-template-columns: 10px 1fr 1fr 1fr;
+  padding: 3px 8px; font-size: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  align-items: center; gap: 6px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.agent-name { color: var(--text); font-size: 10px; }
+.agent-type { color: var(--text3); font-size: 9px; }
+.agent-pnl  { text-align: right; font-size: 10px; }
+.agent-pnl.pos { color: var(--green); }
+.agent-pnl.neg { color: var(--red2); }
+.agent-row.is-manip { background: rgba(220,38,38,0.04); }
+.agent-row.is-manip .agent-name { color: var(--red2); }
+
+.agent-list-header {
+  display: grid; grid-template-columns: 10px 1fr 1fr 1fr;
+  padding: 3px 8px 4px; gap: 6px;
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+.agent-list-header span { font-size: 9px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+.agent-list-header span:last-child { text-align: right; }
+
+/* Explanation overlay */
+.explain-overlay {
+  position: fixed; top: 82px; left: 50%; transform: translateX(-50%);
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-top: 2px solid var(--amber);
+  padding: 12px 16px; max-width: 560px; width: 90%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  z-index: 50; border-radius: 0 0 4px 4px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+  display: none;
+}
+.explain-overlay.visible { display: block; }
+.explain-title { font-size: 13px; font-weight: 600; color: var(--amber2); margin-bottom: 6px; }
+.explain-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+.explain-close {
+  position: absolute; top: 8px; right: 10px;
+  cursor: pointer; color: var(--text3); font-size: 14px;
+}
+.explain-close:hover { color: var(--text); }
+
+/* Tooltips */
+.tooltip {
+  position: fixed; pointer-events: none;
+  background: var(--bg3); border: 1px solid var(--border2);
+  padding: 6px 10px; font-size: 10px; color: var(--text);
+  z-index: 100; border-radius: 2px; max-width: 200px;
+  display: none;
+}
+
+/* Flash effects */
+.flash-red { animation: flash-r 0.5s ease; }
+.flash-green { animation: flash-g 0.5s ease; }
+@keyframes flash-r { 0%,100% { background: transparent; } 50% { background: rgba(220,38,38,0.2); } }
+@keyframes flash-g { 0%,100% { background: transparent; } 50% { background: rgba(0,201,122,0.2); } }
+
+/* Progress bar for day */
+.day-progress {
+  height: 3px; background: var(--bg3); position: relative; flex-shrink: 0;
+}
+.day-progress-fill {
+  height: 100%; background: linear-gradient(90deg, var(--blue), var(--amber), var(--purple));
+  transition: width 0.5s linear;
+}
+.day-progress-marker {
+  position: absolute; top: -2px; height: 7px; width: 1px; background: var(--amber2);
+}
+
+/* Scrollbar global */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="tb-logo">LOB-SIM</div>
+  <div class="tb-sep"></div>
+  <div class="tb-instrument">ES·Z25</div>
+  <div style="display:flex;flex-direction:column;">
+    <span style="font-size:9px;color:var(--text3);letter-spacing:0.1em;">LAST</span>
+    <div class="tb-price" id="tb-last">5,892.50</div>
+  </div>
+  <div class="tb-change pos" id="tb-change">+12.25 (+0.21%)</div>
+  <div class="tb-sep"></div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">High</span>
+    <span class="tb-stat-value" id="tb-high">5,901.00</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">Low</span>
+    <span class="tb-stat-value" id="tb-low">5,878.25</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">Volume</span>
+    <span class="tb-stat-value" id="tb-vol">0</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">VWAP</span>
+    <span class="tb-stat-value" id="tb-vwap">5,892.50</span>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="speed-wrap">
+    <span class="speed-label">Speed</span>
+    <button class="speed-btn" data-speed="1" onclick="setSpeed(1)">1×</button>
+    <button class="speed-btn active" data-speed="3" onclick="setSpeed(3)">3×</button>
+    <button class="speed-btn" data-speed="8" onclick="setSpeed(8)">8×</button>
+    <button class="speed-btn" data-speed="20" onclick="setSpeed(20)">20×</button>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="sim-btn" id="sim-toggle" onclick="toggleSim()">▶ START</button>
+  <div class="tb-spacer"></div>
+  <div class="clock-wrap">
+    <div class="clock-time" id="clock-time">09:00:00</div>
+    <div class="clock-session" id="clock-session">PRE-MARKET</div>
+  </div>
+</div>
+
+<!-- MANIPULATION SELECTOR -->
+<div class="manip-bar">
+  <span class="manip-label">Manipulation Mode:</span>
+  <button class="manip-btn active" data-mode="none"     onclick="setMode('none')">No Manipulation</button>
+  <button class="manip-btn"        data-mode="spoofing" onclick="setMode('spoofing')">⚡ Spoofing</button>
+  <button class="manip-btn"        data-mode="layering" onclick="setMode('layering')">📚 Layering</button>
+  <button class="manip-btn"        data-mode="marking"  onclick="setMode('marking')">🔔 Marking the Close</button>
+  <button class="manip-btn"        data-mode="frontrun" onclick="setMode('frontrun')">🏃 Front-Running</button>
+  <button class="manip-btn"        data-mode="wash"     onclick="setMode('wash')">🔄 Wash Trading</button>
+  <button class="manip-btn"        data-mode="insider"  onclick="setMode('insider')">🔍 Insider Trading</button>
+  <div style="flex:1;"></div>
+  <span style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">Tick: $0.25 | Contract: $50×index | Margin: $11,500</span>
+</div>
+
+<!-- DAY PROGRESS -->
+<div class="day-progress" id="day-progress">
+  <div class="day-progress-fill" id="day-fill" style="width:0%"></div>
+  <div class="day-progress-marker" style="left:15.6%" title="9:30 Open"></div>
+  <div class="day-progress-marker" style="left:46%" title="12:00 Midday"></div>
+  <div class="day-progress-marker" style="left:85.4%" title="15:00 Close Approach"></div>
+  <div class="day-progress-marker" style="left:93.8%" title="15:45 Mark Window"></div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main">
+
+  <!-- ORDER BOOK -->
+  <div class="panel" id="ob-panel">
+    <div class="panel-header">
+      <span class="panel-title">Limit Order Book — ES·Z25</span>
+      <span class="panel-badge" id="ob-badge">10 LEVELS</span>
+    </div>
+    <div class="ob-cols">
+      <span class="ob-col-hdr">QTY</span>
+      <span class="ob-col-hdr">PRICE</span>
+      <span class="ob-col-hdr" style="text-align:right;">QTY</span>
+    </div>
+    <div class="ob-body">
+      <div class="ob-asks" id="ob-asks"></div>
+      <div class="ob-spread-row">
+        <span class="ob-spread-label">Spread</span>
+        <span class="ob-spread-val" id="ob-spread">0.25</span>
+        <span class="ob-spread-label">Mid</span>
+        <span class="ob-spread-val" id="ob-mid">5892.375</span>
+      </div>
+      <div class="ob-bids" id="ob-bids"></div>
+    </div>
+  </div>
+
+  <!-- PRICE CHART -->
+  <div class="panel" id="chart-panel">
+    <div class="panel-header">
+      <span class="panel-title">Price & Volume — Intraday</span>
+      <span id="chart-mode-label" style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">ES·Z25 — 1-second bars</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="price-chart"></canvas>
+      <div class="session-indicator pre" id="session-indicator">PRE-MARKET</div>
+      <div class="chart-events" id="chart-events"></div>
+    </div>
+  </div>
+
+  <!-- TIME & SALES TAPE -->
+  <div class="panel" id="tape-panel">
+    <div class="panel-header">
+      <span class="panel-title">Time & Sales</span>
+      <span style="font-size:9px;color:var(--text3);" id="tape-count">0 PRINTS</span>
+    </div>
+    <div class="tape-body" id="tape-body">
+      <div class="agent-list-header">
+        <span></span><span>Time · Price</span><span>Qty</span><span>Agent</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEWS / EVENTS PANEL -->
+  <div class="panel" id="news-panel">
+    <div class="panel-header">
+      <span class="panel-title">Event Log — Information Flow & Surveillance Signals</span>
+      <span style="font-size:9px;color:var(--text3);">Insider leaks shown in pink · Agent signals in amber</span>
+    </div>
+    <div class="news-body" id="news-body"></div>
+  </div>
+
+  <!-- AGENT PANEL -->
+  <div class="panel" id="agent-panel">
+    <div class="panel-header">
+      <span class="panel-title">Active Agents</span>
+      <span class="panel-badge" id="agent-count">0 AGENTS</span>
+    </div>
+    <div class="agent-list-header">
+      <span></span><span>Agent</span><span>Type</span><span>P&L</span>
+    </div>
+    <div class="agent-list" id="agent-list"></div>
+  </div>
+
+</div>
+
+<!-- EXPLANATION OVERLAY -->
+<div class="explain-overlay" id="explain">
+  <div class="explain-close" onclick="document.getElementById('explain').classList.remove('visible')">✕</div>
+  <div class="explain-title" id="explain-title"></div>
+  <div class="explain-body" id="explain-body"></div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════
+const TICK       = 0.25;
+const TICK_VAL   = 12.50;  // $12.50 per tick
+const BASE_PRICE = 5892.50;
+const LEVELS     = 10;
+
+// Sessions: each occupies fraction of the trading day (6:00-16:00 = 600 minutes)
+const SESSIONS = [
+  { id:'pre',   label:'PRE-MARKET',  start:0,     end:210,  class:'pre',   color:'#4a6080' },
+  { id:'open',  label:'OPEN',        start:210,   end:300,  class:'open',  color:'#00c97a' },
+  { id:'mid',   label:'MID-SESSION', start:300,   end:540,  class:'mid',   color:'#2979ff' },
+  { id:'close', label:'CLOSE',       start:540,   end:600,  class:'close', color:'#a855f7' },
+];
+// Wall-clock: 06:00 + offset minutes
+function offsetToTime(min) {
+  const total = 360 + Math.floor(min); // 06:00 + min
+  const h = Math.floor(total/60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function offsetToTimeFull(sec) {
+  const totalSec = 6*3600 + sec;
+  const h = Math.floor(totalSec/3600) % 24;
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let running      = false;
+let speedMul     = 3;
+let simMode      = 'none';
+let simTime      = 0;       // seconds into trading day (0 = 06:00)
+let daySeconds   = 36000;   // 10 hours (06:00-16:00) in sim-seconds; real-seconds = simTime/speedMul
+let midPrice     = BASE_PRICE;
+let lastPrice    = BASE_PRICE;
+let dayOpen      = BASE_PRICE;
+let dayHigh      = BASE_PRICE;
+let dayLow       = BASE_PRICE;
+let totalVol     = 0;
+let vwapSum      = 0;
+let tapeCount    = 0;
+let simInterval  = null;
+let chartInterval= null;
+
+// Order book: sorted arrays
+let asks = [];  // [{price, qty, agentId, tag}]  ascending
+let bids = [];  // [{price, qty, agentId, tag}]  descending
+
+// Price history for chart
+let priceHistory = [];   // {t, price, vol, session}
+let chartEventPins = []; // {t, label, color, desc}
+
+// Agents
+const AGENT_TYPES = {
+  noise:   { label:'Noise Trader', color:'#4a6080',  manip: false },
+  mm:      { label:'Market Maker', color:'#059669',  manip: false },
+  fund:    { label:'Buy-Side Fund',color:'#2563eb',  manip: false },
+  arb:     { label:'Arbitrageur',  color:'#7c3aed',  manip: false },
+  manip:   { label:'Manipulator',  color:'#dc2626',  manip: true  },
+  wash:    { label:'Wash Trader',  color:'#db2777',  manip: true  },
+  insider: { label:'Insider',      color:'#8b5cf6',  manip: true  },
+};
+
+let agents = [];
+let agentPnl = {};
+
+// Spoof orders (pending cancellation)
+let pendingSpoofs = [];  // {orderId, tCancel, side, price, origQty}
+let layerOrders   = [];  // same structure
+let manipCycle    = 0;
+
+// ═══════════════════════════════════════════════════════
+//  AGENT SETUP
+// ═══════════════════════════════════════════════════════
+function buildAgents() {
+  agents = [
+    { id:'MM1',  type:'mm',      name:'JPM-MM',     active:true },
+    { id:'MM2',  type:'mm',      name:'GS-MM',      active:true },
+    { id:'NT1',  type:'noise',   name:'Retail-A',   active:true },
+    { id:'NT2',  type:'noise',   name:'Retail-B',   active:true },
+    { id:'NT3',  type:'noise',   name:'Retail-C',   active:true },
+    { id:'FD1',  type:'fund',    name:'Vanguard',   active:true },
+    { id:'FD2',  type:'fund',    name:'Blackrock',  active:true },
+    { id:'AR1',  type:'arb',     name:'SIG-Arb',    active:true },
+    { id:'MN1',  type:'manip',   name:'???-Alpha',  active:false },
+    { id:'MN2',  type:'manip',   name:'???-Beta',   active:false },
+    { id:'WS1',  type:'wash',    name:'???-Wash',   active:false },
+    { id:'IN1',  type:'insider', name:'???-Priv',   active:false },
+  ];
+  agents.forEach(a => { agentPnl[a.id] = 0; });
+}
+
+function setManipActive() {
+  agents.forEach(a => {
+    if (a.type === 'manip')   a.active = (simMode === 'spoofing' || simMode === 'layering' || simMode === 'marking' || simMode === 'frontrun');
+    if (a.type === 'wash')    a.active = (simMode === 'wash');
+    if (a.type === 'insider') a.active = (simMode === 'insider');
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  ORDER BOOK INIT
+// ═══════════════════════════════════════════════════════
+function initBook() {
+  asks = []; bids = [];
+  for (let i = 1; i <= LEVELS; i++) {
+    asks.push({ price: round(midPrice + i*TICK), qty: randInt(5,60), agentId:'MM1', tag:'mm' });
+    bids.push({ price: round(midPrice - i*TICK), qty: randInt(5,60), agentId:'MM1', tag:'mm' });
+  }
+  asks.sort((a,b) => a.price - b.price);
+  bids.sort((a,b) => b.price - a.price);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+function round(v) { return Math.round(v/TICK)*TICK; }
+function randInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function randFloat(a,b) { return a + Math.random()*(b-a); }
+function fmt(p) { return p.toFixed(2); }
+function fmtComma(n) { return n.toLocaleString(); }
+
+function currentSession() {
+  const minInDay = simTime / 60;
+  return SESSIONS.find(s => minInDay >= s.start && minInDay < s.end) || SESSIONS[SESSIONS.length-1];
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOOK OPERATIONS
+// ═══════════════════════════════════════════════════════
+function bestBid() { return bids.length ? bids[0].price : midPrice - TICK; }
+function bestAsk() { return asks.length ? asks[0].price : midPrice + TICK; }
+
+function addOrUpdate(side, price, qty, agentId, tag) {
+  const arr = side === 'ask' ? asks : bids;
+  const ex = arr.find(o => o.price === price && o.agentId === agentId);
+  if (ex) { ex.qty = Math.max(0, ex.qty + qty); if (ex.qty === 0) removeFromBook(side, price, agentId); }
+  else if (qty > 0) arr.push({ price, qty, agentId, tag: tag||'noise' });
+  if (side === 'ask') asks.sort((a,b) => a.price-b.price);
+  else bids.sort((a,b) => b.price-a.price);
+}
+
+function removeFromBook(side, price, agentId) {
+  if (side === 'ask') asks = asks.filter(o => !(o.price===price && o.agentId===agentId));
+  else bids = bids.filter(o => !(o.price===price && o.agentId===agentId));
+}
+
+function removeAllByAgent(agentId) {
+  asks = asks.filter(o => o.agentId !== agentId);
+  bids = bids.filter(o => o.agentId !== agentId);
+}
+
+// Match orders — returns fills
+function matchBook() {
+  const fills = [];
+  while (asks.length && bids.length && bestAsk() <= bestBid()) {
+    const ask = asks[0], bid = bids[0];
+    const qty  = Math.min(ask.qty, bid.qty);
+    const price = ask.price;
+    fills.push({ price, qty, buyerId: bid.agentId, sellerId: ask.agentId, buyTag: bid.tag, sellTag: ask.tag });
+    ask.qty -= qty; bid.qty -= qty;
+    if (ask.qty <= 0) asks.shift();
+    if (bid.qty <= 0) bids.shift();
+    lastPrice = price;
+    if (price > dayHigh) dayHigh = price;
+    if (price < dayLow)  dayLow  = price;
+    totalVol += qty;
+    vwapSum  += price * qty;
+  }
+  return fills;
+}
+
+// ═══════════════════════════════════════════════════════
+//  NOISE AGENT LOGIC
+// ═══════════════════════════════════════════════════════
+function noiseAgentStep() {
+  const sess = currentSession();
+  const isOpen = sess.id === 'open' || sess.id === 'mid' || sess.id === 'close';
+  if (!isOpen) return;
+
+  // Market maker quotes
+  ['MM1','MM2'].forEach(id => {
+    removeAllByAgent(id);
+    const spread = sess.id==='open' ? TICK*2 : TICK;
+    for (let i = 1; i <= 8; i++) {
+      const baseQ = sess.id==='close' ? randInt(3,20) : randInt(5,40);
+      addOrUpdate('ask', round(midPrice + i*TICK), baseQ, id, 'mm');
+      addOrUpdate('bid', round(midPrice - i*spread), baseQ, id, 'mm');
+    }
+  });
+
+  // Random noise trades
+  const noiseIds = ['NT1','NT2','NT3'];
+  noiseIds.forEach(id => {
+    if (Math.random() < 0.4) {
+      const side = Math.random()<0.5 ? 'ask' : 'bid';
+      const offset = randInt(1,4);
+      const price = side==='ask' ? round(midPrice + offset*TICK) : round(midPrice - offset*TICK);
+      addOrUpdate(side, price, randInt(1,8), id, 'noise');
+    }
+    if (Math.random() < 0.15) {
+      // market order hit
+      const side = Math.random()<0.5 ? 'ask' : 'bid';
+      if (side==='ask' && bids.length) { bids[0].qty = Math.max(0, bids[0].qty - randInt(1,5)); }
+      if (side==='bid' && asks.length) { asks[0].qty = Math.max(0, asks[0].qty - randInt(1,5)); }
+    }
+  });
+
+  // Fund order - slower, larger
+  ['FD1','FD2'].forEach(id => {
+    if (Math.random() < 0.08) {
+      const side = Math.random()<0.5 ? 'ask' : 'bid';
+      const offset = randInt(2,6);
+      const price = side==='ask' ? round(midPrice + offset*TICK) : round(midPrice - offset*TICK);
+      addOrUpdate(side, price, randInt(20,80), id, 'fund');
+    }
+  });
+
+  // Price drift
+  const drift = (Math.random()-0.495) * TICK * (sess.id==='open' ? 3 : 1.5);
+  midPrice = round(midPrice + drift);
+  midPrice = Math.max(midPrice, BASE_PRICE - 30);
+  midPrice = Math.min(midPrice, BASE_PRICE + 30);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MANIPULATION LOGIC
+// ═══════════════════════════════════════════════════════
+
+// -- SPOOFING --
+function spoofingStep() {
+  if (currentSession().id === 'pre') return;
+  manipCycle++;
+
+  if (manipCycle % 20 === 0) {
+    // Cancel existing spoof orders
+    pendingSpoofs.forEach(ps => {
+      removeFromBook(ps.side, ps.price, 'MN1');
+      removeFromBook(ps.side, ps.price, 'MN2');
+    });
+    pendingSpoofs = [];
+
+    // New spoof: place large visible bid to push price up, then fill sell
+    const spoofSide = Math.random()<0.5 ? 'bid' : 'ask';
+    const spoofPrice = spoofSide==='bid'
+      ? round(midPrice - randInt(3,6)*TICK)
+      : round(midPrice + randInt(3,6)*TICK);
+    const spoofQty = randInt(200, 400);
+
+    addOrUpdate(spoofSide, spoofPrice, spoofQty, 'MN1', 'spoof');
+    addOrUpdate(spoofSide, round(spoofPrice + (spoofSide==='bid'?TICK:-TICK)), Math.floor(spoofQty*0.6), 'MN2', 'spoof');
+
+    // Real order on opposite side (genuine)
+    const realSide = spoofSide==='bid' ? 'ask' : 'bid';
+    const realPrice = realSide==='ask' ? round(midPrice+TICK) : round(midPrice-TICK);
+    addOrUpdate(realSide, realPrice, randInt(10,30), 'MN1', 'spoof');
+
+    pendingSpoofs.push({ side: spoofSide, price: spoofPrice, tCancel: simTime + randFloat(2,6) });
+    pendingSpoofs.push({ side: spoofSide, price: round(spoofPrice+(spoofSide==='bid'?TICK:-TICK)), tCancel: simTime+randFloat(2,6) });
+
+    const dir = spoofSide==='bid' ? 'BID' : 'ASK';
+    addNews(`SPOOF: ${spoofQty}-lot ${dir} order placed at ${fmt(spoofPrice)} by agent MN1. Real ${realSide.toUpperCase()} order placed at ${fmt(realPrice)}.`, 'event-manip');
+  }
+
+  // Cancel expired spoofs
+  pendingSpoofs = pendingSpoofs.filter(ps => {
+    if (simTime >= ps.tCancel) {
+      removeFromBook(ps.side, ps.price, 'MN1');
+      removeFromBook(ps.side, ps.price, 'MN2');
+      addNews(`SPOOF CANCEL: ${ps.side.toUpperCase()} order at ${fmt(ps.price)} cancelled after ${(ps.tCancel%(simTime)).toFixed(1)}s — order never intended to fill.`, 'event-manip');
+      return false;
+    }
+    return true;
+  });
+}
+
+// -- LAYERING --
+function layeringStep() {
+  if (currentSession().id === 'pre') return;
+  manipCycle++;
+
+  if (manipCycle % 25 === 0) {
+    // Clear old layers
+    ['MN1','MN2'].forEach(id => removeAllByAgent(id));
+    layerOrders = [];
+
+    // Directional intent: going long (layer asks to depress price, buy cheap, remove layers)
+    const intent = Math.random()<0.5 ? 'long' : 'short';
+    const layerSide = intent==='long' ? 'ask' : 'bid';
+    const numLayers = randInt(4,7);
+
+    for (let i=0; i<numLayers; i++) {
+      const offset = (i+2)*TICK;
+      const price = layerSide==='ask'
+        ? round(midPrice + offset)
+        : round(midPrice - offset);
+      const qty = randInt(80,180);
+      addOrUpdate(layerSide, price, qty, 'MN1', 'layer');
+      layerOrders.push({ side:layerSide, price, tCancel: simTime + randFloat(4,10) });
+    }
+    // Execute real order on opposite side
+    const execSide = intent==='long' ? 'bid' : 'ask';
+    const execPrice = execSide==='bid' ? round(midPrice-TICK) : round(midPrice+TICK);
+    addOrUpdate(execSide, execPrice, randInt(30,60), 'MN2', 'layer');
+
+    addNews(`LAYERING: ${numLayers} ${layerSide.toUpperCase()} orders stacked ${2}-${numLayers+1} ticks deep by MN1. Genuine ${execSide.toUpperCase()} at ${fmt(execPrice)} by MN2. Artificial book pressure detected.`, 'event-manip');
+  }
+
+  layerOrders = layerOrders.filter(lo => {
+    if (simTime >= lo.tCancel) {
+      removeFromBook(lo.side, lo.price, 'MN1');
+      addNews(`LAYER REMOVED: ${lo.side.toUpperCase()} at ${fmt(lo.price)} — layers cancelled after execution on opposite side.`, 'event-manip');
+      return false;
+    }
+    return true;
+  });
+}
+
+// -- MARKING THE CLOSE --
+function markingStep() {
+  const sess = currentSession();
+  manipCycle++;
+
+  if (sess.id !== 'close') {
+    if (manipCycle % 30 === 0) {
+      addNews(`Marking the Close agents MN1/MN2 inactive — strategy activates in CLOSE session (15:00-16:00 CT).`, 'event-close');
+    }
+    return;
+  }
+
+  const minInClose = simTime/60 - 540; // minutes into close session
+
+  if (manipCycle % 8 === 0) {
+    // Aggressive buys to push last print up
+    if (minInClose > 30) {
+      // Final 30 min window — more aggressive
+      const liftQty = randInt(40, 120);
+      if (asks.length) {
+        asks[0].qty = Math.max(0, asks[0].qty - liftQty);
+        agentPnl['MN1'] -= liftQty * asks[0].price * 0.01;
+        midPrice = round(midPrice + TICK * randInt(1,3));
+        addTape({price: bestAsk(), qty: liftQty, buyId:'MN1', sellId:'MM1', buyTag:'spoof', sellTag:'mm'});
+        addNews(`MARK CLOSE: MN1 lifts ${liftQty} lots at ${fmt(bestAsk())} — aggressive buy to push settlement price higher. Min into close: ${minInClose.toFixed(0)}`, 'event-close');
+      }
+    } else {
+      addOrUpdate('bid', round(midPrice - TICK), randInt(20,50), 'MN1', 'spoof');
+      addNews(`MARK CLOSE: MN1 building bid support ahead of settlement window. Current price: ${fmt(midPrice)}`, 'event-close');
+    }
+  }
+}
+
+// -- FRONT RUNNING --
+let frontRunPending = null;
+function frontRunStep() {
+  if (currentSession().id === 'pre') return;
+  manipCycle++;
+
+  if (manipCycle % 40 === 0) {
+    // Large fund order incoming
+    const fundSide = Math.random()<0.5 ? 'bid' : 'ask';
+    const fundQty = randInt(200,500);
+    const fundPrice = fundSide==='bid' ? round(midPrice-TICK*2) : round(midPrice+TICK*2);
+
+    // INFORMATION EVENT shown separately
+    addNews(`LARGE CLIENT ORDER: Blackrock (FD2) will execute ${fundQty}-lot ${fundSide.toUpperCase()} in ~3 seconds. This information received by broker-dealer desk.`, 'event-info');
+
+    // Front-runner trades AHEAD of fund
+    setTimeout(() => {
+      const frSide = fundSide; // buy ahead of big buy
+      const frPrice = frSide==='bid' ? round(midPrice) : round(midPrice);
+      addOrUpdate(frSide, frPrice, randInt(30,80), 'MN1', 'frontrun');
+      addNews(`FRONT-RUN: MN1 takes ${frSide.toUpperCase()} position at ${fmt(frPrice)} ahead of known Blackrock order. Estimated edge: ${randInt(1,4)} ticks.`, 'event-info');
+    }, 1000 / speedMul);
+
+    // Fund executes
+    setTimeout(() => {
+      addOrUpdate(fundSide, fundPrice, fundQty, 'FD2', 'fund');
+      addNews(`CLIENT ORDER EXEC: Blackrock ${fundQty}-lot ${fundSide.toUpperCase()} executes at ${fmt(fundPrice)} — price impact ${fundSide==='bid'?'+':'-'}${(randInt(1,3)*0.25).toFixed(2)} ticks.`, 'event-order');
+      // MN1 closes profitable position
+      setTimeout(() => {
+        removeAllByAgent('MN1');
+        addNews(`FRONT-RUN CLOSE: MN1 closes position — captures price impact move. Profit ~$${randInt(400,2000)}.`, 'event-manip');
+      }, 2000/speedMul);
+    }, 3000/speedMul);
+
+    frontRunPending = simTime + 10;
+  }
+}
+
+// -- WASH TRADING --
+let washCycle = 0;
+function washStep() {
+  if (currentSession().id === 'pre') return;
+  washCycle++;
+
+  if (washCycle % 6 === 0) {
+    const price = round(midPrice + (Math.random()-0.5)*2*TICK);
+    const qty = randInt(40,150);
+    // WS1 buys from itself at controlled accounts
+    addOrUpdate('ask', price, qty, 'WS1', 'wash');
+    addOrUpdate('bid', price, qty, 'WS1', 'wash');
+    const fills = matchBook();
+    fills.forEach(f => {
+      totalVol += f.qty;
+      addTape({price:f.price, qty:f.qty, buyId:'WS1', sellId:'WS1', buyTag:'wash', sellTag:'wash'});
+    });
+    addNews(`WASH: WS1 crosses ${qty} lots at ${fmt(price)} — both sides. Volume inflation: +${qty} contracts. No change in beneficial ownership.`, 'event-manip');
+  }
+}
+
+// -- INSIDER TRADING --
+let insiderEventFired = false;
+let insiderInfo = null;
+function insiderStep() {
+  if (currentSession().id === 'pre') return;
+  manipCycle++;
+
+  // Fire insider event once per sim run
+  if (!insiderEventFired && simTime > 18000) { // after 30 min
+    insiderEventFired = true;
+    const priceMove = Math.random()<0.5 ? 'positive' : 'negative';
+    insiderInfo = { direction: priceMove, magnitude: randInt(3,8) };
+
+    // This appears in pink — information visible to insider ONLY, not public tape
+    addNews(`[PRIVATE INFO — NOT PUBLIC]: IN1 receives non-public information: Fed Governor to signal ${priceMove==='positive'?'dovish surprise':'hawkish pivot'} in speech at 14:00. Expected price move: ${priceMove==='positive'?'+':'-'}${insiderInfo.magnitude} ticks.`, 'event-info');
+
+    // Insider builds position
+    const side = priceMove==='positive' ? 'bid' : 'ask';
+    addOrUpdate(side, round(midPrice + (side==='bid'?-2:2)*TICK), randInt(100,300), 'IN1', 'insider');
+    addOrUpdate(side, round(midPrice + (side==='bid'?-3:3)*TICK), randInt(50,150), 'IN1', 'insider');
+
+    addNews(`INSIDER POSITION: IN1 accumulates ${side.toUpperCase()} position over next 15 minutes. Pattern: large passive orders, no urgency. Undetectable from tape alone.`, 'event-manip');
+
+    // Later: news breaks publicly
+    const publicDelay = randInt(600,1200); // 10-20 real-seconds
+    setTimeout(() => {
+      addNews(`[PUBLIC NEWS — ALL PARTICIPANTS]: Fed Governor signals ${priceMove==='positive'?'dovish':'hawkish'} stance. Market impact immediate.`, 'event-order');
+      // Price move
+      for (let i=0;i<insiderInfo.magnitude;i++) {
+        midPrice = round(midPrice + (priceMove==='positive'?TICK:-TICK));
+      }
+      addNews(`INSIDER UNWIND: IN1 closes position after public announcement — profit ~$${(insiderInfo.magnitude*TICK_VAL*randInt(150,300)).toLocaleString()}. Total advantage window: ~${publicDelay/60} minutes.`, 'event-info');
+      removeAllByAgent('IN1');
+    }, publicDelay * 1000 / speedMul);
+  }
+
+  // Keep adding to position while info is private
+  if (insiderEventFired && insiderInfo) {
+    if (manipCycle % 15 === 0) {
+      const side = insiderInfo.direction==='positive' ? 'bid' : 'ask';
+      addOrUpdate(side, round(midPrice+(side==='bid'?-TICK:TICK)), randInt(10,30), 'IN1', 'insider');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  TAPE
+// ═══════════════════════════════════════════════════════
+function addTape(fill) {
+  const { price, qty, buyId, sellId, buyTag, sellTag } = fill;
+  const side = Math.random()<0.5 ? 'buy' : 'sell';
+  const tag = buyTag==='wash'||sellTag==='wash' ? 'wash'
+            : buyTag==='spoof'||sellTag==='spoof' ? 'manip'
+            : buyTag==='layer'||sellTag==='layer' ? 'manip'
+            : buyTag==='fund'||sellTag==='fund' ? 'fund'
+            : buyTag==='mm'||sellTag==='mm' ? 'mm'
+            : buyTag==='insider'||sellTag==='insider' ? 'inside'
+            : buyTag==='frontrun'||sellTag==='frontrun' ? 'front'
+            : null;
+
+  tapeCount++;
+  const row = document.createElement('div');
+  row.className = `tape-row ${side}${tag==='wash'?' wash':''}`;
+
+  const tagHtml = tag ? `<span class="tape-tag tag-${tag}">${tag.toUpperCase()}</span>` : '<span></span>';
+  row.innerHTML = `
+    <span class="tape-time">${offsetToTimeFull(simTime)}</span>
+    <span class="tape-price">${fmt(price)}</span>
+    <span class="tape-qty">${qty}</span>
+    ${tagHtml}
+  `;
+
+  const body = document.getElementById('tape-body');
+  body.insertBefore(row, body.children[1]); // after header
+  if (body.children.length > 120) body.removeChild(body.lastChild);
+  document.getElementById('tape-count').textContent = `${tapeCount} PRINTS`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  NEWS
+// ═══════════════════════════════════════════════════════
+function addNews(text, cls='') {
+  const item = document.createElement('div');
+  item.className = `news-item ${cls}`;
+  item.innerHTML = `<span class="news-time">${offsetToTimeFull(simTime)}</span><span class="news-text">${text}</span>`;
+  const body = document.getElementById('news-body');
+  body.insertBefore(item, body.firstChild);
+  if (body.children.length > 60) body.removeChild(body.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER ORDER BOOK
+// ═══════════════════════════════════════════════════════
+function renderBook() {
+  const asksEl = document.getElementById('ob-asks');
+  const bidsEl = document.getElementById('ob-bids');
+
+  const maxAsk = asks.slice(0,LEVELS).reduce((m,o) => Math.max(m,o.qty),1);
+  const maxBid = bids.slice(0,LEVELS).reduce((m,o) => Math.max(m,o.qty),1);
+  const maxQ = Math.max(maxAsk, maxBid, 1);
+
+  function rowHtml(o, side) {
+    const pct = Math.min(100, (o.qty/maxQ)*100);
+    const isSpoof = o.tag==='spoof' || o.tag==='layer' || o.tag==='insider' || o.tag==='frontrun';
+    const manipClass = o.tag==='spoof'?'manip-spoof manip-order'
+                     : o.tag==='layer'?'manip-layer manip-order'
+                     : o.tag==='insider'?'manip-order'
+                     : o.tag==='frontrun'?'manip-order'
+                     : '';
+    const isBid = side==='bid';
+    return `
+      <div class="ob-row ${isBid?'bid-row':''} ${manipClass}" title="Agent: ${o.agentId} | Tag: ${o.tag}">
+        <div class="ob-bar ${side}" style="width:${pct}%"></div>
+        ${isBid ? `<span class="ob-qty bid">${o.qty}</span><span class="ob-price bid">${fmt(o.price)}</span><span></span>`
+                : `<span></span><span class="ob-price ask">${fmt(o.price)}</span><span class="ob-qty ask">${o.qty}</span>`}
+      </div>`;
+  }
+
+  const askSlice = asks.slice(0,LEVELS).reverse();
+  asksEl.innerHTML = askSlice.map(o => rowHtml(o,'ask')).join('');
+
+  const bidSlice = bids.slice(0,LEVELS);
+  bidsEl.innerHTML = bidSlice.map(o => rowHtml(o,'bid')).join('');
+
+  document.getElementById('ob-spread').textContent = asks.length&&bids.length
+    ? fmt(asks[0].price - bids[0].price) : '—';
+  document.getElementById('ob-mid').textContent = asks.length&&bids.length
+    ? fmt((asks[0].price + bids[0].price)/2) : '—';
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER AGENTS
+// ═══════════════════════════════════════════════════════
+function renderAgents() {
+  const list = document.getElementById('agent-list');
+  const active = agents.filter(a=>a.active || ['MM1','MM2','NT1','NT2','NT3','FD1','FD2','AR1'].includes(a.id));
+  list.innerHTML = active.map(a => {
+    const type = AGENT_TYPES[a.type];
+    const pnl  = agentPnl[a.id] || 0;
+    const isM  = type.manip && a.active;
+    return `<div class="agent-row ${isM?'is-manip':''}">
+      <div class="agent-dot" style="background:${type.color}"></div>
+      <span class="agent-name">${a.name}</span>
+      <span class="agent-type">${type.label}</span>
+      <span class="agent-pnl ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(0)}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('agent-count').textContent = `${active.length} AGENTS`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════════════
+function renderChart() {
+  const canvas = document.getElementById('price-chart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth;
+  const H = canvas.height = canvas.offsetHeight;
+
+  ctx.clearRect(0,0,W,H);
+
+  if (priceHistory.length < 2) return;
+
+  const prices = priceHistory.map(p=>p.price);
+  const pMin = Math.min(...prices) - 2*TICK;
+  const pMax = Math.max(...prices) + 2*TICK;
+  const pRange = pMax - pMin || 1;
+
+  const volH = Math.floor(H * 0.15);
+  const chartH = H - volH - 4;
+
+  const toX = i => (i/(priceHistory.length-1||1))*W;
+  const toY = p => chartH - ((p-pMin)/pRange)*chartH;
+
+  // Background session bands
+  SESSIONS.forEach(s => {
+    const x1 = (s.start/600)*W;
+    const x2 = (s.end/600)*W;
+    ctx.fillStyle = s.id==='close' ? 'rgba(168,85,247,0.04)'
+                  : s.id==='open'  ? 'rgba(0,201,122,0.03)'
+                  : 'rgba(255,255,255,0.01)';
+    ctx.fillRect(x1,0,x2-x1,chartH);
+  });
+
+  // Session dividers
+  [210,300,540].forEach(min => {
+    const x = (min/600)*W;
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,chartH); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Grid lines
+  const steps = 5;
+  for (let i=0;i<=steps;i++) {
+    const y = (i/steps)*chartH;
+    const p = pMax - (i/steps)*pRange;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    ctx.fillStyle = '#4a5870';
+    ctx.font = '9px IBM Plex Mono';
+    ctx.textAlign='right';
+    ctx.fillText(fmt(p), W-2, y-2);
+  }
+
+  // Volume bars
+  const maxVol = Math.max(...priceHistory.map(p=>p.vol),1);
+  priceHistory.forEach((p,i) => {
+    const x = toX(i);
+    const bw = Math.max(1, W/priceHistory.length - 0.5);
+    const bh = (p.vol/maxVol)*volH;
+    ctx.fillStyle = p.price > (priceHistory[i-1]?.price||p.price)
+      ? 'rgba(0,201,122,0.4)' : 'rgba(232,64,64,0.4)';
+    ctx.fillRect(x-bw/2, H-bh, bw, bh);
+  });
+
+  // Price line
+  ctx.strokeStyle = '#f0a500';
+  ctx.lineWidth = 1.5;
+  ctx.shadowColor = 'rgba(240,165,0,0.3)';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  priceHistory.forEach((p,i) => {
+    i===0 ? ctx.moveTo(toX(i), toY(p.price)) : ctx.lineTo(toX(i), toY(p.price));
+  });
+  ctx.stroke();
+  ctx.shadowBlur=0;
+
+  // Current price line
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([4,4]);
+  const cy = toY(lastPrice);
+  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W,cy); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Event pins
+  chartEventPins.forEach(pin => {
+    const frac = pin.t / daySeconds;
+    const x = frac * W;
+    const y = pin.y || chartH/2;
+    ctx.fillStyle = pin.color;
+    ctx.beginPath(); ctx.arc(x,toY(pin.price),4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = pin.color;
+    ctx.font='8px IBM Plex Mono';
+    ctx.textAlign='center';
+    ctx.fillText(pin.label, x, toY(pin.price)-8);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  CLOCK & PROGRESS
+// ═══════════════════════════════════════════════════════
+function updateClock() {
+  const timeStr = offsetToTimeFull(simTime);
+  document.getElementById('clock-time').textContent = timeStr;
+  const sess = currentSession();
+  document.getElementById('clock-session').textContent = sess.label;
+  const si = document.getElementById('session-indicator');
+  si.className = `session-indicator ${sess.class}`;
+  si.textContent = sess.label;
+
+  // Day progress (0-100%)
+  const pct = Math.min(100, (simTime / daySeconds) * 100);
+  document.getElementById('day-fill').style.width = pct + '%';
+}
+
+function updateTopBar() {
+  document.getElementById('tb-last').textContent = fmt(lastPrice);
+  const ch = lastPrice - dayOpen;
+  const pct = (ch/dayOpen*100).toFixed(2);
+  const cel = document.getElementById('tb-change');
+  cel.textContent = `${ch>=0?'+':''}${fmt(ch)} (${ch>=0?'+':''}${pct}%)`;
+  cel.className = `tb-change ${ch>=0?'pos':'neg'}`;
+  document.getElementById('tb-high').textContent = fmt(dayHigh);
+  document.getElementById('tb-low').textContent  = fmt(dayLow);
+  document.getElementById('tb-vol').textContent  = fmtComma(totalVol);
+  const vwap = totalVol>0 ? vwapSum/totalVol : lastPrice;
+  document.getElementById('tb-vwap').textContent = fmt(vwap);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAIN SIM STEP
+// ═══════════════════════════════════════════════════════
+function simStep() {
+  simTime += 1;  // 1 sim-second per tick
+  if (simTime >= daySeconds) { stopSim(); return; }
+
+  // Record price for chart every 10 sim-seconds
+  if (simTime % 10 === 0) {
+    const sess = currentSession();
+    const vol = Math.floor(totalVol - (priceHistory[priceHistory.length-1]?.cumVol||0));
+    priceHistory.push({ t: simTime, price: lastPrice, vol: Math.max(0,randInt(10,80)), session: sess.id, cumVol: totalVol });
+    if (priceHistory.length > 500) priceHistory.shift();
+  }
+
+  // Agent steps
+  noiseAgentStep();
+
+  // Manipulation
+  if (simMode === 'spoofing') spoofingStep();
+  else if (simMode === 'layering') layeringStep();
+  else if (simMode === 'marking')  markingStep();
+  else if (simMode === 'frontrun') frontRunStep();
+  else if (simMode === 'wash')     washStep();
+  else if (simMode === 'insider')  insiderStep();
+
+  // Match book and produce fills
+  const fills = matchBook();
+  fills.forEach(f => addTape(f));
+
+  // Render
+  renderBook();
+  updateClock();
+  updateTopBar();
+  renderAgents();
+
+  // Chart refresh every 2s
+  if (simTime % 2 === 0) renderChart();
+
+  // Random session-based news
+  if (simTime % 120 === 0) {
+    const sess = currentSession();
+    const msgs = {
+      pre:   ['Pre-market: light volume, wide spreads. Market makers quote cautiously.','Early positioning: funds beginning passive accumulation.'],
+      open:  ['Opening auction complete. Order flow normalising.','Volume surge at open — institutional participation increasing.'],
+      mid:   ['Mid-session lull. Spread compressing, book depth improving.','Algo activity dominant. Noise ratio elevated.'],
+      close: ['Approaching settlement window. MOC order imbalance building.','Final 30 minutes: volume accelerating. Settlement price significance elevated.'],
+    };
+    const pool = msgs[sess.id] || msgs.mid;
+    addNews(pool[randInt(0,pool.length-1)]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONTROL
+// ═══════════════════════════════════════════════════════
+function toggleSim() {
+  if (!running) startSim(); else pauseSim();
+}
+
+function startSim() {
+  if (simTime === 0) {
+    buildAgents();
+    setManipActive();
+    initBook();
+    insiderEventFired = false;
+    insiderInfo = null;
+    pendingSpoofs = [];
+    layerOrders = [];
+    manipCycle = 0;
+    washCycle = 0;
+    dayOpen = midPrice;
+    dayHigh = midPrice;
+    dayLow  = midPrice;
+    totalVol = 0; vwapSum = 0; tapeCount = 0;
+    priceHistory = [];
+    chartEventPins = [];
+    document.getElementById('tape-body').innerHTML = `
+      <div class="agent-list-header">
+        <span></span><span>Time · Price</span><span>Qty</span><span>Agent</span>
+      </div>`;
+    document.getElementById('news-body').innerHTML = '';
+    document.getElementById('agent-list').innerHTML = '';
+    addNews('Simulation started. Initialising order book and agents.','');
+  }
+
+  running = true;
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '⏸ PAUSE';
+  btn.classList.add('running'); btn.classList.remove('paused');
+
+  // Real-time: 1 sim-second every (1000/speedMul) ms
+  clearInterval(simInterval);
+  simInterval = setInterval(simStep, Math.max(50, 1000/speedMul));
+}
+
+function pauseSim() {
+  running = false;
+  clearInterval(simInterval);
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '▶ RESUME';
+  btn.classList.remove('running'); btn.classList.add('paused');
+}
+
+function stopSim() {
+  running = false;
+  clearInterval(simInterval);
+  simTime = 0;
+  midPrice = BASE_PRICE;
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '▶ START';
+  btn.classList.remove('running','paused');
+  addNews('Trading day complete. Simulation ended.');
+}
+
+function setSpeed(s) {
+  speedMul = s;
+  document.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', +b.dataset.speed===s));
+  if (running) { clearInterval(simInterval); simInterval = setInterval(simStep, Math.max(50, 1000/s)); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODE
+// ═══════════════════════════════════════════════════════
+const EXPLAIN = {
+  none: {
+    title: 'No Manipulation — Normal Market',
+    body: 'Market operates with legitimate participants: market makers providing liquidity, institutional funds executing mandates, noise traders, and arbitrageurs. Order book reflects genuine supply and demand.'
+  },
+  spoofing: {
+    title: 'Spoofing — CFTC Docket 19-15 (Flaum type)',
+    body: 'Agents MN1/MN2 place large visible orders (200-400 lots) with no intention of execution to create false price signals. Genuine orders on the opposite side fill at the artificially moved price, then spoof orders cancel within 2-6 seconds. Watch for the ● markers on highlighted order rows.'
+  },
+  layering: {
+    title: 'Layering — Multiple Stacked Orders',
+    body: 'Agents MN1/MN2 stack 4-7 large orders at successive price levels to create artificial book depth pressure. Genuine execution on the opposite side benefits from the price movement. All layers cancel after fill. Distinguished from spoofing by the multi-level architecture.'
+  },
+  marking: {
+    title: 'Marking the Close — Settlement Manipulation',
+    body: 'Agents MN1/MN2 are inactive until the CLOSE session (15:00 CT). Once active, they aggressively lift offers to push the last traded price (settlement reference) higher. Effects are most visible in the final 30 minutes. Watch the price chart for artificial price uptick near session end.'
+  },
+  frontrun: {
+    title: 'Front-Running — Information Advantage',
+    body: 'Agent MN1 receives advance knowledge of a large client order (Blackrock) before it reaches the market. MN1 builds a position in the same direction, then closes it profitably after the client order moves the price. The INFORMATION LEAK appears in the event log in pink — visible to MN1 only, not other participants.'
+  },
+  wash: {
+    title: 'Wash Trading — Volume Inflation',
+    body: 'Agent WS1 appears on both sides of each transaction — buying from itself and selling to itself. This inflates reported volume with no change in beneficial ownership. Watch for WASH-tagged prints in the tape. Volume statistics will be artificially elevated vs legitimate activity.'
+  },
+  insider: {
+    title: 'Insider Trading — Non-Public Information',
+    body: 'Agent IN1 receives material non-public information (e.g. Fed signal) before public announcement. The PRIVATE INFO event in pink represents information flow visible to IN1 only — other participants see nothing unusual. IN1 builds a position, waits for public announcement, then unwinds profitably. The information asymmetry is shown on the event log timeline.'
+  }
+};
+
+function setMode(mode) {
+  simMode = mode;
+  document.querySelectorAll('.manip-btn').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+  setManipActive();
+
+  const info = EXPLAIN[mode];
+  document.getElementById('explain-title').textContent = info.title;
+  document.getElementById('explain-body').textContent = info.body;
+  document.getElementById('explain').classList.add('visible');
+  setTimeout(() => document.getElementById('explain').classList.remove('visible'), 8000);
+
+  // Reset pending manipulation structures on mode change
+  if (running) {
+    pendingSpoofs.forEach(ps => { removeFromBook(ps.side, ps.price, 'MN1'); removeFromBook(ps.side, ps.price, 'MN2'); });
+    pendingSpoofs = []; layerOrders = []; manipCycle = 0; washCycle = 0;
+    ['MN1','MN2','WS1','IN1'].forEach(id => removeAllByAgent(id));
+  }
+
+  if (simTime===0 && !running) {
+    stopSim();
+    midPrice = BASE_PRICE;
+    initBook();
+    renderBook();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+buildAgents();
+initBook();
+renderBook();
+renderAgents();
+updateClock();
+updateTopBar();
+
+// Initial chart render
+setTimeout(renderChart, 100);
+
+// Resize handler
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderChart, 100);
+});
+
+// Auto-show initial explanation
+setTimeout(() => setMode('none'), 400);
+</script>
+</body>
+</html>
