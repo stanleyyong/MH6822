@@ -828,6 +828,145 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
 .am-tag.purple { background: rgba(168,85,247,0.15); color: #d8b4fe; }
 .am-tag.grey   { background: rgba(255,255,255,0.06); color: var(--text2); }
 
+
+/* ── CAPITAL BAR (NT agents) ── */
+.agent-capital-bar {
+  padding: 4px 8px 3px;
+  border-bottom: 1px solid var(--border);
+}
+.cap-label-row {
+  display: flex; align-items: center; gap: 4px;
+  margin-bottom: 3px; font-size: 9px;
+}
+.cap-label { color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.cap-val   { font-weight: 600; font-size: 10px; }
+.cap-val.pos  { color: var(--green); }
+.cap-val.gold { color: var(--amber); }
+.cap-val.neg  { color: var(--red2); }
+
+.cap-track {
+  height: 4px; background: var(--bg); border-radius: 2px;
+  position: relative; overflow: hidden;
+}
+.cap-fill {
+  position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.cap-fill.pos  { background: var(--green); opacity: 0.7; }
+.cap-fill.gold { background: var(--amber); opacity: 0.7; }
+.cap-fill.neg  { background: var(--red2);  opacity: 0.8; }
+.cap-margin-fill {
+  position: absolute; right: 0; top: 0; height: 100%;
+  background: rgba(168,85,247,0.5); border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Dead / bankrupt agent card */
+.agent-card.is-dead {
+  opacity: 0.55; background: rgba(220,38,38,0.03);
+  border-color: rgba(220,38,38,0.2);
+  animation: card-death 0.4s ease;
+}
+@keyframes card-death {
+  0%   { opacity: 1; background: rgba(220,38,38,0.15); }
+  100% { opacity: 0.55; background: rgba(220,38,38,0.03); }
+}
+
+
+/* ── RETAIL POOL PINNED PANEL ── */
+.pool-panel {
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-bottom: 2px solid rgba(74,96,128,0.35);
+  padding: 6px 8px 8px;
+}
+.pool-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.pool-title {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: #6b7fa0;
+}
+.pool-badge {
+  font-size: 9px; padding: 1px 6px; border-radius: 2px;
+  background: rgba(74,96,128,0.2); color: #6b7fa0;
+  border: 1px solid rgba(74,96,128,0.35);
+  letter-spacing: 0.06em;
+}
+.pool-stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+}
+.pool-stat {
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 3px; padding: 4px 6px;
+}
+.pool-stat-label {
+  font-size: 8px; color: var(--text3); letter-spacing: 0.08em;
+  text-transform: uppercase; margin-bottom: 1px;
+}
+.pool-stat-val {
+  font-size: 12px; font-weight: 600; font-family: 'IBM Plex Mono', monospace;
+}
+.pool-bar-wrap {
+  margin-top: 5px; height: 4px; background: var(--bg);
+  border-radius: 2px; overflow: hidden; position: relative;
+}
+.pool-bar-long  { position:absolute; left:50%; height:100%; background:var(--green); opacity:0.7; transition:width 0.4s; }
+.pool-bar-short { position:absolute; right:50%; height:100%; background:var(--red2); opacity:0.7; transition:width 0.4s; }
+.pool-bar-label {
+  display: flex; justify-content: space-between;
+  font-size: 8px; color: var(--text3); margin-top: 2px;
+}
+
+
+/* ── CANDLESTICK CHART CONTROLS ── */
+.chart-controls {
+  position: absolute; top: 8px; right: 10px;
+  display: flex; align-items: center; gap: 6px;
+  z-index: 10; pointer-events: all;
+}
+.chart-period-btn {
+  background: rgba(20,24,32,0.85); border: 1px solid var(--border2);
+  color: var(--text3); font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  padding: 2px 7px; cursor: pointer; border-radius: 2px;
+  transition: all 0.12s; letter-spacing: 0.06em;
+}
+.chart-period-btn:hover { color: var(--text); border-color: var(--amber); }
+.chart-period-btn.active { background: rgba(240,165,0,0.15); color: var(--amber); border-color: var(--amber); }
+
+.chart-zoom-btn {
+  background: rgba(20,24,32,0.85); border: 1px solid var(--border2);
+  color: var(--text3); font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  padding: 2px 8px; cursor: pointer; border-radius: 2px;
+  transition: all 0.12s; line-height: 1.2;
+}
+.chart-zoom-btn:hover { color: var(--text); border-color: var(--border2); background: var(--bg3); }
+
+/* Crosshair tooltip */
+.chart-crosshair {
+  position: absolute; pointer-events: none;
+  display: none; z-index: 20;
+}
+.chart-ohlc-tooltip {
+  position: absolute; background: var(--bg2); border: 1px solid var(--border2);
+  padding: 5px 8px; font-size: 9px; font-family: 'IBM Plex Mono', monospace;
+  border-radius: 3px; white-space: nowrap; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 30;
+  display: none;
+}
+.chart-ohlc-tooltip .ohlc-row { display: flex; gap: 8px; align-items: center; }
+.chart-ohlc-tooltip .ohlc-o { color: var(--text3); }
+.chart-ohlc-tooltip .ohlc-h { color: var(--green); }
+.chart-ohlc-tooltip .ohlc-l { color: var(--red2); }
+.chart-ohlc-tooltip .ohlc-c { color: var(--amber); font-weight: 600; }
+.chart-ohlc-tooltip .ohlc-v { color: var(--text3); }
+.chart-ohlc-tooltip .ohlc-t { color: var(--text3); font-size: 8px; margin-bottom: 2px; }
+
+canvas#price-chart { cursor: crosshair; }
+canvas#price-chart.panning { cursor: grabbing; }
+
 /* Scrollbar global */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -956,13 +1095,26 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
   <!-- PRICE CHART -->
   <div class="panel" id="chart-panel">
     <div class="panel-header">
-      <span class="panel-title">Price & Volume — Intraday</span>
-      <span id="chart-mode-label" style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">ES·Z25 — 1-second bars</span>
+      <span class="panel-title">Price & Volume — Candlestick</span>
+      <span id="chart-mode-label" style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">ES·Z25 — OHLCV</span>
     </div>
     <div class="chart-wrap">
       <canvas id="price-chart"></canvas>
       <div class="session-indicator pre" id="session-indicator">PRE-MARKET</div>
       <div class="chart-events" id="chart-events"></div>
+      <!-- Controls -->
+      <div class="chart-controls">
+        <button class="chart-period-btn" data-period="10"  onclick="setChartPeriod(10)">10s</button>
+        <button class="chart-period-btn active" data-period="30" onclick="setChartPeriod(30)">30s</button>
+        <button class="chart-period-btn" data-period="60"  onclick="setChartPeriod(60)">1m</button>
+        <button class="chart-period-btn" data-period="300" onclick="setChartPeriod(300)">5m</button>
+        <div style="width:1px;height:14px;background:var(--border2);"></div>
+        <button class="chart-zoom-btn" onclick="chartZoom(1.4)"  title="Zoom in">＋</button>
+        <button class="chart-zoom-btn" onclick="chartZoom(1/1.4)" title="Zoom out">－</button>
+        <button class="chart-zoom-btn" onclick="chartResetView()"  title="Reset view">⊙</button>
+      </div>
+      <!-- OHLC tooltip -->
+      <div class="chart-ohlc-tooltip" id="ohlc-tooltip"></div>
     </div>
   </div>
 
@@ -1019,6 +1171,30 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
       <span class="panel-title">Agent Positioning</span>
       <span class="panel-badge" id="agent-count">0 AGENTS</span>
     </div>
+    <!-- RETAIL POOL PINNED STATS -->
+    <div class="pool-panel" id="pool-panel">
+      <div class="pool-header">
+        <span class="pool-title">Retail Pool (100 agents)</span>
+        <span class="pool-badge" id="pool-badge">NOT STARTED</span>
+      </div>
+      <div class="pool-stats-grid">
+        <div class="pool-stat"><div class="pool-stat-label">Pool P&amp;L</div><div class="pool-stat-val" id="pp-pnl" style="color:var(--text2)">—</div></div>
+        <div class="pool-stat"><div class="pool-stat-label">Trades</div><div class="pool-stat-val" id="pp-trades" style="color:var(--amber)">—</div></div>
+        <div class="pool-stat"><div class="pool-stat-label">Win Rate</div><div class="pool-stat-val" id="pp-wr" style="color:var(--text2)">—</div></div>
+        <div class="pool-stat"><div class="pool-stat-label">Bankrupt</div><div class="pool-stat-val" id="pp-dead" style="color:var(--red2)">—</div></div>
+        <div class="pool-stat"><div class="pool-stat-label">Active</div><div class="pool-stat-val" id="pp-alive" style="color:var(--green)">—</div></div>
+        <div class="pool-stat"><div class="pool-stat-label">Avg Capital</div><div class="pool-stat-val" id="pp-cap" style="color:var(--text2)">—</div></div>
+      </div>
+      <div class="pool-bar-wrap">
+        <div class="pool-bar-long"  id="pp-bar-long"  style="width:0%"></div>
+        <div class="pool-bar-short" id="pp-bar-short" style="width:0%"></div>
+      </div>
+      <div class="pool-bar-label">
+        <span id="pp-label-short" style="color:var(--red2)">← Short 0</span>
+        <span style="color:var(--text3)">Net position</span>
+        <span id="pp-label-long"  style="color:var(--green)">Long 0 →</span>
+      </div>
+    </div>
     <div class="agent-list-hdr">
       <span>Agent · Type</span><span>Bid/Ask Exposure</span>
     </div>
@@ -1045,6 +1221,39 @@ const TICK_VAL   = 12.50;  // $12.50 per tick
 const FEE_TAKER  = 1.00;   // $ per contract — aggressive (market) orders
 const FEE_MAKER  = -0.25;  // $ per contract — passive (limit) rebate (negative = revenue)
 const FEE_WASH   = 2.00;   // $ per contract — wash traders pay double (both sides)
+
+// ── Firm-wide capital pool ───────────────────────────────────────────
+const TOTAL_MARKET_CAPITAL = 5_000_000;  // $ — total pool allocated across all non-manip agents
+// CTA capital: professional, well-capitalised. Each CTA gets $200k-$500k.
+const CTA_CAPITAL_MIN   = 200_000;
+const CTA_CAPITAL_MAX   = 500_000;
+// Institutional credit facility: can borrow up to 50% of starting capital once
+const CREDIT_FACILITY_MULT = 0.5;
+// Distance-to-insolvency risk gate: scale position linearly below this equity fraction
+const RISK_SCALE_FLOOR  = 0.25;   // below 25% of starting capital → scale down hard
+// Max drawdown before strategy shutdown (% of peak equity / high-water mark)
+const MAX_DRAWDOWN_PCT  = 0.15;   // 15% drawdown from peak triggers shutdown
+
+// ── Capital & margin (ES futures, realistic 2024 CME rates) ──────
+const MARGIN_INITIAL     = 11500;  // $ per contract — CME initial margin
+const MARGIN_MAINTENANCE = 10500;  // $ per contract — maintenance margin (margin call threshold)
+const NT_CAPITAL_MIN     = 15000;  // minimum retail account size ($)
+const NT_CAPITAL_MAX     = 50000;  // maximum retail account size ($)
+// Capital ranges for other agent types (realistic for ES futures accounts)
+const MM_CAPITAL_MIN     = 500_000;   // market maker — well capitalised
+const MM_CAPITAL_MAX     = 2_000_000;
+const FUND_CAPITAL_MIN   = 1_000_000; // fund — allocated trading slice
+const FUND_CAPITAL_MAX   = 5_000_000;
+const ARB_CAPITAL_MIN    = 150_000;   // prop arb desk
+const ARB_CAPITAL_MAX    = 400_000;
+const MANIP_CAPITAL_MIN  = 100_000;   // manipulator account
+const MANIP_CAPITAL_MAX  = 300_000;
+const WASH_CAPITAL_MIN   = 50_000;    // wash trader — only needs fee float
+const WASH_CAPITAL_MAX   = 150_000;
+const INSIDER_CAPITAL_MIN= 100_000;   // insider — needs position capital
+const INSIDER_CAPITAL_MAX= 500_000;
+// Derived: max position from capital = floor(capital / MARGIN_INITIAL)
+// e.g. $15k → 1 contract, $23k → 2, $34k → 2-3, $50k → 4
 const BASE_PRICE = 5892.50;
 const LEVELS     = 10;
 
@@ -1095,6 +1304,15 @@ let bids = [];  // [{price, qty, agentId, tag}]  descending
 
 // Price history for chart
 let priceHistory = [];   // {t, price, vol, session}
+let candles      = [];   // OHLC candles: {t, o, h, l, c, vol, session}
+let currentCandle = null; // candle being built
+let chartPeriod  = 30;   // sim-seconds per candle (default 30s)
+// Zoom/pan state
+let chartZoomFactor = 1.0;   // 1 = show all candles; >1 = zoomed in
+let chartPanOffset  = 0;     // offset in candle units from right edge
+let chartIsPanning  = false;
+let chartPanStartX  = 0;
+let chartPanStartOffset = 0;
 let chartEventPins = []; // {t, label, color, desc}
 
 // Agents
@@ -1103,6 +1321,8 @@ const AGENT_TYPES = {
   mm:      { label:'Market Maker', color:'#059669',  manip: false },
   fund:    { label:'Buy-Side Fund',color:'#2563eb',  manip: false },
   arb:     { label:'Arbitrageur',  color:'#7c3aed',  manip: false },
+  cta:     { label:'CTA / Trend',    color:'#0891b2',  manip: false },
+  rtm:     { label:'Retail Momentum', color:'#d97706',  manip: false },
   manip:   { label:'Manipulator',  color:'#dc2626',  manip: true  },
   wash:    { label:'Wash Trader',  color:'#db2777',  manip: true  },
   insider: { label:'Insider',      color:'#8b5cf6',  manip: true  },
@@ -1113,6 +1333,130 @@ let agentPnl      = {};  // realised P&L per agent ($)
 let agentPos      = {};  // net position in contracts (+ long, - short)
 let agentAvgEntry = {};  // volume-weighted avg entry price
 let agentRealised = {};  // locked-in realised P&L
+let agentCapital  = {};  // starting account capital (NT agents only)
+let agentGeneration = {}; // how many times this slot has been reborn (for display name)
+let retailDeathCount = 0;
+let retailRebornCount = 0;
+let pendingRebirths = []; // [{id, spawnAt, gen}]
+
+// ── 100-agent retail pool ────────────────────────────────────────
+// Lightweight: no order book entries; fills simulated at mid ± half-spread.
+// Each agent: capital ($8k-$20k), pos (−1/0/+1 only), avgEntry, bias, nextActTime
+const POOL_SIZE        = 100;
+const POOL_CAP_MIN     = 8_000;
+const POOL_CAP_MAX     = 20_000;
+const POOL_ACT_FREQ    = 720;  // act at most once per 720 sim-seconds (once per ~12 min at 1×)
+                                // → 3-5 trades per simulated hour per agent
+let pool = [];         // array of agent state objects
+let poolBankrupted = 0;
+let poolTotalTrades = 0;
+
+function initPool() {
+  pool = Array.from({length: POOL_SIZE}, (_, i) => ({
+    id:       'P' + String(i).padStart(3,'0'),
+    capital:  randInt(POOL_CAP_MIN, POOL_CAP_MAX),
+    realised: 0,
+    pos:      0,         // -1, 0, or +1 contracts only
+    avgEntry: 0,
+    bias:     Math.random() < 0.5 ? 1 : -1,   // 1=bull, -1=bear
+    nextAct:  randInt(0, POOL_ACT_FREQ),       // stagger initial actions
+    dead:     false,
+    trades:   0,
+    wins:     0,
+  }));
+  poolBankrupted = 0;
+  poolTotalTrades = 0;
+}
+
+function stepPool() {
+  const sess = currentSession();
+  if (sess.id === 'pre') return;
+
+  pool.forEach(agent => {
+    if (agent.dead) return;
+    if (simTime < agent.nextAct) return;
+
+    // Schedule next action: 3-5 per simulated hour = every 720-1200 sim-seconds
+    agent.nextAct = simTime + randInt(POOL_ACT_FREQ, POOL_ACT_FREQ * 2);
+
+    const equity = agent.capital + agent.realised
+                 + agent.pos * (midPrice - agent.avgEntry) * 50;
+
+    // Bankruptcy check
+    if (equity <= 0) {
+      if (agent.pos !== 0) {
+        // Crystallise loss
+        agent.realised += agent.pos * (midPrice - agent.avgEntry) * 50;
+        agent.pos = 0;
+      }
+      agent.dead = true;
+      poolBankrupted++;
+      return;
+    }
+
+    // Can they afford margin?
+    const canTrade = agent.capital + agent.realised >= MARGIN_INITIAL;
+
+    // Close existing position?
+    if (agent.pos !== 0) {
+      const entryPx  = agent.avgEntry;
+      const profitTk = (agent.pos > 0 ? midPrice - entryPx : entryPx - midPrice) / TICK;
+
+      // Exit if: profit >= 4 ticks, OR loss >= 5 ticks, OR random exit (10% chance — simulate impatience)
+      const shouldExit = profitTk >= 4 || profitTk <= -5 || Math.random() < 0.10;
+      if (shouldExit) {
+        // Fill at mid ± half spread cost ($6.25 = half a tick per contract)
+        const fillPx   = agent.pos > 0 ? midPrice - TICK/2 : midPrice + TICK/2;
+        const pnl      = agent.pos * (fillPx - agent.avgEntry) * 50 - FEE_TAKER;
+        agent.realised += pnl;
+        if (pnl > 0) agent.wins++;
+        agent.pos      = 0;
+        agent.avgEntry = 0;
+        agent.trades++;
+        poolTotalTrades++;
+        return;
+      }
+      return;  // hold position
+    }
+
+    if (!canTrade) return;
+
+    // Momentum signal: blend personal bias with recent price change
+    const recentMove = priceHistory.length >= 3
+      ? priceHistory[priceHistory.length-1].price - priceHistory[Math.max(0,priceHistory.length-4)].price
+      : 0;
+    const signal = agent.bias * 0.4 + (recentMove / (TICK * 6)) * 0.6;
+    if (Math.abs(signal) < 0.2) return;  // no conviction
+
+    const dir    = signal > 0 ? 1 : -1;
+    // Fill at mid ± half spread
+    const fillPx = dir > 0 ? midPrice + TICK/2 : midPrice - TICK/2;
+
+    agent.pos      = dir;
+    agent.avgEntry = fillPx;
+    agent.realised -= FEE_TAKER;  // entry fee
+    agent.trades++;
+    poolTotalTrades++;
+  });
+}
+
+// Pool aggregate stats for display
+function poolStats() {
+  const alive  = pool.filter(a => !a.dead);
+  const totalCap = pool.reduce((s,a) => s + a.capital, 0);
+  const totalRealised = pool.reduce((s,a) => s + a.realised, 0);
+  const unrealised = pool.reduce((s,a) =>
+    s + a.pos * (midPrice - a.avgEntry) * 50, 0);
+  const totalPnl   = totalRealised + unrealised;
+  const longPos    = pool.filter(a=>a.pos>0).length;
+  const shortPos   = pool.filter(a=>a.pos<0).length;
+  const winRate    = poolTotalTrades > 0
+    ? (pool.reduce((s,a)=>s+a.wins,0) / poolTotalTrades * 100).toFixed(0)
+    : '—';
+  return { alive: alive.length, totalCap, totalPnl, longPos, shortPos, winRate };
+}
+
+// ── end retail pool ──────────────────────────────────────────────
 
 // Spoof orders (pending cancellation)
 let pendingSpoofs = [];  // {orderId, tCancel, side, price, origQty}
@@ -1137,6 +1481,13 @@ function buildAgents() {
     { id:'FD1',  type:'fund',    name:'Vanguard',   active:true },
     { id:'FD2',  type:'fund',    name:'Blackrock',  active:true },
     { id:'AR1',  type:'arb',     name:'SIG-Arb',    active:true },
+    { id:'RTM1', type:'rtm',     name:'MomAlgo-A',  active:true  },
+    { id:'RTM2', type:'rtm',     name:'QSys-B',     active:true  },
+    { id:'RTM3', type:'rtm',     name:'BrkOut-C',   active:true  },
+    { id:'CTA1', type:'cta',     name:'AHL-FF',     active:true  },
+    { id:'CTA2', type:'cta',     name:'Jones-FR',   active:true  },
+    { id:'CTA3', type:'cta',     name:'Winton-KC',  active:true  },
+    { id:'CTA4', type:'cta',     name:'MAN-AM',     active:true  },
     { id:'MN1',  type:'manip',   name:'???-Alpha',  active:false },
     { id:'MN2',  type:'manip',   name:'???-Beta',   active:false },
     { id:'WS1',  type:'wash',    name:'???-Wash',   active:false },
@@ -1149,23 +1500,104 @@ function buildAgents() {
     NT1:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:4*TICK, posLimit:20, lastSignalT:0 },
     NT2:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:3*TICK, posLimit:15, lastSignalT:0 },
     NT3:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:5*TICK, posLimit:25, lastSignalT:0 },
-    FD1:  { mandate:'buy',  target: randInt(200,600), filled:0, vwapTarget:0, sliceSize:randInt(15,40) },
-    FD2:  { mandate: Math.random()<0.5?'buy':'sell', target: randInt(150,500), filled:0, vwapTarget:0, sliceSize:randInt(10,30) },
-    AR1:  { fairValue: BASE_PRICE, posLimit:60, entryThresh:2*TICK, exitThresh:TICK, active:false },
+    FD1:  { mandate:'buy',  target:randInt(200,600), filled:0, vwapTarget:0, sliceSize:randInt(15,40),
+            execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
+    FD2:  { mandate:Math.random()<0.5?'buy':'sell', target:randInt(150,500), filled:0, vwapTarget:0,
+            sliceSize:randInt(10,30), execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
+    AR1:  { fairValue:BASE_PRICE, posLimit:40, entryThresh:3*TICK, exitThresh:TICK, active:false, wins:0, losses:0, confidence:1.0, cooldownUntil:0, dailyLossLimit:2000, dailyLoss:0 },
     MN1:  { budgetUsed:0, budgetLimit:500, pauseUntil:0, realQtyFilled:0 },
     MN2:  { budgetUsed:0, budgetLimit:300, pauseUntil:0 },
     WS1:  { volTarget: randInt(800,2000), volDone:0, feeBudget:1500 },
     IN1:  { confidence:0, posLimit:200, exited:false },
+    // CTA agents — each implements a different bet sizing strategy
+    // Common fields: capital, peakEquity (HWM), tradeHistory, creditUsed, shutdown
+    // Retail momentum / trend agents: small capital, retail-sized positions
+    RTM1: { strategy:'timeseries_momentum', lookback:10, posLimit:8,
+            wins:0, losses:0, confidence:1.0, cooldownUntil:0,
+            dailyLossLimit:800, dailyLoss:0 },
+    RTM2: { strategy:'quant_ma_crossover',  fastLen:5, slowLen:15, posLimit:6,
+            wins:0, losses:0, confidence:1.0, cooldownUntil:0,
+            dailyLossLimit:600, dailyLoss:0 },
+    RTM3: { strategy:'breakout',            lookbackBars:8, posLimit:5,
+            recentHigh:0, recentLow:0,
+            wins:0, losses:0, confidence:1.0, cooldownUntil:0,
+            dailyLossLimit:500, dailyLoss:0 },
+    CTA1: { sizingMethod:'fixedFractional', riskPct:0.02,
+            posLimit:40, peakEquity:0, tradeWin:0, tradeLoss:0,
+            creditUsed:false, shutdown:false, consecutiveWins:0 },
+    CTA2: { sizingMethod:'fixedRatio',     delta:5000, baseUnits:1, units:1,
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false },
+    CTA3: { sizingMethod:'kelly',          kellyFrac:0.25, tradeHistory:[],
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false },
+    CTA4: { sizingMethod:'antiMartingale', baseSize:3, currentMult:1, maxMult:4,
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false, consecutiveWins:0 },
   };
   agents.forEach(a => {
-    agentPnl[a.id]      = 0;
-    agentPos[a.id]      = 0;
-    agentAvgEntry[a.id] = 0;
-    agentRealised[a.id] = 0;
+    agentPnl[a.id]        = 0;
+    agentPos[a.id]        = 0;
+    agentAvgEntry[a.id]   = 0;
+    agentRealised[a.id]   = 0;
+    agentGeneration[a.id] = agentGeneration[a.id] || 0;
     a.state = agentState[a.id] || {};
+
+    // ── Universal capital initialisation ────────────────────────────
+    // Every agent gets a capital account and margin tracking.
+    // The ranges differ by type to reflect realistic account sizes.
+    const capRanges = {
+      noise:   [NT_CAPITAL_MIN,      NT_CAPITAL_MAX],
+      rtm:     [NT_CAPITAL_MIN,      Math.floor(NT_CAPITAL_MAX * 0.8)],
+      cta:     [CTA_CAPITAL_MIN,     CTA_CAPITAL_MAX],
+      mm:      [MM_CAPITAL_MIN,      MM_CAPITAL_MAX],
+      fund:    [FUND_CAPITAL_MIN,    FUND_CAPITAL_MAX],
+      arb:     [ARB_CAPITAL_MIN,     ARB_CAPITAL_MAX],
+      manip:   [MANIP_CAPITAL_MIN,   MANIP_CAPITAL_MAX],
+      wash:    [WASH_CAPITAL_MIN,    WASH_CAPITAL_MAX],
+      insider: [INSIDER_CAPITAL_MIN, INSIDER_CAPITAL_MAX],
+    };
+    const [cMin, cMax] = capRanges[a.type] || [NT_CAPITAL_MIN, NT_CAPITAL_MAX];
+    const capital = randInt(cMin, cMax);
+    agentCapital[a.id] = capital;
+    a.state.capital    = capital;
+    a.state.dead       = false;
+    a.state.rebirthAt  = null;
+
+    // Type-specific overrides
+    if (a.type === 'noise') {
+      a.state.posLimit     = Math.max(1, Math.floor(capital / MARGIN_INITIAL));
+      a.state.posLimitHard = a.state.posLimit;
+    }
+    if (a.type === 'rtm') {
+      a.state.posLimit = Math.max(1, Math.min(a.state.posLimit, Math.floor(capital / MARGIN_INITIAL)));
+    }
+    if (a.type === 'cta') {
+      a.state.peakEquity = capital;
+      a.state.creditLine = capital * CREDIT_FACILITY_MULT;
+    }
+    if (a.type === 'mm') {
+      // MMs: capital constrains quote size, not directional position
+      // quote size cap = floor(capital / (MARGIN_INITIAL * 8 levels * 2 sides))
+      a.state.capitalQuoteCap = Math.max(5, Math.floor(capital / (MARGIN_INITIAL * 16)));
+    }
+    if (a.type === 'fund') {
+      a.state.capitalFloor = capital * 0.30; // pause mandate if equity < 30% of starting
+    }
+    if (a.type === 'arb') {
+      a.state.peakEquity     = capital;
+      a.state.dailyLossLimit = capital * 0.10; // 10% of capital is daily loss cap
+    }
+    if (a.type === 'manip') {
+      a.state.capitalBudget = capital;  // spoofer's total risk budget
+    }
+    if (a.type === 'wash') {
+      a.state.feeBudget = Math.min(1500, capital * 0.03); // 3% of capital in fees
+    }
+    if (a.type === 'insider') {
+      a.state.posLimit = Math.max(1, Math.floor(capital * 0.80 / MARGIN_INITIAL)); // use 80% of capital for position
+    }
   });
   // Fund VWAP targets — set at open price
   agents.filter(a=>a.type==='fund').forEach(a => { a.state.vwapTarget = midPrice; });
+  pendingRebirths = [];
 }
 
 function setManipActive() {
@@ -1269,6 +1701,9 @@ function totalPnl(id) {
 function mmStep(id) {
   const a   = agents.find(x => x.id === id);
   const st  = a.state;
+  if (st.dead) return;  // bankrupted MM
+  checkMarginAndCapital(id);
+  if (st.dead) return;
   const pnl = agentRealised[id] || 0;
 
   // Adverse selection ratio: if >50% of recent fills moved against us, widen
@@ -1283,10 +1718,15 @@ function mmStep(id) {
 
   st.spreadMult = Math.max(0.75, Math.min(4, sm));
 
-  // Quote size — reduce if PnL deteriorating
-  st.quoteSize = pnl < -500 ? randInt(3, 12)
-               : pnl < -200 ? randInt(5, 20)
-               : randInt(8, 35);
+  // Quote size — reduce if PnL deteriorating or capital depleted
+  const mmCapPct = agentCapital[id] > 0 ? availableCapital(id) / agentCapital[id] : 1;
+  const mmCapScale = mmCapPct < 0.5 ? mmCapPct / 0.5 : 1.0;  // scale down below 50% capital
+  const mmCapCap = st.capitalQuoteCap || 35;
+  st.quoteSize = Math.max(2, Math.floor((
+    pnl < -2000 ? randInt(2, 8)
+    : pnl < -500 ? randInt(4, 15)
+    : randInt(8, 35)
+  ) * mmCapScale));
 
   removeAllByAgent(id);
   for (let i = 1; i <= 8; i++) {
@@ -1312,55 +1752,231 @@ function recordMMFill(id, fillPrice, side) {
   if (isAdverse) st.adverseFills++;
 }
 
+// ── CAPITAL HELPERS ─────────────────────────────────────────────────
+function availableCapital(id) {
+  // Cash left = starting capital + all realised gains/losses
+  return (agentCapital[id] || 0) + (agentRealised[id] || 0);
+}
+
+function effectiveEquity(id) {
+  // Total equity = cash + unrealised mark-to-mid
+  const pos = agentPos[id] || 0;
+  const avg = agentAvgEntry[id] || midPrice;
+  return availableCapital(id) + pos * (midPrice - avg) * 50;
+}
+
+function marginUsed(id) {
+  return Math.abs(agentPos[id] || 0) * MARGIN_MAINTENANCE;
+}
+
+function maxAllowedPos(id) {
+  // How many contracts can this agent carry given current capital?
+  const cap = availableCapital(id);
+  return Math.max(0, Math.floor(cap / MARGIN_INITIAL));
+}
+
+function checkMarginAndCapital(id) {
+  const a = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  // CTAs use their own drawdown check — don't double-fire here
+  if (a.type === 'cta') return;
+  // MMs don't carry directional inventory, no margin call
+  if (a.type === 'mm') return;
+
+  const equity = effectiveEquity(id);
+  const pos    = Math.abs(agentPos[id] || 0);
+
+  // BANKRUPTCY: equity below zero
+  if (equity <= 0) {
+    bankruptAgent(id);
+    return;
+  }
+
+  // MARGIN CALL: equity < maintenance margin × position
+  if (pos > 0 && equity < pos * MARGIN_MAINTENANCE) {
+    marginCallAgent(id);
+  }
+}
+
+function marginCallAgent(id) {
+  const a = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  const pos = agentPos[id] || 0;
+  if (pos === 0) return;
+
+  // Force flatten entire position at market
+  removeAllByAgent(id);
+  // Crystallise the unrealised loss as realised
+  const avg = agentAvgEntry[id] || midPrice;
+  const realisedLoss = pos * (midPrice - avg) * 50;
+  agentRealised[id] = (agentRealised[id] || 0) + realisedLoss;
+  agentPos[id]      = 0;
+  agentAvgEntry[id] = 0;
+
+  const equity = availableCapital(id);
+  addNews(
+    `MARGIN CALL: ${a.name} position force-closed. Equity: $${equity.toFixed(0)}. ` +
+    `Account continues but position limit reduced to ${maxAllowedPos(id)} contracts.`,
+    'event-manip'
+  );
+  // Reduce position limit to what capital now supports
+  a.state.posLimit = Math.max(1, maxAllowedPos(id));
+}
+
+function bankruptAgent(id) {
+  const a = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  // For agents without rebirthAt support, just mark dead permanently
+  const canRebirth = ['noise', 'rtm'].includes(a.type);
+
+  // Force flatten
+  removeAllByAgent(id);
+  agentPos[id]      = 0;
+  agentAvgEntry[id] = 0;
+
+  const gen = (agentGeneration[id] || 0) + 1;
+  agentGeneration[id] = gen;
+  a.state.dead      = true;
+  a.state.rebirthAt = canRebirth ? simTime + randInt(60, 180) : null;
+  retailDeathCount++;
+
+  const lostCapital = agentCapital[id] || 0;
+  addNews(
+    `BANKRUPTCY: ${a.name} account wiped out. Lost $${lostCapital.toFixed(0)} ` +
+    `starting capital. Account #${gen} will enter market in ~${Math.round((a.state.rebirthAt - simTime)/60)} sim-min.`,
+    'event-manip'
+  );
+}
+
+function processRebirths() {
+  const ntIds = ['NT1','NT2','NT3','RTM1','RTM2','RTM3'];
+  ntIds.forEach(id => {
+    const a = agents.find(x => x.id === id);
+    if (!a || !a.state.dead) return;
+    if (simTime < a.state.rebirthAt) return;
+
+    // Rebirth — fresh capital, new bias, new generation name
+    const gen      = agentGeneration[id] || 1;
+    const capital  = randInt(NT_CAPITAL_MIN, NT_CAPITAL_MAX);
+    const genSuffix = gen <= 3 ? ['²','³','⁴'][gen-1] : '⁺';
+    const baseName  = id === 'NT1' ? 'Retail-A' : id === 'NT2' ? 'Retail-B' : id === 'NT3' ? 'Retail-C'
+                    : id === 'RTM1' ? 'MomAlgo-A' : id === 'RTM2' ? 'QSys-B' : 'BrkOut-C';
+
+    agentCapital[id]  = capital;
+    agentRealised[id] = 0;
+    agentPos[id]      = 0;
+    agentAvgEntry[id] = 0;
+
+    a.name        = baseName + genSuffix;
+    a.state.dead  = false;
+    a.state.rebirthAt = null;
+    a.state.capital   = capital;
+    a.state.posLimit  = Math.max(1, Math.floor(capital / MARGIN_INITIAL));
+    a.state.posLimitHard = a.state.posLimit;
+    a.state.bias      = Math.random() < 0.5 ? 'bull' : 'bear';
+    a.state.signal    = randFloat(-1, 1);
+    a.state.lastSignalT = 0;
+    // RTM-specific reset
+    if (a.type === 'rtm') {
+      a.state.wins = 0; a.state.losses = 0;
+      a.state.confidence = 1.0; a.state.cooldownUntil = 0;
+      a.state.dailyLoss = 0;
+    }
+
+    retailRebornCount++;
+    addNews(
+      `NEW ACCOUNT: ${a.name} enters with $${capital.toLocaleString()} capital ` +
+      `(max ${a.state.posLimit} contract${a.state.posLimit>1?'s':''}). Generation ${gen+1}.`,
+      'event-order'
+    );
+  });
+}
+
 // ── NOISE / RETAIL TRADERS ───────────────────────────────────────
 // Each NT has a weak directional signal (bull/bear bias + momentum).
 // They: respect position limits, cut losses at stop-loss, don't add to losers.
 function ntStep(id) {
+  const a = agents.find(x => x.id === id);
+  if (!a) return;
+  const st = a.state;
+
+  // DEAD: agent bankrupted, waiting for rebirth
+  if (st.dead) return;
+
   if (Math.random() > 0.10) return;   // ~10% chance of acting per step
-  const a   = agents.find(x => x.id === id);
-  const st  = a.state;
-  const pos = agentPos[id] || 0;
-  const pnl = totalPnl(id);
+
+  const pos   = agentPos[id] || 0;
   const entry = agentAvgEntry[id] || midPrice;
 
-  // STOP-LOSS: if position is losing more than stopLoss threshold, flatten
+  // Check margin and bankruptcy before doing anything
+  checkMarginAndCapital(id);
+  if (st.dead) return;
+
+  // CAPITAL-AWARE POSITION LIMIT: update dynamically based on current equity
+  const capitalPosLimit = maxAllowedPos(id);
+  st.posLimit = Math.min(st.posLimitHard || capitalPosLimit, capitalPosLimit);
+  if (st.posLimit < 1 && pos === 0) return; // can't afford even 1 contract
+
+  // BREAKEVEN TRAIL: once 2 ticks in profit, trail stop to entry price
+  if (pos !== 0) {
+    const profitTicks = (pos > 0 ? midPrice - entry : entry - midPrice) / TICK;
+    if (profitTicks >= 2 && !st.trailActive) { st.trailActive = true; st.trailStop = entry; }
+    if (st.trailActive) {
+      // Trail: move stop up with price (long) or down (short)
+      const newTrail = pos > 0
+        ? Math.max(st.trailStop, round(midPrice - 2*TICK))
+        : Math.min(st.trailStop, round(midPrice + 2*TICK));
+      st.trailStop = newTrail;
+      const hitTrail = pos > 0 ? midPrice <= st.trailStop : midPrice >= st.trailStop;
+      if (hitTrail) {
+        const side = pos > 0 ? 'ask' : 'bid';
+        addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'noise');
+        st.trailActive = false; st.trailStop = 0;
+        return;
+      }
+    }
+  }
+  // STOP-LOSS: flatten if loss exceeds threshold
   if (pos !== 0 && Math.abs(entry - midPrice) >= st.stopLoss) {
-    const side = pos > 0 ? 'ask' : 'bid';  // sell to close long, buy to close short
+    const side       = pos > 0 ? 'ask' : 'bid';
     const closePrice = side === 'ask' ? round(midPrice - TICK) : round(midPrice + TICK);
     addOrUpdate(side, closePrice, Math.abs(pos), id, 'noise');
-    return;  // don't add new position this step
+    st.trailActive = false; st.trailStop = 0;
+    return;
   }
 
-  // POSITION LIMIT: don't add if at limit
+  // POSITION LIMIT: capital-gated
   if (Math.abs(pos) >= st.posLimit) return;
 
-  // DON'T ADD TO LOSERS: if holding a losing position, don't increase it
+  // MARGIN CHECK: would adding 1 more contract breach initial margin?
+  const newMarginNeeded = (Math.abs(pos) + 1) * MARGIN_INITIAL;
+  if (newMarginNeeded > availableCapital(id)) return;
+
+  // DON'T ADD TO LOSERS
   const isLosing = pos !== 0 && (pos > 0 ? midPrice < entry : midPrice > entry);
   if (isLosing && Math.random() < 0.7) return;
 
-  // DIRECTIONAL SIGNAL: refresh signal occasionally, momentum-influenced
+  // SIGNAL REFRESH
   if (simTime - st.lastSignalT > randInt(30, 90)) {
     const momentum = priceHistory.length >= 2
       ? priceHistory[priceHistory.length-1].price - priceHistory[Math.max(0, priceHistory.length-5)].price
       : 0;
-    // Signal blends personal bias with recent momentum
     st.signal = (st.bias === 'bull' ? 0.3 : -0.3) + momentum / (TICK * 10);
     st.signal = Math.max(-1, Math.min(1, st.signal + randFloat(-0.3, 0.3)));
     st.lastSignalT = simTime;
   }
 
-  // Place limit order in direction of signal
-  const wantBuy = st.signal > 0.1;
+  const wantBuy  = st.signal > 0.1;
   const wantSell = st.signal < -0.1;
-  if (!wantBuy && !wantSell) return;  // no conviction — sit out
+  if (!wantBuy && !wantSell) return;
 
-  const side = wantBuy ? 'bid' : 'ask';
-  // Limit price: passive — 1-2 ticks from best
-  const offset = randInt(1, 3);
-  const price  = side === 'bid'
-    ? round(bestBid() - (offset-1)*TICK)   // at or near best bid
-    : round(bestAsk() + (offset-1)*TICK);  // at or near best ask
-  const qty = randInt(1, Math.min(5, st.posLimit - Math.abs(pos)));
+  const side   = wantBuy ? 'bid' : 'ask';
+  // Post AT the best price (competitive) not behind it — passive fill at or 1 tick inside
+  const price  = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  // Size: 1 contract per trade (retail keeps it small)
+  const maxNewQty = Math.min(2, st.posLimit - Math.abs(pos),
+                             Math.floor(availableCapital(id) / MARGIN_INITIAL) - Math.abs(pos));
+  const qty = Math.max(1, Math.min(1, maxNewQty));  // almost always 1
   if (qty <= 0) return;
   addOrUpdate(side, price, qty, id, 'noise');
 }
@@ -1373,69 +1989,605 @@ function fundStep(id) {
   if (Math.random() > 0.025) return;
   const a  = agents.find(x => x.id === id);
   const st = a.state;
+  if (st.dead) return;
+  // Capital floor: if equity < 30% of starting capital, suspend mandate
+  const fundEquity = effectiveEquity(id);
+  if (fundEquity < (st.capitalFloor || 0)) {
+    if (!st.capitalPaused) {
+      st.capitalPaused = true;
+      addNews(`FUND CAPITAL FLOOR: ${a.name} equity $${fundEquity.toFixed(0)} below 30% capital floor. Mandate suspended.`, 'event-manip');
+    }
+    checkMarginAndCapital(id);
+    return;
+  }
+  st.capitalPaused = false;
   if (st.filled >= st.target) return;  // mandate complete
+
+  // EXECUTION QUALITY PAUSE: if recent slices have been too expensive, pause briefly
+  if (st.paused && simTime < st.pauseUntil) return;
+  if (st.paused && simTime >= st.pauseUntil) { st.paused = false; }
+
+  // Detect deteriorating execution: if slicesFilled > 5 and average exec cost
+  // vs VWAP is worsening, pause for a period (risk manager intervention)
+  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  if (st.slicesFilled > 5) {
+    const avgExecCost = st.execCost / st.slicesFilled;
+    const isBuy_ = st.mandate === 'buy';
+    // Bad execution: buying above VWAP+3 or selling below VWAP-3 consistently
+    if ((isBuy_ && avgExecCost > 3*TICK) || (!isBuy_ && avgExecCost < -3*TICK)) {
+      st.paused = true;
+      st.pauseUntil = simTime + randInt(30, 90);  // pause 30-90 sim-seconds
+      return;
+    }
+  }
 
   const remaining = st.target - st.filled;
   const isBuy = st.mandate === 'buy';
-
-  // Price discipline: don't chase — only execute within tolerance of VWAP target
-  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
   const tolerance = 3 * TICK;
   const priceOK = isBuy
-    ? midPrice <= vwapNow + tolerance    // buying — don't overpay vs VWAP
-    : midPrice >= vwapNow - tolerance;  // selling — don't undersell vs VWAP
+    ? midPrice <= vwapNow + tolerance
+    : midPrice >= vwapNow - tolerance;
   if (!priceOK) return;
 
-  // Slice size: smaller when remaining is small, always passive limit
   const sliceQty = Math.min(st.sliceSize, remaining, randInt(10, 35));
   const offset   = randInt(1, 3);
   const side     = isBuy ? 'bid' : 'ask';
   const price    = isBuy
-    ? round(bestBid() + (offset === 1 ? TICK : 0))   // competitive bid
-    : round(bestAsk() - (offset === 1 ? TICK : 0));  // competitive ask
+    ? round(bestBid() + (offset === 1 ? TICK : 0))
+    : round(bestAsk() - (offset === 1 ? TICK : 0));
 
+  // Track execution cost vs VWAP for quality monitoring
+  const execCostThisSlice = isBuy ? (price - vwapNow)/TICK : (vwapNow - price)/TICK;
+  st.execCost   += execCostThisSlice;
+  st.slicesFilled++;
+  st.filled     += sliceQty;
   addOrUpdate(side, price, sliceQty, id, 'fund');
-  st.filled += sliceQty;   // track toward mandate completion (approximate)
 }
 
 // ── ARBITRAGEUR ──────────────────────────────────────────────────
-// Mean-reversion: enters when mid deviates from rolling VWAP by > 2 ticks.
-// Exits when price reverts or at profit target.
-// Has a clear P&L stop: closes position if unrealised loss > $300.
+// VWAP mean-reversion with strategy confidence, daily loss limit, and cooldown.
 function arbStep(id) {
-  if (Math.random() > 0.05) return;
+  if (Math.random() > 0.04) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+
+  // COOLDOWN: strategy paused after loss streak
+  if (simTime < st.cooldownUntil) return;
+
+  // DAILY LOSS LIMIT: hard stop for the day
+  if (st.dailyLoss >= st.dailyLossLimit) return;
+
+  const pos  = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+
+  // STOP-LOSS: 5 ticks (wider so VWAP reversion has room)
+  const entry = agentAvgEntry[id] || midPrice;
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 5*TICK) {
+    const side  = pos > 0 ? 'ask' : 'bid';
+    const price = side === 'ask' ? round(bestBid()) : round(bestAsk());
+    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+    const loss = Math.abs(upnl);
+    st.losses++;
+    st.dailyLoss += loss;
+    // Confidence degrades on consecutive losses: gate future entries
+    st.confidence = Math.max(0.1, st.confidence * 0.85);
+    // After 3 losses in a row, cooldown 2-4 minutes
+    if (st.losses >= 3 && st.confidence < 0.5) {
+      st.cooldownUntil = simTime + randInt(120, 240);
+      st.losses = 0;  // reset after cooldown
+    }
+    return;
+  }
+
+  // TAKE PROFIT: 8 ticks (2:1 reward:risk minimum with 4-tick entries)
+  if (pos !== 0 && upnl > 8*TICK_VAL*Math.abs(pos)/5) {
+    const side  = pos > 0 ? 'ask' : 'bid';
+    const price = side === 'ask' ? round(bestBid()+TICK) : round(bestAsk()-TICK);
+    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+    st.wins++;
+    // Confidence recovers on win
+    st.confidence = Math.min(1.0, st.confidence + 0.1);
+    return;
+  }
+
+  // Only enter new position if no current position and confidence is sufficient
+  if (Math.abs(pos) >= st.posLimit) return;
+  if (st.confidence < 0.3) return;  // low confidence — sit out
+
+  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const dev = midPrice - vwapNow;
+  if (Math.abs(dev) < st.entryThresh) return;  // 3-tick threshold
+
+  // Size proportional to confidence: full size at confidence=1, half at 0.5
+  const baseQty = randInt(3, 10);
+  const qty     = Math.max(1, Math.floor(baseQty * st.confidence));
+  const side    = dev > 0 ? 'ask' : 'bid';
+  const price   = side === 'ask' ? round(bestAsk()) : round(bestBid());
+  addOrUpdate(side, price, qty, id, 'arb');
+}
+
+// ── CTA / PROFESSIONAL TRADER DECISION ENGINE ───────────────────
+//
+// All four CTAs share:
+//  - Universal risk gate: scale position size by distance to insolvency
+//  - High-water mark drawdown stop (15%)
+//  - Institutional credit facility (borrow 50% of capital, one-time)
+//  - Trend signal: 5-bar vs 20-bar EMA crossover approximated from priceHistory
+//  - Tag 'cta' for tape classification
+
+// Universal: compute the risk-scaled position size ceiling
+// As equity declines toward insolvency, max position shrinks continuously
+function ctaRiskCeiling(id) {
+  const a    = agents.find(x => x.id === id);
+  if (!a) return 0;
+  const cap  = agentCapital[id] || 0;
+  const av   = availableCapital(id);
+  const eq   = effectiveEquity(id);
+  // Hard floor: if equity below zero, can only trade if credit facility unused
+  if (eq <= 0) {
+    if (!a.state.creditUsed && cap > 0) {
+      // Activate credit facility — one-time bridge
+      agentCapital[id] += a.state.creditLine || 0;
+      a.state.creditUsed = true;
+      addNews(`CREDIT FACILITY: ${a.name} activates $${(a.state.creditLine||0).toLocaleString()} credit line after equity drawdown.`, 'event-order');
+    } else {
+      return 0;  // truly insolvent — can't trade
+    }
+  }
+  // Distance to insolvency as fraction of starting capital
+  const dist = Math.max(0, av) / (cap || 1);
+  // Below RISK_SCALE_FLOOR → scale linearly from 0 to posLimit
+  const scaleFactor = dist < RISK_SCALE_FLOOR
+    ? dist / RISK_SCALE_FLOOR
+    : 1.0;
+  return Math.max(0, Math.floor(a.state.posLimit * scaleFactor));
+}
+
+// Check high-water mark drawdown — shutdown if exceeded
+function ctaDrawdownCheck(id) {
+  const a  = agents.find(x => x.id === id);
+  if (!a || a.state.shutdown) return false;
+  const eq = effectiveEquity(id);
+  // Update peak equity (high-water mark)
+  if (eq > (a.state.peakEquity || 0)) a.state.peakEquity = eq;
+  const hwm = a.state.peakEquity || agentCapital[id] || 1;
+  const dd  = (hwm - eq) / hwm;
+  if (dd >= MAX_DRAWDOWN_PCT) {
+    a.state.shutdown = true;
+    removeAllByAgent(id);
+    agentPos[id] = 0;
+    addNews(`DRAWDOWN STOP: ${a.name} suspended — drawdown ${(dd*100).toFixed(1)}% exceeds ${(MAX_DRAWDOWN_PCT*100).toFixed(0)}% limit. HWM: $${hwm.toFixed(0)}, Current: $${eq.toFixed(0)}.`, 'event-manip');
+    return true;
+  }
+  return false;
+}
+
+// Shared trend signal: positive = uptrend, negative = downtrend, magnitude = conviction
+// Approximates a fast/slow momentum crossover from recent price history
+function ctaTrendSignal() {
+  if (priceHistory.length < 5) return 0;
+  const n = priceHistory.length;
+  // Fast: 5-bar average
+  const fast = priceHistory.slice(Math.max(0,n-5)).reduce((s,p)=>s+p.price,0) / Math.min(5,n);
+  // Slow: 30-bar average (longer period = more separation in trending conditions)
+  const slow = priceHistory.slice(Math.max(0,n-30)).reduce((s,p)=>s+p.price,0) / Math.min(30,n);
+  // Normalise by tick — signal in units of ticks of separation
+  return (fast - slow) / TICK;
+}
+
+// ── CTA1: Fixed Fractional (AHL / Man AHL style) ─────────────────
+// Risk exactly 2% of current equity per trade.
+// Position size = floor(riskAmount / (stopLoss_ticks * TICK_VAL))
+// Stop: 3 ticks. Pure trend entry when signal > threshold.
+function cta1Step() {
+  if (Math.random() > 0.06) return;
+  const id = 'CTA1';
+  if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
   const st  = a.state;
   const pos = agentPos[id] || 0;
   const upnl = unrealisedPnl(id);
+  const eq   = effectiveEquity(id);
+  const maxPos = ctaRiskCeiling(id);
 
-  // STOP-LOSS
-  if (pos !== 0 && upnl < -300) {
-    const side  = pos > 0 ? 'ask' : 'bid';
-    const price = side === 'ask' ? round(bestAsk() - TICK) : round(bestBid() + TICK);
-    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+  // STOP-LOSS: 3 ticks
+  const entry = agentAvgEntry[id] || midPrice;
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 3*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
+    st.tradeLoss++;
     return;
   }
-
-  // TAKE PROFIT — exit when position has earned > $150
-  if (pos !== 0 && upnl > 150) {
-    const side  = pos > 0 ? 'ask' : 'bid';
-    const price = side === 'ask' ? round(bestAsk() - TICK) : round(bestBid() + TICK);
-    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+  // TAKE PROFIT: 5 ticks
+  if (pos !== 0 && upnl > 5*TICK_VAL*Math.abs(pos)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
+    st.tradeWin++;
     return;
   }
+  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
 
+  // FIXED FRACTIONAL SIZING: risk 2% of current equity
+  // Cap by actual available margin so we never exceed what capital supports
+  const riskAmount      = Math.max(0, eq) * st.riskPct;  // 2% of equity
+  const stopLossDollars = 3 * TICK_VAL;                  // $37.50/contract
+  const marginFloor     = Math.floor(availableCapital('CTA1') / MARGIN_INITIAL);
+  const rawSize         = Math.floor(riskAmount / stopLossDollars);
+  // Triple cap: formula size, margin limit, posLimit risk ceiling
+  const sizeQty         = Math.max(1, Math.min(rawSize, marginFloor, maxPos - Math.abs(pos)));
+
+  const trend = ctaTrendSignal();
+  if (Math.abs(trend) < 0.4) return;  // insufficient trend conviction
+
+  const side  = trend > 0 ? 'bid' : 'ask';
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, sizeQty, id, 'cta');
+}
+
+// ── CTA2: Fixed Ratio (Ryan Jones method) ────────────────────────
+// Units increase by 1 for every $delta increase in equity above baseline.
+// Position size = units × baseSize contracts.
+// More aggressive compounding — good in trends, devastating in drawdowns.
+function cta2Step() {
+  if (Math.random() > 0.06) return;
+  const id = 'CTA2';
+  if (ctaDrawdownCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const eq   = effectiveEquity(id);
+  const maxPos = ctaRiskCeiling(id);
+
+  // Update units based on equity growth
+  const cap      = agentCapital[id] || 1;
+  const equityGain = Math.max(0, eq - cap);
+  st.units = Math.max(1, Math.min(8, 1 + Math.floor(equityGain / st.delta)));
+
+  // STOP-LOSS: 4 ticks (wider — fixed ratio can absorb more volatility)
+  const entry = agentAvgEntry[id] || midPrice;
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
+    // Drawdown in units: Ryan Jones says reduce units on loss
+    st.units = Math.max(1, st.units - 1);
+    return;
+  }
+  // PROFIT TARGET: 8 ticks
+  if (pos !== 0 && upnl > 8*TICK_VAL*Math.abs(pos)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
+    return;
+  }
+  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+
+  const trend = ctaTrendSignal();
+  if (Math.abs(trend) < 0.4) return;
+
+  const sizeQty = Math.max(1, Math.min(st.units * 2, maxPos - Math.abs(pos)));
+  const side    = trend > 0 ? 'bid' : 'ask';
+  const price   = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, sizeQty, id, 'cta');
+}
+
+// ── CTA3: Kelly Criterion — Fractional Kelly (Winton / Two Sigma style) ─
+// Uses last 20 trades to estimate win rate W and reward:risk ratio R.
+// Position = kellyFrac × (W - (1-W)/R) × maxContractsFromEquity
+// Uses 25% Kelly (fractional) to control variance.
+function cta3Step() {
+  if (Math.random() > 0.06) return;
+  const id = 'CTA3';
+  if (ctaDrawdownCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const eq   = effectiveEquity(id);
+  const maxPos = ctaRiskCeiling(id);
+
+  // STOP-LOSS: 4 ticks
+  const entry = agentAvgEntry[id] || midPrice;
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    // Record trade outcome for Kelly estimate
+    st.tradeHistory.push({ win: false, rr: 0 });
+    if (st.tradeHistory.length > 20) st.tradeHistory.shift();
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
+    return;
+  }
+  // PROFIT TARGET: 6 ticks
+  if (pos !== 0 && upnl > 6*TICK_VAL*Math.abs(pos)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    const entryP = agentAvgEntry[id] || midPrice;
+    const rr = Math.abs(midPrice - entryP) / (4*TICK);  // reward:risk ratio
+    st.tradeHistory.push({ win: true, rr });
+    if (st.tradeHistory.length > 20) st.tradeHistory.shift();
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
+    return;
+  }
+  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+
+  // KELLY SIZING
+  let W = 0.5, R = 1.5;  // default priors before enough data
+  if (st.tradeHistory.length >= 5) {
+    const wins = st.tradeHistory.filter(t=>t.win);
+    W = wins.length / st.tradeHistory.length;
+    const avgRR = wins.length > 0 ? wins.reduce((s,t)=>s+t.rr,0)/wins.length : 1.5;
+    R = Math.max(0.5, avgRR);
+  }
+  const kellyRaw = W - (1-W)/R;                          // full Kelly fraction
+  const kellyF   = Math.max(0, st.kellyFrac * kellyRaw); // fractional (25%) Kelly
+  const sizeQty  = Math.max(1, Math.min(Math.floor(kellyF * maxPos), maxPos - Math.abs(pos)));
+
+  const trend = ctaTrendSignal();
+  if (Math.abs(trend) < 0.4) return;
+
+  const side  = trend > 0 ? 'bid' : 'ask';
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, sizeQty, id, 'cta');
+}
+
+// ── CTA4: Anti-Martingale (MAN / Trend Amplifier style) ──────────
+// Double position size after each consecutive win (up to maxMult × baseSize).
+// Reset to baseSize on any loss.
+// Best strategy for sustained trends — maximises profits during winning streaks.
+function cta4Step() {
+  if (Math.random() > 0.06) return;
+  const id = 'CTA4';
+  if (ctaDrawdownCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const eq   = effectiveEquity(id);
+  const maxPos = ctaRiskCeiling(id);
+
+  // STOP-LOSS: 3 ticks — tight stop, relies on trend persistence
+  const entry = agentAvgEntry[id] || midPrice;
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 3*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
+    // LOSS → reset multiplier to 1
+    st.currentMult = 1;
+    st.consecutiveWins = 0;
+    return;
+  }
+  // PROFIT TARGET: 4 ticks — take profit and potentially scale up next trade
+  if (pos !== 0 && upnl > 4*TICK_VAL*Math.abs(pos)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
+    // WIN → double multiplier (up to maxMult)
+    st.consecutiveWins++;
+    st.currentMult = Math.min(st.maxMult, 1 << Math.min(st.consecutiveWins, 3)); // 1→2→4→8 capped at maxMult
+    return;
+  }
+  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+
+  const trend = ctaTrendSignal();
+  if (Math.abs(trend) < 0.4) return;  // enter on any meaningful trend
+
+  // Anti-martingale: size = baseSize × currentMult, capped by risk ceiling
+  const targetSize = Math.min(st.baseSize * st.currentMult, maxPos);
+  const sizeQty    = Math.max(1, Math.min(targetSize, maxPos - Math.abs(pos)));
+  const side       = trend > 0 ? 'bid' : 'ask';
+  const price      = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, sizeQty, id, 'cta');
+}
+
+// ── RETAIL MOMENTUM / SYSTEMATIC AGENTS ─────────────────────────
+//
+// Three agents implementing strategies described in the CTA literature
+// at retail scale ($15k-$40k capital, 5-8 contract position limits).
+// All three share: strategy confidence tracking, daily loss limits,
+// cooldown on loss streaks, capital-gated position sizing.
+
+// Shared risk helper for RTM agents
+function rtmRiskCheck(id) {
+  const a = agents.find(x => x.id === id);
+  if (!a) return false;
+  if (a.state.dead) return false;
+  checkMarginAndCapital(id);  // reuses NT capital check (bankruptcy + margin call)
+  if (a.state.dead) return false;
+  if (simTime < a.state.cooldownUntil) return false;
+  if (a.state.dailyLoss >= a.state.dailyLossLimit) return false;
+  return true;
+}
+
+function rtmRecordLoss(id, lossAmt) {
+  const st = agents.find(x=>x.id===id)?.state;
+  if (!st) return;
+  st.losses++;
+  st.dailyLoss += Math.abs(lossAmt);
+  st.confidence = Math.max(0.1, st.confidence * 0.80);
+  if (st.losses % 3 === 0 && st.confidence < 0.5) {
+    st.cooldownUntil = simTime + randInt(90, 180);
+    addNews(`STRATEGY PAUSE: ${id} — 3 consecutive losses. Confidence ${(st.confidence*100).toFixed(0)}%. Pausing ${Math.round((st.cooldownUntil-simTime)/60)} sim-min.`, 'event-manip');
+  }
+}
+
+function rtmRecordWin(id) {
+  const st = agents.find(x=>x.id===id)?.state;
+  if (!st) return;
+  st.wins++;
+  st.losses = 0;  // reset loss streak on win
+  st.confidence = Math.min(1.0, st.confidence + 0.12);
+}
+
+// RTM1: Time-Series Momentum (70-80% of CTA managers)
+// Buy assets rising over the lookback window; short assets falling.
+// Signal: is price above its rolling average over last `lookback` bars?
+// Sizing: fixed-fraction style using confidence × capital fraction.
+function rtm1Step() {
+  if (Math.random() > 0.08) return;
+  const id = 'RTM1';
+  if (!rtmRiskCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const entry = agentAvgEntry[id] || midPrice;
+  const av  = availableCapital(id);
+
+  // STOP-LOSS: 4 ticks
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    rtmRecordLoss(id, upnl);
+    // Feed back to capital model
+    agentRealised[id] = (agentRealised[id]||0) + pos*(midPrice-entry)*50;
+    agentPos[id] = 0;
+    return;
+  }
+  // TAKE PROFIT: 7 ticks (1.75:1 RR — momentum traders ride winners)
+  if (pos !== 0 && upnl > 7*TICK_VAL*(Math.abs(pos)||1)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+    rtmRecordWin(id);
+    return;
+  }
   if (Math.abs(pos) >= st.posLimit) return;
 
-  // ENTRY: deviated from VWAP
-  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
-  const dev = midPrice - vwapNow;
-  if (Math.abs(dev) < st.entryThresh) return;
+  // TIME-SERIES MOMENTUM SIGNAL
+  // Use priceHistory lookback to determine if price has trended
+  if (priceHistory.length < st.lookback + 1) return;
+  const n = priceHistory.length;
+  const pNow  = priceHistory[n-1].price;
+  const pBack = priceHistory[Math.max(0, n-st.lookback-1)].price;
+  const momentumTicks = (pNow - pBack) / TICK;
+  // Threshold: must have moved at least 3 ticks in one direction
+  if (Math.abs(momentumTicks) < 3) return;
 
-  const side  = dev > 0 ? 'ask' : 'bid';  // mid above VWAP → sell; below → buy
-  const price = side === 'ask' ? round(bestAsk()) : round(bestBid());
-  const qty   = randInt(3, 12);
-  addOrUpdate(side, price, qty, id, 'arb');
+  const side  = momentumTicks > 0 ? 'bid' : 'ask';  // buy upward momentum, sell downward
+  // Position sizing: 1.5% of capital, capped by confidence and margin
+  const riskFrac = 0.015 * st.confidence;
+  const stopDollars = 4 * TICK_VAL;
+  const marginCap = Math.floor(av / MARGIN_INITIAL);
+  const qty = Math.max(1, Math.min(
+    Math.floor(av * riskFrac / stopDollars),
+    marginCap,
+    st.posLimit - Math.abs(pos)
+  ));
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, qty, id, 'rtm');
+}
+
+// RTM2: Quantitative MA Crossover (systematic/quant modelling)
+// Buy when fast MA crosses above slow MA; sell when it crosses below.
+// Uses 5-bar and 15-bar moving averages. Anti-trend if position on wrong side.
+function rtm2Step() {
+  if (Math.random() > 0.08) return;
+  const id = 'RTM2';
+  if (!rtmRiskCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const entry = agentAvgEntry[id] || midPrice;
+  const av  = availableCapital(id);
+
+  // STOP-LOSS: 5 ticks (quant systems use wider stops to avoid noise)
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 5*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    rtmRecordLoss(id, upnl);
+    return;
+  }
+  // EXIT on signal reversal (MA cross in opposite direction)
+  if (priceHistory.length >= st.slowLen + 1) {
+    const n  = priceHistory.length;
+    const fast = priceHistory.slice(Math.max(0,n-st.fastLen)).reduce((s,p)=>s+p.price,0)/Math.min(st.fastLen,n);
+    const slow = priceHistory.slice(Math.max(0,n-st.slowLen)).reduce((s,p)=>s+p.price,0)/Math.min(st.slowLen,n);
+    const crossUp   = fast > slow + 0.5*TICK;
+    const crossDown = fast < slow - 0.5*TICK;
+    // Exit if position is against current signal
+    if (pos > 0 && crossDown) {
+      addOrUpdate('ask', round(bestBid()+TICK), Math.abs(pos), id, 'rtm');
+      rtmRecordWin(id);  // MA system: exits on signal, counts as win if voluntary
+      return;
+    }
+    if (pos < 0 && crossUp) {
+      addOrUpdate('bid', round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+      rtmRecordWin(id);
+      return;
+    }
+  }
+  if (Math.abs(pos) >= st.posLimit) return;
+  if (priceHistory.length < st.slowLen + 1) return;
+
+  // MA CROSSOVER SIGNAL
+  const n    = priceHistory.length;
+  const fast = priceHistory.slice(Math.max(0,n-st.fastLen)).reduce((s,p)=>s+p.price,0)/Math.min(st.fastLen,n);
+  const slow = priceHistory.slice(Math.max(0,n-st.slowLen)).reduce((s,p)=>s+p.price,0)/Math.min(st.slowLen,n);
+  if (Math.abs(fast-slow) < TICK) return;  // no clear crossover
+
+  const side  = fast > slow ? 'bid' : 'ask';
+  const marginCap = Math.floor(av / MARGIN_INITIAL);
+  const qty = Math.max(1, Math.min(
+    Math.floor(av * 0.01 * st.confidence / (5*TICK_VAL)),
+    marginCap,
+    st.posLimit - Math.abs(pos)
+  ));
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, qty, id, 'rtm');
+}
+
+// RTM3: Breakout Strategy
+// Enter when price breaks above recent N-bar high or below recent N-bar low.
+// Classic turtle trading / Donchian channel approach.
+function rtm3Step() {
+  if (Math.random() > 0.07) return;
+  const id = 'RTM3';
+  if (!rtmRiskCheck(id)) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+  const entry = agentAvgEntry[id] || midPrice;
+  const av  = availableCapital(id);
+
+  // STOP-LOSS: 6 ticks (breakout systems need wide stops — noise inside channel)
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 6*TICK) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    rtmRecordLoss(id, upnl);
+    return;
+  }
+  // PROFIT TARGET: 10 ticks (2:1+ on breakout trades)
+  if (pos !== 0 && upnl > 10*TICK_VAL*(Math.abs(pos)||1)) {
+    const side = pos > 0 ? 'ask' : 'bid';
+    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+    rtmRecordWin(id);
+    return;
+  }
+  if (Math.abs(pos) >= st.posLimit) return;
+  if (priceHistory.length < st.lookbackBars + 1) return;
+
+  // DONCHIAN CHANNEL SIGNAL
+  const n = priceHistory.length;
+  const lookback = priceHistory.slice(Math.max(0, n-st.lookbackBars-1), n-1);
+  const chanHigh = Math.max(...lookback.map(p=>p.price));
+  const chanLow  = Math.min(...lookback.map(p=>p.price));
+  st.recentHigh  = chanHigh;
+  st.recentLow   = chanLow;
+
+  const breakoutUp   = midPrice > chanHigh + TICK;  // price broke above channel
+  const breakoutDown = midPrice < chanLow  - TICK;  // price broke below channel
+  if (!breakoutUp && !breakoutDown) return;
+
+  const side  = breakoutUp ? 'bid' : 'ask';
+  // Breakout sizing: wider stops mean smaller size
+  const marginCap = Math.floor(av / MARGIN_INITIAL);
+  const qty = Math.max(1, Math.min(
+    Math.floor(av * 0.012 * st.confidence / (6*TICK_VAL)),
+    marginCap,
+    st.posLimit - Math.abs(pos)
+  ));
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, qty, id, 'rtm');
+  if (breakoutUp)
+    addNews(`BREAKOUT: ${id} long ${qty} at ${fmt(price)} — broke ${fmt(chanHigh)} (${st.lookbackBars}-bar high).`, 'event-order');
+  else
+    addNews(`BREAKOUT: ${id} short ${qty} at ${fmt(price)} — broke ${fmt(chanLow)} (${st.lookbackBars}-bar low).`, 'event-order');
 }
 
 // ── MAIN AGENT STEP (replaces old noiseAgentStep) ────────────────
@@ -1460,6 +2612,17 @@ function noiseAgentStep() {
   // Arbitrageur — VWAP mean-reversion
   arbStep('AR1');
 
+  // Retail momentum / systematic strategies
+  rtm1Step();
+  rtm2Step();
+  rtm3Step();
+
+  // CTAs — professional trend followers with different bet sizing strategies
+  cta1Step();
+  cta2Step();
+  cta3Step();
+  cta4Step();
+
   // Price drift — random walk with session volatility
   const drift = (Math.random()-0.495) * TICK * (sess.id==='open' ? 3 : 1.5);
   midPrice = round(midPrice + drift);
@@ -1479,6 +2642,8 @@ function spoofingStep() {
   if (spoofCycle % 120 === 0) {
     const mn1  = agents.find(a => a.id === 'MN1');
     const st   = mn1.state;
+    checkMarginAndCapital('MN1'); checkMarginAndCapital('MN2');
+    if (mn1.state.dead) return;
 
     // P&L GATE: pause spoofing if budget is exhausted or strategy is losing badly
     if (simTime < st.pauseUntil) return;
@@ -1880,110 +3045,294 @@ function renderAgents() {
       <span class="agent-pnl ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(0)}</span>
     </div>`;
   }).join('');
-  document.getElementById('agent-count').textContent = `${active.length} AGENTS`;
+  const deadCount = agents.filter(a=>a.type==='noise'&&a.state.dead).length;
+  const badge = deadCount > 0
+    ? `${active.length} AGENTS · ${retailDeathCount} BANKRUPT`
+    : `${active.length} AGENTS`;
+  document.getElementById('agent-count').textContent = badge;
+
+  // Pool stats shown in pinned panel above agent list
 }
 
 // ═══════════════════════════════════════════════════════
 //  CHART
 // ═══════════════════════════════════════════════════════
+// ── Candle building ────────────────────────────────────────────
+function buildCandle(price, cumVol) {
+  const periodStart = Math.floor(simTime / chartPeriod) * chartPeriod;
+  if (!currentCandle || currentCandle.t !== periodStart) {
+    if (currentCandle) { candles.push(currentCandle); if (candles.length > 2000) candles.shift(); }
+    currentCandle = {
+      t: periodStart, o: price, h: price, l: price, c: price,
+      vol: 0, session: currentSession().id, cumVolStart: cumVol
+    };
+  }
+  currentCandle.h = Math.max(currentCandle.h, price);
+  currentCandle.l = Math.min(currentCandle.l, price);
+  currentCandle.c = price;
+  currentCandle.vol = Math.max(0, cumVol - currentCandle.cumVolStart);
+}
+
+// Return the candle slice visible under current zoom/pan
+function visibleCandles() {
+  const all = currentCandle ? [...candles, currentCandle] : [...candles];
+  if (all.length === 0) return all;
+  const totalVisible = Math.max(10, Math.round(all.length / chartZoomFactor));
+  const rightEdge    = Math.max(0, all.length - Math.max(0, chartPanOffset));
+  const leftEdge     = Math.max(0, rightEdge - totalVisible);
+  return all.slice(leftEdge, rightEdge);
+}
+
 function renderChart() {
   const canvas = document.getElementById('price-chart');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width = canvas.offsetWidth;
   const H = canvas.height = canvas.offsetHeight;
-
   ctx.clearRect(0,0,W,H);
 
-  if (priceHistory.length < 2) return;
-
-  const prices = priceHistory.map(p=>p.price);
-  const pMin = Math.min(...prices) - 2*TICK;
-  const pMax = Math.max(...prices) + 2*TICK;
-  const pRange = pMax - pMin || 1;
-
-  const volH = Math.floor(H * 0.15);
-  const chartH = H - volH - 4;
-
-  const toX = i => (i/(priceHistory.length-1||1))*W;
-  const toY = p => chartH - ((p-pMin)/pRange)*chartH;
-
-  // Background session bands
-  SESSIONS.forEach(s => {
-    const x1 = (s.start/600)*W;
-    const x2 = (s.end/600)*W;
-    ctx.fillStyle = s.id==='close' ? 'rgba(168,85,247,0.04)'
-                  : s.id==='open'  ? 'rgba(0,201,122,0.03)'
-                  : 'rgba(255,255,255,0.01)';
-    ctx.fillRect(x1,0,x2-x1,chartH);
-  });
-
-  // Session dividers
-  [210,300,540].forEach(min => {
-    const x = (min/600)*W;
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3,4]);
-    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,chartH); ctx.stroke();
-    ctx.setLineDash([]);
-  });
-
-  // Grid lines
-  const steps = 5;
-  for (let i=0;i<=steps;i++) {
-    const y = (i/steps)*chartH;
-    const p = pMax - (i/steps)*pRange;
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  const vis = visibleCandles();
+  if (vis.length < 2) {
     ctx.fillStyle = '#4a5870';
-    ctx.font = '9px IBM Plex Mono';
-    ctx.textAlign='right';
-    ctx.fillText(fmt(p), W-2, y-2);
+    ctx.font = '11px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('Waiting for price data…', W/2, H/2);
+    return;
   }
 
+  const PRICE_PAD = 40;  // right margin for price labels
+  const LEFT_PAD  = 4;
+  const chartW = W - PRICE_PAD - LEFT_PAD;
+  const volH   = Math.floor(H * 0.18);
+  const chartH = H - volH - 6;
+
+  // OHLC bounds from visible candles
+  const highs  = vis.map(c=>c.h), lows = vis.map(c=>c.l);
+  const pMax   = Math.max(...highs) + 2*TICK;
+  const pMin   = Math.min(...lows)  - 2*TICK;
+  const pRange = pMax - pMin || 1;
+
+  const toY  = p  => chartH - ((p - pMin) / pRange) * chartH;
+  const toX  = i  => LEFT_PAD + (i + 0.5) * (chartW / vis.length);
+  const bw   = Math.max(1, chartW / vis.length * 0.7);
+
+  // Session background shading (based on visible candle session tags)
+  const sessMap = { pre:'rgba(255,255,255,0.01)', open:'rgba(0,201,122,0.025)', mid:'rgba(41,121,255,0.018)', close:'rgba(168,85,247,0.03)' };
+  let lastSess = null, bandStart = 0;
+  vis.forEach((c,i) => {
+    if (c.session !== lastSess) {
+      if (lastSess) {
+        ctx.fillStyle = sessMap[lastSess] || 'transparent';
+        ctx.fillRect(toX(bandStart) - bw/2, 0, toX(i) - toX(bandStart), chartH);
+      }
+      lastSess = c.session; bandStart = i;
+    }
+  });
+  if (lastSess) {
+    ctx.fillStyle = sessMap[lastSess] || 'transparent';
+    ctx.fillRect(toX(bandStart) - bw/2, 0, chartW, chartH);
+  }
+
+  // Horizontal grid + price labels
+  const gridSteps = 6;
+  ctx.font = '9px IBM Plex Mono';
+  for (let i=0; i<=gridSteps; i++) {
+    const y = (i/gridSteps)*chartH;
+    const p = pMax - (i/gridSteps)*pRange;
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(LEFT_PAD, y); ctx.lineTo(LEFT_PAD + chartW, y); ctx.stroke();
+    ctx.fillStyle = '#4a5870';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(p), W-2, y - 2);
+  }
+
+  // Time axis labels (every ~10 candles)
+  const labelEvery = Math.max(1, Math.round(vis.length / 6));
+  ctx.fillStyle = '#4a5870';
+  ctx.textAlign = 'center';
+  ctx.font = '8px IBM Plex Mono';
+  vis.forEach((c,i) => {
+    if (i % labelEvery === 0) {
+      const x = toX(i);
+      ctx.fillText(offsetToTime(c.t/60), x, chartH + 11);
+    }
+  });
+
   // Volume bars
-  const maxVol = Math.max(...priceHistory.map(p=>p.vol),1);
-  priceHistory.forEach((p,i) => {
-    const x = toX(i);
-    const bw = Math.max(1, W/priceHistory.length - 0.5);
-    const bh = (p.vol/maxVol)*volH;
-    ctx.fillStyle = p.price > (priceHistory[i-1]?.price||p.price)
-      ? 'rgba(0,201,122,0.4)' : 'rgba(232,64,64,0.4)';
-    ctx.fillRect(x-bw/2, H-bh, bw, bh);
+  const maxVol = Math.max(...vis.map(c=>c.vol), 1);
+  vis.forEach((c,i) => {
+    const x  = toX(i);
+    const bh = Math.max(1, (c.vol/maxVol) * (volH-4));
+    ctx.fillStyle = c.c >= c.o ? 'rgba(0,201,122,0.35)' : 'rgba(232,64,64,0.35)';
+    ctx.fillRect(x - bw/2, H - bh - 2, bw, bh);
   });
 
-  // Price line
-  ctx.strokeStyle = '#f0a500';
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = 'rgba(240,165,0,0.3)';
-  ctx.shadowBlur = 4;
-  ctx.beginPath();
-  priceHistory.forEach((p,i) => {
-    i===0 ? ctx.moveTo(toX(i), toY(p.price)) : ctx.lineTo(toX(i), toY(p.price));
-  });
-  ctx.stroke();
-  ctx.shadowBlur=0;
+  // Candlesticks
+  vis.forEach((c,i) => {
+    const x    = toX(i);
+    const isUp = c.c >= c.o;
+    const colF = isUp ? '#00c97a' : '#e84040';  // fill
+    const colS = isUp ? '#00c97a' : '#e84040';  // stroke
 
-  // Current price line
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    // Wick (high-low)
+    ctx.strokeStyle = colS;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, toY(c.h));
+    ctx.lineTo(x, toY(c.l));
+    ctx.stroke();
+
+    // Body (open-close)
+    const bodyTop    = toY(Math.max(c.o, c.c));
+    const bodyBottom = toY(Math.min(c.o, c.c));
+    const bodyH      = Math.max(1, bodyBottom - bodyTop);
+    const halfBW     = Math.max(1, bw/2 - 0.5);
+
+    if (isUp) {
+      ctx.fillStyle = colF + '99';   // semi-transparent bull body
+      ctx.strokeStyle = colF;
+      ctx.fillRect(x - halfBW, bodyTop, halfBW*2, bodyH);
+      ctx.strokeRect(x - halfBW, bodyTop, halfBW*2, bodyH);
+    } else {
+      ctx.fillStyle = colF + 'cc';   // more opaque bear body
+      ctx.strokeStyle = colF;
+      ctx.fillRect(x - halfBW, bodyTop, halfBW*2, bodyH);
+      ctx.strokeRect(x - halfBW, bodyTop, halfBW*2, bodyH);
+    }
+  });
+
+  // Current price horizontal line
+  const cy = toY(lastPrice);
+  ctx.strokeStyle = 'rgba(240,165,0,0.5)';
   ctx.lineWidth = 0.5;
   ctx.setLineDash([4,4]);
-  const cy = toY(lastPrice);
-  ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(W,cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(LEFT_PAD, cy); ctx.lineTo(LEFT_PAD + chartW, cy); ctx.stroke();
   ctx.setLineDash([]);
+  // Price label on right axis
+  ctx.fillStyle = 'var(--amber, #f0a500)';
+  ctx.font = 'bold 9px IBM Plex Mono';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#f0a500';
+  ctx.fillRect(LEFT_PAD + chartW, cy - 7, PRICE_PAD - 2, 14);
+  ctx.fillStyle = '#0f1217';
+  ctx.fillText(fmt(lastPrice), W - 3, cy + 3);
+}
 
-  // Event pins
-  chartEventPins.forEach(pin => {
-    const frac = pin.t / daySeconds;
-    const x = frac * W;
-    const y = pin.y || chartH/2;
-    ctx.fillStyle = pin.color;
-    ctx.beginPath(); ctx.arc(x,toY(pin.price),4,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = pin.color;
-    ctx.font='8px IBM Plex Mono';
-    ctx.textAlign='center';
-    ctx.fillText(pin.label, x, toY(pin.price)-8);
+// ── Chart controls ─────────────────────────────────────────────
+function setChartPeriod(seconds) {
+  chartPeriod = seconds;
+  candles = []; currentCandle = null;
+  chartZoomFactor = 1; chartPanOffset = 0;
+  document.querySelectorAll('.chart-period-btn').forEach(b =>
+    b.classList.toggle('active', +b.dataset.period === seconds));
+  renderChart();
+}
+
+function chartZoom(factor) {
+  chartZoomFactor = Math.max(0.5, Math.min(20, chartZoomFactor * factor));
+  renderChart();
+}
+
+function chartResetView() {
+  chartZoomFactor = 1; chartPanOffset = 0;
+  renderChart();
+}
+
+// ── Mouse/touch interactions ────────────────────────────────────
+function initChartInteractions() {
+  const canvas = document.getElementById('price-chart');
+  if (!canvas) return;
+
+  // Wheel zoom
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+    chartZoom(factor);
+  }, { passive: false });
+
+  // Drag pan
+  canvas.addEventListener('mousedown', e => {
+    chartIsPanning   = true;
+    chartPanStartX   = e.clientX;
+    chartPanStartOffset = chartPanOffset;
+    canvas.classList.add('panning');
   });
+  window.addEventListener('mousemove', e => {
+    if (!chartIsPanning) return;
+    const vis   = visibleCandles();
+    if (!vis.length) return;
+    const W     = canvas.offsetWidth - 40;
+    const pixPerCandle = W / vis.length;
+    const dCandles = Math.round((e.clientX - chartPanStartX) / pixPerCandle);
+    const all   = currentCandle ? [...candles, currentCandle] : [...candles];
+    chartPanOffset = Math.max(0, Math.min(all.length - 5, chartPanStartOffset - dCandles));
+    renderChart();
+  });
+  window.addEventListener('mouseup', () => {
+    chartIsPanning = false;
+    const canvas = document.getElementById('price-chart');
+    if (canvas) canvas.classList.remove('panning');
+  });
+
+  // Crosshair + OHLC tooltip on hover
+  canvas.addEventListener('mousemove', e => {
+    if (chartIsPanning) return;
+    const vis = visibleCandles();
+    if (!vis.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const W    = canvas.offsetWidth - 40;
+    const idx  = Math.round((mx - 4) / (W / vis.length) - 0.5);
+    if (idx < 0 || idx >= vis.length) {
+      document.getElementById('ohlc-tooltip').style.display = 'none';
+      return;
+    }
+    const c = vis[idx];
+    const isUp = c.c >= c.o;
+    const tt = document.getElementById('ohlc-tooltip');
+    tt.style.display = 'block';
+    tt.innerHTML = `
+      <div class="ohlc-t">${offsetToTimeFull(c.t)} · ${chartPeriod}s bar</div>
+      <div class="ohlc-row">
+        <span class="ohlc-o">O ${fmt(c.o)}</span>
+        <span class="ohlc-h">H ${fmt(c.h)}</span>
+        <span class="ohlc-l">L ${fmt(c.l)}</span>
+        <span class="ohlc-c" style="color:${isUp?'var(--green)':'var(--red2)'}"">C ${fmt(c.c)}</span>
+        <span class="ohlc-v">Vol ${c.vol}</span>
+      </div>`;
+    // Position tooltip — avoid edge overflow
+    const ttW = 320, ttH = 50;
+    let tx = e.clientX - rect.left + 12;
+    let ty = e.clientY - rect.top  - 30;
+    if (tx + ttW > canvas.offsetWidth)  tx = mx - ttW - 12;
+    if (ty < 0) ty = 4;
+    tt.style.left = tx + 'px';
+    tt.style.top  = ty + 'px';
+  });
+  canvas.addEventListener('mouseleave', () => {
+    const tt = document.getElementById('ohlc-tooltip');
+    if (tt) tt.style.display = 'none';
+  });
+
+  // Touch pinch-zoom
+  let lastTouchDist = 0;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.hypot(dx, dy);
+    }
+  }, {passive:true});
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      if (lastTouchDist > 0) chartZoom(dist / lastTouchDist);
+      lastTouchDist = dist;
+    }
+  }, {passive:true});
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2024,15 +3373,17 @@ function simStep() {
   simTime += 1;  // 1 sim-second per tick
   if (simTime >= daySeconds) { stopSim(); return; }
 
-  // Record price for chart every 10 sim-seconds
+  // Build OHLC candles every sim step; also keep priceHistory for compat
+  buildCandle(lastPrice, totalVol);
   if (simTime % 10 === 0) {
     const sess = currentSession();
-    const vol = Math.floor(totalVol - (priceHistory[priceHistory.length-1]?.cumVol||0));
     priceHistory.push({ t: simTime, price: lastPrice, vol: Math.max(0,randInt(10,80)), session: sess.id, cumVol: totalVol });
-    if (priceHistory.length > 500) priceHistory.shift();
+    if (priceHistory.length > 1200) priceHistory.shift();
   }
 
   // Agent steps
+  processRebirths();
+  stepPool();
   noiseAgentStep();
 
   // Manipulation
@@ -2052,6 +3403,7 @@ function simStep() {
   updateClock();
   updateTopBar();
   renderAgents();
+  updatePoolPanel();
 
   // Chart refresh every 2s
   if (simTime % 2 === 0) renderChart();
@@ -2093,6 +3445,7 @@ function startSim() {
     dayLow  = midPrice;
     totalVol = 0; vwapSum = 0; tapeCount = 0;
     priceHistory = [];
+    candles = []; currentCandle = null;
     chartEventPins = [];
     document.getElementById('tape-body').innerHTML = `
       <div class="agent-list-header">
@@ -2101,6 +3454,8 @@ function startSim() {
     document.getElementById('news-body').innerHTML = '';
     document.getElementById('agent-list').innerHTML = '';
     eventLogData = [];
+    retailDeathCount = 0; retailRebornCount = 0; pendingRebirths = [];
+    initPool();
     addNews('Simulation started. Initialising order book and agents.','');
   }
 
@@ -2222,6 +3577,9 @@ window.addEventListener('resize', () => {
 // Auto-show initial explanation
 setTimeout(() => setMode('none'), 400);
 
+// Init chart interactions after render
+setTimeout(initChartInteractions, 200);
+
 // ═══════════════════════════════════════════════
 //  SKIP / SCRUBBER
 // ═══════════════════════════════════════════════
@@ -2238,7 +3596,7 @@ function skipTo(targetSec) {
     markCycle = 0; frontCycle = 0; insideCycle = 0; washCycle = 0;
     dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
     totalVol = 0; vwapSum = 0; tapeCount = 0;
-    priceHistory = []; chartEventPins = [];
+    priceHistory = []; candles = []; currentCandle = null; chartEventPins = [];
     document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
     document.getElementById('news-body').innerHTML = '';
     document.getElementById('agent-list').innerHTML = '';
@@ -2261,6 +3619,8 @@ function skipTo(targetSec) {
     document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
     document.getElementById('news-body').innerHTML = '';
     eventLogData = [];
+    retailDeathCount = 0; retailRebornCount = 0; pendingRebirths = [];
+    initPool();
     addNews('Rewound — fast-forwarding to ' + offsetToTimeFull(targetSec) + '...', '');
   }
 
@@ -2632,12 +3992,57 @@ renderAgents = function() {
     const posClass = pos > 0 ? 'pos' : pos < 0 ? 'neg' : 'dim';
     const cxlClass = cancelPct > 60 ? 'neg' : cancelPct > 30 ? 'gold' : 'dim';
 
+    // Capital bar — all agents
+    const isDead   = !!a.state.dead;
+    const capital  = agentCapital[a.id] || 0;
+    const avCap    = capital > 0 ? Math.max(0, availableCapital(a.id)) : 0;
+    const capPct   = capital > 0 ? Math.min(100, (avCap / capital) * 100).toFixed(0) : 100;
+    const capClass = capPct < 25 ? 'neg' : capPct < 60 ? 'gold' : 'pos';
+    const marginPct = capital > 0 && avCap > 0
+      ? Math.min(100, (Math.abs(pos) * MARGIN_MAINTENANCE / avCap * 100)).toFixed(0) : 0;
+    const rebirthIn = isDead && a.state.rebirthAt
+      ? Math.max(0, Math.round((a.state.rebirthAt - simTime) / 60))
+      : null;
+    // Format capital compactly: $1.2M, $450k, $32k
+    function fmtCap(v) {
+      if (v >= 1e6) return '$' + (v/1e6).toFixed(1) + 'M';
+      if (v >= 1e3) return '$' + (v/1e3).toFixed(0) + 'k';
+      return '$' + v.toFixed(0);
+    }
+    const capitalBar = capital > 0 ? `
+      <div class="agent-capital-bar" title="Capital: ${fmtCap(avCap)} / ${fmtCap(capital)} | Margin used: ${marginPct}%">
+        <div class="cap-label-row">
+          <span class="cap-label">Capital</span>
+          <span class="cap-val ${capClass}">${fmtCap(avCap)}</span>
+          <span class="cap-label" style="margin-left:auto;">Margin</span>
+          <span class="cap-val" style="color:var(--amber)">${marginPct}%</span>
+        </div>
+        <div class="cap-track">
+          <div class="cap-fill ${capClass}" style="width:${capPct}%"></div>
+          <div class="cap-margin-fill" style="width:${marginPct}%"></div>
+        </div>
+      </div>` : '';
+
+    if (isDead) {
+      return `<div class="agent-card is-dead">
+        <div class="agent-card-header" onclick="openAgentDetail('${a.id}')" style="cursor:pointer;">
+          <div class="agent-dot" style="background:#555;"></div>
+          <span class="agent-name" style="color:var(--text3);text-decoration:line-through;">${a.name}</span>
+          <span class="agent-type-badge" style="background:rgba(220,38,38,0.2);color:var(--red2);">BANKRUPT</span>
+        </div>
+        <div style="padding:6px 10px;font-size:10px;color:var(--text3);text-align:center;">
+          Wiped out. New account in ~${rebirthIn}min
+        </div>
+      </div>`;
+    }
+
     return `<div class="agent-card ${isM?'is-manip':''}">
       <div class="agent-card-header" onclick="openAgentDetail('${a.id}')" title="Click for agent rules &amp; behaviour">
         <div class="agent-dot" style="background:${type.color}"></div>
         <span class="agent-name">${a.name}</span>
         <span class="agent-type-badge">${type.label}</span>
       </div>
+      ${capitalBar}
       <div class="agent-exposure">
         <span class="exp-side-label bid">B ${bidV}</span>
         <div class="exp-bar-wrap">
@@ -3221,6 +4626,57 @@ function closeResearch() {
 }
 
 // ═══════════════════════════════════════════════════════
+//  POOL PANEL UPDATER
+// ═══════════════════════════════════════════════════════
+function updatePoolPanel() {
+  if (!pool || !pool.length) return;
+  const ps = poolStats();
+  const el = id => document.getElementById(id);
+
+  // P&L
+  const pnlEl = el('pp-pnl');
+  if (pnlEl) {
+    pnlEl.textContent = (ps.totalPnl >= 0 ? '+$' : '-$') + Math.abs(ps.totalPnl).toFixed(0);
+    pnlEl.style.color = ps.totalPnl > 200 ? 'var(--green)' : ps.totalPnl < -200 ? 'var(--red2)' : 'var(--text2)';
+  }
+  const trEl = el('pp-trades');  if (trEl) trEl.textContent = poolTotalTrades;
+  const wrEl = el('pp-wr');
+  if (wrEl) {
+    const wr = poolTotalTrades > 0
+      ? (pool.reduce((s,a)=>s+a.wins,0) / poolTotalTrades * 100).toFixed(0) + '%'
+      : '—';
+    wrEl.textContent = wr;
+    wrEl.style.color = +wr > 50 ? 'var(--green)' : +wr < 45 ? 'var(--red2)' : 'var(--text2)';
+  }
+  const deadEl = el('pp-dead'); if (deadEl) deadEl.textContent = poolBankrupted;
+  const alEl   = el('pp-alive');
+  if (alEl) { alEl.textContent = ps.alive; alEl.style.color = ps.alive > 80 ? 'var(--green)' : ps.alive > 60 ? 'var(--amber)' : 'var(--red2)'; }
+
+  // Average capital remaining
+  const avgCap = ps.alive > 0
+    ? pool.filter(a=>!a.dead).reduce((s,a)=>s+a.capital+a.realised,0) / ps.alive
+    : 0;
+  const capEl = el('pp-cap');
+  if (capEl) {
+    capEl.textContent = '$' + avgCap.toFixed(0);
+    capEl.style.color = avgCap > 12000 ? 'var(--green)' : avgCap > 8000 ? 'var(--amber)' : 'var(--red2)';
+  }
+
+  // Badge
+  const badge = el('pool-badge');
+  if (badge) badge.textContent = `${ps.alive}/100 · ${poolBankrupted} BUST`;
+
+  // Net position bar: long vs short out of alive agents
+  const maxSide = Math.max(ps.longPos, ps.shortPos, 1);
+  const longPct  = (ps.longPos  / ps.alive * 50).toFixed(0);   // out of half the bar
+  const shortPct = (ps.shortPos / ps.alive * 50).toFixed(0);
+  const longEl  = el('pp-bar-long');   if (longEl)  longEl.style.width  = longPct + '%';
+  const shortEl = el('pp-bar-short');  if (shortEl) shortEl.style.width = shortPct + '%';
+  const llEl = el('pp-label-long');   if (llEl) llEl.textContent = 'Long '  + ps.longPos  + ' →';
+  const slEl = el('pp-label-short');  if (slEl) slEl.textContent = '← Short ' + ps.shortPos;
+}
+
+// ═══════════════════════════════════════════════════════
 //  AGENT DETAIL MODAL
 // ═══════════════════════════════════════════════════════
 let agentDetailRefreshTimer = null;
@@ -3398,6 +4854,116 @@ const AGENT_PROFILES = {
     edge: 'Pure information asymmetry. P&L = (price move at announcement x position x $50) minus fees. Typically several thousand dollars per episode.',
     ref: 'Meulbroek (1992). An Empirical Analysis of Illegal Insider Trading. Journal of Finance 47(5). Pre-announcement price run-up of 40-50% of total move is the forensic signature.',
   },
+  RTM1: {
+    fullName: 'MomAlgo-A (Time-Series Momentum)',
+    role: 'Retail Systematic Trader — Time-Series Momentum strategy',
+    tags: ['amber:Momentum Signal','amber:1.5% Risk/Trade','green:Confidence Scaling','red:4-tick Stop'],
+    overview: 'MomAlgo-A implements time-series momentum — the dominant strategy used by 70-80% of CTA managers. It buys when price has risen over its lookback window and shorts when it has fallen. Unlike the institutional CTAs, it operates at retail scale ($15k-$40k capital) with proportionally smaller positions. Strategy confidence degrades on consecutive losses and recovers on wins.',
+    rules: [
+      ['Signal',         'Measures price change over the last 10 price bars. Enters long if price has risen more than 3 ticks over the lookback window; enters short if it has fallen more than 3 ticks. No entry if momentum is weak.'],
+      ['Position sizing','1.5% of available capital per trade, divided by stop-loss dollars ($50/contract for 4-tick stop). Further capped by confidence score and available margin.'],
+      ['Stop-loss',      '4 ticks ($50/contract). Hard exit.'],
+      ['Profit target',  '7 ticks ($87.50/contract). 1.75:1 reward:risk — momentum traders hold winners.'],
+      ['Confidence',     'Starts at 1.0. Each loss reduces by 20%; each win recovers by 12%. Position sizing is multiplied by current confidence score.'],
+      ['Cooldown',       'After 3 consecutive losses with confidence below 50%, strategy pauses for 90-180 sim-seconds.'],
+      ['Daily loss limit','$800. Hard cap — stops trading for the rest of the session once hit.'],
+    ],
+    edge: 'In trending markets, captures sustained moves. In choppy markets, repeatedly stopped out as false momentum signals trigger entries that reverse. Performance closely tracks whether the simulated price drift has directional persistence.',
+    ref: 'Moskowitz, Ooi & Pedersen (2012). Time Series Momentum. Journal of Financial Economics 104(2). The foundational paper establishing TS momentum as a distinct and persistent strategy.',
+  },
+  RTM2: {
+    fullName: 'QSys-B (MA Crossover Quant)',
+    role: 'Retail Systematic Trader — Moving Average Crossover strategy',
+    tags: ['blue:Quant Signal','amber:MA 5/15 Cross','green:Signal Reversal Exit','red:5-tick Stop'],
+    overview: 'QSys-B implements a classic moving average crossover system — the backbone of systematic/quantitative modelling. It buys when the 5-bar MA crosses above the 15-bar MA and sells when it crosses below. Uniquely, it also exits on signal reversal (not just stop-loss), which avoids holding positions that have turned against the trend signal.',
+    rules: [
+      ['Signal',         '5-bar fast MA vs 15-bar slow MA. Enter long on crossover up (fast > slow + 0.5 tick buffer); enter short on crossover down. Buffer prevents whipsawing on flat crossings.'],
+      ['Exit on reversal','If holding a long and the MA crosses back down, exits immediately — does not wait for stop-loss. This prevents large trend reversals from eating into capital.'],
+      ['Stop-loss',      '5 ticks ($62.50/contract). Wider to accommodate MA lag.'],
+      ['Position sizing','1% of capital × confidence score / stop-loss dollars per contract.'],
+      ['Confidence',     'Same degradation/recovery mechanism as RTM1. 80% × on loss, +12% on win.'],
+    ],
+    edge: 'Cleaner exits than stop-loss-only approaches in trending markets. Vulnerable to whipsaw in choppy conditions — MA crossovers generate many false signals when price oscillates around the MAs.',
+    ref: 'Faber, M. (2007). A Quantitative Approach to Tactical Asset Allocation. Journal of Wealth Management. Documents MA crossover performance across asset classes.',
+  },
+  RTM3: {
+    fullName: 'BrkOut-C (Donchian Breakout)',
+    role: 'Retail Systematic Trader — Donchian Channel Breakout strategy',
+    tags: ['purple:Breakout Signal','amber:8-bar Channel','green:2:1+ RR','red:6-tick Stop'],
+    overview: 'BrkOut-C implements the Donchian channel breakout strategy — the original "Turtle Trading" approach. It enters long when price breaks above the 8-bar high and short when it breaks below the 8-bar low. Breakout trades have a lower win rate but larger individual wins when they work. The wide stop (6 ticks) and larger profit target (10 ticks) reflect this statistical profile.',
+    rules: [
+      ['Signal',         'Rolling 8-bar high and low (Donchian channel). Long entry when mid > channel high + 1 tick; short when mid < channel low - 1 tick. Logs each breakout in the event log.'],
+      ['Stop-loss',      '6 ticks ($75/contract). Wide — breakout systems require room for price to confirm the new direction after the initial burst.'],
+      ['Profit target',  '10 ticks ($125/contract). 1.67:1 reward:risk. Wider target than RTM1/RTM2 because breakouts, when they work, produce extended moves.'],
+      ['Position sizing','1.2% of capital × confidence / stop-loss dollars.'],
+      ['Confidence',     'Same mechanism as RTM1/RTM2. Breakout false signals in choppy markets rapidly drain confidence.'],
+      ['Daily loss limit','$500. Tightest daily limit because breakout systems have the lowest win rate and rely on few large wins to compensate.'],
+    ],
+    edge: 'Best performance when the price simulation has genuine trending periods — the breakout catches the initial thrust and the wide stop and profit target capture the extension. Worst in range-bound conditions: repeatedly enters false breakouts and gets stopped out.',
+    ref: 'Donchian, R.D. (1960). High Finance in Copper. Commodities Journal. Adapted by Dennis & Eckhardt (1983) for the Turtle Traders. One of the oldest systematic trading rules still widely used.',
+  },
+  CTA1: {
+    fullName: 'AHL-FF (Fixed Fractional CTA)',
+    role: 'Commodity Trading Advisor — Fixed Fractional bet sizing',
+    tags: ['blue:Trend Following','amber:2% Risk Per Trade','green:Scales with Equity','grey:Stop: 3 ticks'],
+    overview: 'AHL-FF implements the Fixed Fractional method used by AHL (Man Group) and most systematic trend-following CTAs. It risks exactly 2% of current equity on every trade. As the account grows, position sizes grow proportionally; as the account shrinks, sizes shrink. This creates natural position scaling that protects capital in drawdowns while exploiting winning periods.',
+    rules: [
+      ['Bet sizing',     'Risk amount = 2% × current equity. Position size = floor(riskAmount / (stopLoss_ticks × $12.50)). With $200k equity and 3-tick stop: size = floor($4,000 / $37.50) ≈ 106 contracts — capped by risk ceiling.'],
+      ['Trend signal',   'Fast 5-bar vs slow 20-bar price average crossover. Entry only when |signal| > 1.5 ticks of separation. Ensures some trend conviction before entry.'],
+      ['Stop-loss',      '3 ticks ($37.50/contract). Hard exit regardless of signal.'],
+      ['Profit target',  '5 ticks ($62.50/contract). Exit and reset.'],
+      ['Risk ceiling',   'Position size always further capped by distance-to-insolvency: as equity declines below 25% of starting capital, max size scales linearly to zero.'],
+      ['Drawdown stop',  '15% drawdown from high-water mark triggers full shutdown. Agent is suspended until next simulation.'],
+    ],
+    edge: 'Consistent risk management — never risks more than 2% on any single trade. Scales naturally with performance. In trending markets, growing equity compounds into larger positions that capture more of the move. In choppy markets, shrinking equity automatically reduces exposure.',
+    ref: 'Vince, R. (1992). The Mathematics of Money Management. John Wiley & Sons. The foundational text for fixed fractional position sizing.',
+  },
+  CTA2: {
+    fullName: 'Jones-FR (Fixed Ratio CTA)',
+    role: 'Commodity Trading Advisor — Fixed Ratio bet sizing',
+    tags: ['blue:Trend Following','purple:Ryan Jones Method','amber:Delta $5,000','red:Aggressive Compounding'],
+    overview: 'Jones-FR implements the Fixed Ratio method developed by Ryan Jones. Position size (units) increases by one unit for every $5,000 of equity growth above the starting capital. This creates aggressive compounding on winning streaks — the defining feature of the Fixed Ratio approach. It can outperform Fixed Fractional in strong trends but is more destructive in drawdowns.',
+    rules: [
+      ['Bet sizing',     'Units = 1 + floor((equity_gain) / delta). Each unit = 2 contracts. With $10,000 equity gain and delta=$5,000: units=3, size=6 contracts. On a loss: reduce units by 1 (Ryan Jones’s own recommendation).'],
+      ['Trend signal',   '5-bar vs 20-bar crossover, same as CTA1. Entry threshold: |signal| > 1 tick.'],
+      ['Stop-loss',      '4 ticks ($50/contract). Wider than CTA1 — the method can sustain larger individual losses because it builds up capital through compounding.'],
+      ['Profit target',  '8 ticks ($100/contract). Wider target to match the wider stop.'],
+      ['Unit cap',       'Maximum 8 units to prevent runaway leverage. Each unit = 2 contracts.'],
+      ['Risk ceiling',   'Same distance-to-insolvency gate as all CTAs.'],
+    ],
+    edge: 'Outperforms Fixed Fractional in strong, sustained trends because of more aggressive compounding. Underperforms in choppy markets and can experience faster capital destruction during drawdowns — the tradeoff Ryan Jones documented explicitly.',
+    ref: 'Jones, R. (1999). The Trading Game: Playing by the Numbers to Make Millions. John Wiley & Sons. The original Fixed Ratio text.',
+  },
+  CTA3: {
+    fullName: 'Winton-KC (Kelly Criterion CTA)',
+    role: 'Commodity Trading Advisor — Fractional Kelly Criterion sizing',
+    tags: ['blue:Trend Following','purple:Kelly Formula','amber:25% Fractional Kelly','green:Adaptive Sizing'],
+    overview: 'Winton-KC implements the Kelly Criterion at 25% (fractional Kelly). It estimates its win probability W and average reward:risk ratio R from its last 20 completed trades, then sizes positions at kelly_fraction = 0.25 × (W − (1−W)/R). This makes it the only agent whose bet size is directly driven by its own observed performance history.',
+    rules: [
+      ['Kelly formula',  'f = W − (1−W)/R where W = win rate, R = average reward:risk ratio. Uses 25% of the full Kelly fraction to control variance (half-Kelly and quarter-Kelly are standard practitioner adjustments).'],
+      ['Prior estimate', 'With fewer than 5 trades: uses W=0.50, R=1.50 as uninformative priors. Updates with each closed trade.'],
+      ['Trade history',  'Maintains rolling window of last 20 trade outcomes. Win = exit at profit target. Loss = stop-loss hit. RR measured from entry to exit vs stop distance.'],
+      ['Stop-loss',      '4 ticks. Profit target: 6 ticks.'],
+      ['Sizing result',  'When W=0.55, R=1.5: f = 0.55 − 0.45/1.5 = 0.25. At 25% Kelly: bet = 0.0625 × maxPos. Kelly sizing is naturally conservative when edge is uncertain.'],
+    ],
+    edge: 'Theoretically optimal long-run growth rate given accurate probability estimates. In practice, its performance depends entirely on how quickly the trade history converges to true win rate. Early in the simulation with few trades, it defaults to conservative priors. Gets more aggressive (or more conservative) as its edge becomes clearer.',
+    ref: 'Kelly, J.L. (1956). A New Interpretation of Information Rate. Bell System Technical Journal. Thorp, E. (1962). Beat the Dealer. The practical application of Kelly to trading.',
+  },
+  CTA4: {
+    fullName: 'MAN-AM (Anti-Martingale CTA)',
+    role: 'Commodity Trading Advisor — Anti-Martingale bet sizing',
+    tags: ['blue:Trend Following','red:Double on Win','green:Reset on Loss','amber:Max 4x Multiplier'],
+    overview: 'MAN-AM implements the Anti-Martingale strategy: double your position size after each consecutive win, reset to base size after any loss. This is the opposite of the Martingale strategy. It exploits momentum and winning streaks while limiting downside to the base position size during losses. The article identifies this as the best strategy for trending markets.',
+    rules: [
+      ['After a win',    'Consecutive wins doubles the size multiplier: 1→2→4 (capped at 4× base size of 3 contracts = max 12 contracts). Uses bitshift: mult = 1 << min(wins, 3).'],
+      ['After a loss',   'Multiplier resets to 1× immediately. Consecutive win counter resets to 0. Base size is always 3 contracts.'],
+      ['Stop-loss',      '3 ticks — tighter than CTA1-3, because this strategy has a tight stop profile (you want small losses, large wins from the scaling).'],
+      ['Profit target',  '4 ticks. Quick profit-taking to accumulate consecutive wins and trigger size escalation.'],
+      ['Trend threshold','Entry only when |signal| > 1.5 ticks — higher bar than CTA2/CTA3 because the strategy is designed for strong trends, not mild ones.'],
+    ],
+    edge: 'In a trending market where the agent gets several consecutive profitable trades, position size can reach 12 contracts (4× base) generating outsized P&L. In choppy markets, the frequent loss resets keep exposure small. The key vulnerability: a single loss after a winning streak resets the multiplier, giving up the accumulated scaling advantage.',
+    ref: 'Balsara, N. (1992). Money Management Strategies for Futures Traders. John Wiley & Sons. Chapter on Anti-Martingale and pyramid position sizing.',
+  },
 };
 
 function openAgentDetail(agentId) {
@@ -3445,6 +5011,18 @@ function openAgentDetail(agentId) {
     if (st.feeBudget   !== undefined) entries.push(['Fee budget used', '$' + Math.min(st.feeBudget, (st.volDone||0)*4).toFixed(0) + ' / $' + st.feeBudget]);
     if (st.pauseUntil  !== undefined) entries.push(['Strategy status', simTime > 0 && simTime < st.pauseUntil ? 'SUSPENDED until t='+st.pauseUntil : 'ACTIVE']);
     if (st.entryThresh !== undefined) entries.push(['Entry threshold', (st.entryThresh/TICK).toFixed(0) + ' ticks from VWAP']);
+    // Capital state — all agents
+    const capV  = agentCapital[agentId] || 0;
+    const avV   = capV > 0 ? availableCapital(agentId) : 0;
+    const eqV   = capV > 0 ? effectiveEquity(agentId) : 0;
+    const fmtCV = v => v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'k':'$'+v.toFixed(0);
+    if (capV > 0) {
+      entries.push(['Starting capital', fmtCV(capV)]);
+      entries.push(['Available capital', fmtCV(Math.max(0,avV))]);
+      entries.push(['Effective equity', fmtCV(eqV)]);
+      const marginUsedV = Math.abs(agentPos[agentId]||0) * MARGIN_MAINTENANCE;
+      entries.push(['Margin in use', '$' + marginUsedV.toFixed(0) + ' (' + (capV>0?(marginUsedV/capV*100).toFixed(0):'0') + '% of capital)']);
+    }
 
     if (entries.length) {
       stateHtml = '<div class="am-section"><div class="am-section-title">Live Strategy State</div>'
@@ -3490,6 +5068,17 @@ function updateAgentDetailStrip(agentId) {
   if (el('aml-fills')) el('aml-fills').textContent = fills;
   if (el('aml-bid'))   el('aml-bid').textContent   = bidV + ' lots';
   if (el('aml-ask'))   el('aml-ask').textContent   = askV + ' lots';
+  // Show capital for all agent types
+  const strip5 = document.getElementById('aml-cap');
+  if (strip5) {
+    const cap0 = agentCapital[agentId] || 0;
+    if (cap0 > 0) {
+      const av = availableCapital(agentId);
+      const fmtC = v => v>=1e6?'$'+(v/1e6).toFixed(2)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'k':'$'+v.toFixed(0);
+      strip5.textContent = fmtC(Math.max(0,av)) + ' / ' + fmtC(cap0);
+      strip5.style.color = av < cap0*0.25 ? 'var(--red2)' : av < cap0*0.6 ? 'var(--amber)' : 'var(--green)';
+    } else { strip5.textContent = '—'; strip5.style.color = 'var(--text2)'; }
+  }
 }
 
 function closeAgentDetail() {
@@ -3532,6 +5121,7 @@ function closeAgentDetail() {
         <div class="am-live-cell"><div class="am-live-label">Fills</div><div class="am-live-val" id="aml-fills">—</div></div>
         <div class="am-live-cell"><div class="am-live-label">Bid Out</div><div class="am-live-val" id="aml-bid" style="color:var(--green)">—</div></div>
         <div class="am-live-cell"><div class="am-live-label">Ask Out</div><div class="am-live-val" id="aml-ask" style="color:var(--red2)">—</div></div>
+        <div class="am-live-cell"><div class="am-live-label">Capital Left</div><div class="am-live-val" id="aml-cap" style="color:var(--text2)">—</div></div>
       </div>
     </div>
     <div class="am-body" id="am-body"></div>
