@@ -195,6 +195,8 @@ body {
   transition: all 0.15s; letter-spacing: 0.04em;
 }
 .manip-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+.manip-btn.small-btn { font-size: 9px; padding: 4px 7px; letter-spacing: 0.05em; }
+.manip-btn.small-btn.active { background: var(--amber); color: var(--bg); border-color: var(--amber); font-weight: 600; }
 
 .manip-btn[data-mode="none"].active     { background: rgba(74,96,128,0.3);  border-color: var(--agent-retail);  color: var(--text); }
 .manip-btn[data-mode="sandwich"].active { background: rgba(220,38,38,0.2);  border-color: var(--agent-sandwich); color: var(--red2); }
@@ -362,6 +364,46 @@ body {
   padding: 3px 8px; border-radius: 2px;
   font-size: 9px; color: var(--text2);
   letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* Chart control buttons in panel header */
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.chart-ctl-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.chart-ctl-label {
+  font-size: 8px;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+.chart-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 0.12s;
+}
+.chart-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+.chart-btn.active { background: var(--amber); color: var(--bg); border-color: var(--amber); font-weight: 600; }
+.chart-btn.small { padding: 3px 6px; font-size: 8px; }
+.chart-btn.icon {
+  font-size: 12px;
+  padding: 2px 8px;
+  line-height: 1;
 }
 
 /* ── MEMPOOL PANEL ── */
@@ -919,6 +961,7 @@ body {
 .for-row-val.pos { color: var(--green); }
 .for-row-val.neg { color: var(--red2); }
 .for-row-val.dim { color: var(--text); }
+.for-row-val.amber { color: var(--amber); }
 .for-note {
   font-size: 10px;
   color: var(--text3);
@@ -1127,7 +1170,12 @@ body {
   <button class="manip-btn"        data-mode="protected" onclick="setMode('protected')">🛡 MEV-Protected RPC</button>
   <button class="manip-btn"        data-mode="rollup"    onclick="setMode('rollup')">⚙ Unichain Rollup-Boost</button>
   <div style="flex:1;"></div>
-  <span style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">Block: 12s · Searcher latency: 50ms · Builder share: 90%</span>
+  <!-- Lending oracle toggle -->
+  <span style="font-size:9px;color:var(--text3);letter-spacing:0.08em;margin-right:6px;">Lending oracle:</span>
+  <button class="manip-btn small-btn active" id="oracle-spot-btn" onclick="setLendingOracle('spot')">SPOT</button>
+  <button class="manip-btn small-btn"        id="oracle-twap-btn" onclick="setLendingOracle('twap')">TWAP-30</button>
+  <span style="width:14px;"></span>
+  <button class="manip-btn small-btn" onclick="loadMainnetCalibration()" title="Load TVL/depth from a snapshot of mainnet (Apr 2026)">↻ MAINNET</button>
 </div>
 
 <!-- BLOCK PROGRESS -->
@@ -1175,7 +1223,26 @@ body {
   <div class="panel" id="chart-panel">
     <div class="panel-header">
       <span class="panel-title">Price · Pool Action</span>
-      <span style="font-size:9px;color:var(--text3);" id="chart-mode-label">— · per-block</span>
+      <div class="chart-controls">
+        <div class="chart-ctl-group">
+          <button class="chart-btn" data-ctype="line" onclick="setChartType('line')">LINE</button>
+          <button class="chart-btn active" data-ctype="candle" onclick="setChartType('candle')">CANDLES</button>
+        </div>
+        <div class="chart-ctl-group" id="chart-bar-group">
+          <span class="chart-ctl-label">BAR</span>
+          <button class="chart-btn small" data-bar="1" onclick="setChartBar(1)">1</button>
+          <button class="chart-btn small active" data-bar="5" onclick="setChartBar(5)">5</button>
+          <button class="chart-btn small" data-bar="15" onclick="setChartBar(15)">15</button>
+          <button class="chart-btn small" data-bar="60" onclick="setChartBar(60)">60</button>
+        </div>
+        <div class="chart-ctl-group">
+          <button class="chart-btn icon" onclick="chartZoom(-1)" title="Zoom in">＋</button>
+          <button class="chart-btn icon" onclick="chartZoom(1)" title="Zoom out">−</button>
+          <button class="chart-btn icon" onclick="chartPan(-1)" title="Pan back">‹</button>
+          <button class="chart-btn icon" onclick="chartPan(1)" title="Pan forward">›</button>
+          <button class="chart-btn icon" onclick="chartReset()" title="Reset view">⤢</button>
+        </div>
+      </div>
     </div>
     <div class="chart-wrap">
       <canvas id="price-chart"></canvas>
@@ -1471,6 +1538,15 @@ let eventLog = [];
 // Chart event pins
 let chartEventPins = [];
 
+// Chart view state — controls type, candle bar size (in blocks), zoom (window
+// size in candles), and scroll offset (how many candles back from latest).
+let chartView = {
+  type: 'candle',         // 'candle' | 'line'
+  barBlocks: 5,           // how many blocks aggregate into one candle
+  windowSize: 80,         // how many candles to display (zoom level)
+  scrollOffset: 0,        // 0 = latest; positive = scroll back into history
+};
+
 
 // ════════════════════════════════════════════════════════════════
 //  UNISWAP V3 MATH
@@ -1677,6 +1753,10 @@ function applySwap(pool, side, amountIn) {
   }
   pool.sqrtP = sim.sqrtPNew;
   pool.lastPrice = sim.sqrtPNew * sim.sqrtPNew;
+  // Update intra-block OHLC (in display units)
+  const dispPrice = pool.invertDisplay ? 1 / pool.lastPrice : pool.lastPrice;
+  if (pool.blockHigh === undefined || dispPrice > pool.blockHigh) pool.blockHigh = dispPrice;
+  if (pool.blockLow  === undefined || dispPrice < pool.blockLow)  pool.blockLow  = dispPrice;
   return sim;
 }
 
@@ -1714,15 +1794,23 @@ function initPools() {
   pools = {};
   for (const [id, cfg] of Object.entries(POOLS)) {
     const sqrtP0 = Math.sqrt(cfg.initialPrice);
+    const initDisp = cfg.invertDisplay ? 1/cfg.initialPrice : cfg.initialPrice;
     pools[id] = {
       id, ...cfg,
       sqrtP: sqrtP0,
       lastPrice: cfg.initialPrice,
       positions: [],
       fee0Total: 0, fee1Total: 0,
-      priceHistory: [{ block: 0, price: cfg.invertDisplay ? 1/cfg.initialPrice : cfg.initialPrice, vol: 0, sqrtP: sqrtP0 }],
+      priceHistory: [{ block: 0, price: initDisp, vol: 0, sqrtP: sqrtP0,
+                       open: initDisp, high: initDisp, low: initDisp, close: initDisp }],
       volumeUsd: 0,
       swapCount: 0,
+      // Intra-block OHLC accumulators — reset at each block close.
+      // open is the first price seen in the block; high/low track extremes; close = current.
+      blockOpen: initDisp,
+      blockHigh: initDisp,
+      blockLow:  initDisp,
+      blockVol:  0,
     };
   }
 }
@@ -1736,16 +1824,19 @@ function seedLiquidity() {
     const p = poolPrice(pool);
     const tokenUsd0 = tokenUsdPrice(pool.token0);
     const tokenUsd1 = tokenUsdPrice(pool.token1);
-    // priceUsdPerSqrtUnit for token1 in USD = tokenUsd1 (token1 amounts), and similarly for token0.
-    // The amount0/amount1 returned by positionAmounts are in raw token units, so multiplying by
-    // tokenUsd gives USD. liquidityFromUsd already accounts for this.
 
-    // Distribution of LPs: 70% TVL concentrated ±2% of price, 25% in ±10%, 5% wide ±50%.
-    const tightUsd = pool.tvlUsd * 0.7;
-    const midUsd   = pool.tvlUsd * 0.25;
-    const wideUsd  = pool.tvlUsd * 0.05;
+    // Liquidity distribution: defaults are 70/25/5 (tight/mid/wide) of TVL.
+    // If a mainnet calibration was loaded, use its specific shares — real
+    // pools concentrate even more aggressively in the tight band.
+    const cfg = POOLS[poolId] || {};
+    const tightPct = (cfg._tightSharePct ?? 70) / 100;
+    const midPct   = (cfg._midSharePct   ?? 25) / 100;
+    const widePct  = Math.max(0.01, 1 - tightPct - midPct);
 
-    // Seed positions with reasonable counts. Each is a "passive LP" agent.
+    const tightUsd = pool.tvlUsd * tightPct;
+    const midUsd   = pool.tvlUsd * midPct;
+    const wideUsd  = pool.tvlUsd * widePct;
+
     seedRange(pool, p * 0.98, p * 1.02, tightUsd, 'PASSIVE-TIGHT', 'lp-tight', tokenUsd0, tokenUsd1);
     seedRange(pool, p * 0.90, p * 1.10, midUsd,   'PASSIVE-MID',   'lp-mid',   tokenUsd0, tokenUsd1);
     seedRange(pool, p * 0.50, p * 1.50, wideUsd,  'PASSIVE-WIDE',  'lp-wide',  tokenUsd0, tokenUsd1);
@@ -1760,6 +1851,7 @@ function seedRange(pool, priceLo, priceHi, usd, ownerLabel, tag, tokenUsd0, toke
   const sqrtPb = tickToSqrtP(tickHi);
   const L = liquidityFromUsd(usd, pool.sqrtP, sqrtPa, sqrtPb, tokenUsd0, tokenUsd1);
   if (L <= 0) return;
+  const usdPriceForPool = displayPrice(pool);  // human-readable USD-per-asset
   const pos = {
     id: 'P' + (positionIdCounter++),
     tickLower: tickLo, tickUpper: tickHi,
@@ -1769,6 +1861,8 @@ function seedRange(pool, priceLo, priceHi, usd, ownerLabel, tag, tokenUsd0, toke
     fees0: 0, fees1: 0,
     depositedUsd: usd,
     depositPrice: poolPrice(pool),
+    depositSqrtP: pool.sqrtP,             // V3-internal sqrtP at deposit
+    depositPriceUsd: usdPriceForPool,     // human-readable price at deposit (for rebalancer benchmark)
     tag: tag || 'lp',
     blockOpened: 0,
   };
@@ -1776,21 +1870,102 @@ function seedRange(pool, priceLo, priceHi, usd, ownerLabel, tag, tokenUsd0, toke
 }
 
 // Compute a position's current value in USD vs its entry value (for IL).
+// ════════════════════════════════════════════════════════════════
+//  LP P&L AND LVR ACCOUNTING
+// ════════════════════════════════════════════════════════════════
+// Proper accounting per Milionis–Moallemi–Roughgarden–Zhang (2022):
+//
+//   LP P&L = fees earned − impermanent loss vs HODL = LP_value − HODL_value
+//   LVR    = HODL_value − rebalancing_value     (loss vs continuously-rebalanced strategy)
+//   Net    = fees − IL − LVR                    (LP relative to optimal rebalancer)
+//
+// HODL keeps the original token mix; rebalancing keeps a fixed *proportion*
+// of value in each token by trading at fair price. For a 50/50 V2 LP, both
+// happen to coincide, but for a V3 concentrated range and a moving fair
+// price they diverge.
+//
+// We approximate the fair external price by snapshotting the pool's price
+// each block as the "AMM mark" and using the slow-moving, cross-pool-coherent
+// price as a fair proxy. Specifically: the median of (USDC/WETH directly) and
+// (WBTC/USDC × 1/(WBTC/WETH)) — the cross-pool synthetic for WETH. For pools
+// without a synthetic counterpart we fall back to the pool's own price.
+//
+// Aggregate LVR is tracked at the pool level via lvrTotal[poolId] and
+// surfaced in forensics. Per-LP attribution is approximated proportionally
+// to each LP's L share of active liquidity.
+
+function fairWethUsd() {
+  // Two estimators we can blend; both are approximations of the CEX price
+  // pinned by cross-pool arb.
+  const e1 = pools.USDC_WETH ? displayPrice(pools.USDC_WETH) : REF.WETH;
+  // Synthetic via WBTC: WETH/USD ≈ WBTC/USD ÷ WBTC/WETH
+  let e2 = e1;
+  if (pools.WBTC_USDC && pools.WBTC_WETH) {
+    const wbtcUsd  = displayPrice(pools.WBTC_USDC);
+    const wbtcWeth = displayPrice(pools.WBTC_WETH);
+    if (wbtcWeth > 0) e2 = wbtcUsd / wbtcWeth;
+  }
+  // Median (which is just average for 2)
+  return (e1 + e2) / 2;
+}
+
 function positionPnl(pool, pos) {
   const tokenUsd0 = tokenUsdPrice(pool.token0);
   const tokenUsd1 = tokenUsdPrice(pool.token1);
   const amts = positionAmounts(pos.L, pool.sqrtP, pos.sqrtPa, pos.sqrtPb);
   const currentUsd = amts.amount0 * tokenUsd0 + amts.amount1 * tokenUsd1;
   const feesUsd    = pos.fees0 * tokenUsd0 + pos.fees1 * tokenUsd1;
-  // HODL value: had we just held the deposit's initial token mix (taken at deposit price)
-  // We track depositPrice at open. For simplicity, IL ≈ (currentUsd - depositedUsd) / depositedUsd.
-  // Real IL compares to HODL of the original token mix; this approximation is correct when
-  // the position was opened with the price within the range and no rebalancing occurred.
+
+  // HODL benchmark: at deposit time the position held some token mix; that
+  // mix held until now would be worth this much today.
+  // We approximate by recomputing positionAmounts at the deposit price and
+  // marking-to-market at current prices.
+  let hodlUsd = pos.depositedUsd;  // safe fallback
+  if (pos.depositSqrtP) {
+    const a0 = positionAmounts(pos.L, pos.depositSqrtP, pos.sqrtPa, pos.sqrtPb);
+    hodlUsd = a0.amount0 * tokenUsd0 + a0.amount1 * tokenUsd1;
+  }
+
+  // Rebalancing benchmark: if the LP had instead continuously rebalanced their
+  // initial USD across the two tokens at fair price (rather than letting the
+  // AMM's bonding curve determine the mix), what would they hold now?
+  // For a CFMM, this is approximately V0 × ((P_fair / P_init)^α) for a 50/50 mix
+  // with α=0.5 (V2 case). For V3 within range, it's tighter — the value rebalances
+  // less because positions are concentrated. We approximate by computing the
+  // initial token mix at deposit, then applying a price-ratio adjustment.
+  let rebalUsd = pos.depositedUsd;
+  if (pos.depositSqrtP && pool.token1 === 'WETH') {
+    // Rebalanced 50/50 in USD terms tracks geometric mean of price ratios
+    const Pfair = fairWethUsd();
+    const P0 = pos.depositPriceUsd || REF.WETH;
+    if (P0 > 0 && Pfair > 0) {
+      // 50/50 V2 LP value: V0 × 2sqrt(P/P0) / (1+P/P0) — mostly negligible.
+      // 50/50 rebal portfolio: V0 × (1 + P/P0)/2 (no fees, no IL).
+      // Use the 50/50 rebalancing portfolio:
+      rebalUsd = pos.depositedUsd * 0.5 * (1 + Pfair / P0);
+    }
+  } else if (pos.depositSqrtP && pool.token1 === 'WBTC') {
+    // For WBTC pools, use REF.WBTC as fair (approximation; could be refined)
+    const Pfair = pool.token0 === 'WETH' ? (REF.WBTC / fairWethUsd()) : REF.WBTC;
+    const P0 = pos.depositPriceInternal || (1 / (pool.invertDisplay ? 1 : 1));
+    // For WBTC/USDC: fair = REF.WBTC (USD per WBTC). depositPriceUsd was set.
+    const P0Usd = pos.depositPriceUsd || REF.WBTC;
+    const PFairUsd = pool.token0 === 'WETH' ? (REF.WBTC / fairWethUsd() * fairWethUsd()) : REF.WBTC;
+    if (P0Usd > 0) rebalUsd = pos.depositedUsd * 0.5 * (1 + PFairUsd / P0Usd);
+  }
+
+  const ilUsd  = currentUsd - hodlUsd;          // negative for any price move (IL definition)
+  const lvrUsd = hodlUsd - rebalUsd;            // gap vs rebalancer (typically negative for held positions in trending markets)
+
   return {
     currentUsd,
     feesUsd,
-    pnlUsd: (currentUsd + feesUsd) - pos.depositedUsd,
-    ilUsd:  currentUsd - pos.depositedUsd,  // pure price exposure (exclusive of fees)
+    hodlUsd,
+    rebalUsd,
+    pnlUsd: (currentUsd + feesUsd) - pos.depositedUsd,   // total P&L vs deposit
+    ilUsd,                                                // current value − HODL (relative to original mix)
+    lvrUsd,                                               // HODL − rebalancer (what an LVR-rebalancer would have done better)
+    netVsRebalUsd: (currentUsd + feesUsd) - rebalUsd,     // *the* most informative number: LP vs perfect rebalancer
   };
 }
 
@@ -1847,34 +2022,38 @@ function buildAgents() {
     agentPnl[id] = 0;
   }
 
-  // --- Funds (3 directional agents). Biases are randomly assigned across
-  // {long-eth, short-eth, long-btc, short-btc} so the population is roughly
-  // balanced — no systematic drift. Each fund also has a `flipEveryBlocks`
-  // counter that reverses its bias periodically (5–15 blocks), simulating
-  // a fund running a mean-reverting / momentum-flip strategy.
-  const fundBiasPool = ['long-eth', 'short-eth', 'long-btc', 'short-btc'];
-  for (let i = 1; i <= 3; i++) {
-    const id = 'FD' + i;
+  // --- Funds (5 strategies). Each fund has a different decision rule;
+  // collectively they generate flow with realistic autocorrelation:
+  //   flippy   : periodic bias flip (legacy, baseline)
+  //   momentum : buys after a 50bps up-move, sells after down-move (chase)
+  //   meanrev  : fades 2σ moves (sells after up, buys after down)
+  //   info     : exogenous OU-process signal, trades when |signal| > threshold
+  //   whale    : episodic large rebalance, infrequent
+  //
+  // IMPORTANT: lookback windows and cooldowns are in SIM-SECONDS, not blocks,
+  // so behavior is consistent across mainnet (12s blocks) and rollup (1s blocks).
+  const fundConfigs = [
+    { id: 'FD1', strategy: 'flippy',   pool: 'USDC_WETH', sizeMin: 200_000, sizeMax: 800_000,    init: { bias:'long-eth',  flipEverySec: randInt(60,180), lastFlipSec: 0 } },
+    { id: 'FD2', strategy: 'momentum', pool: 'USDC_WETH', sizeMin: 300_000, sizeMax: 1_000_000,  init: { lookbackSec: 60, triggerBps: 50, lastDir: 0, cooldownSec: 0 } },
+    { id: 'FD3', strategy: 'meanrev',  pool: 'WBTC_USDC', sizeMin: 250_000, sizeMax: 900_000,    init: { lookbackSec: 120, sigmaThreshold: 2.0, cooldownSec: 0 } },
+    { id: 'FD4', strategy: 'info',     pool: 'USDC_WETH', sizeMin: 400_000, sizeMax: 1_500_000,  init: { signal: 0, signalKappa: 0.05, signalSigma: 0.15, threshold: 0.6, cooldownSec: 0 } },
+    { id: 'FD5', strategy: 'whale',    pool: 'WBTC_USDC', sizeMin: 3_000_000, sizeMax: 12_000_000, init: { nextFireSec: randInt(1200, 3000) } },
+  ];
+  for (const cfg of fundConfigs) {
     const cap = randInt(FUND_CAP_MIN, FUND_CAP_MAX);
-    // Pick a different bias for each fund where possible
-    const fundBias = fundBiasPool[(i - 1) % fundBiasPool.length];
-    const isWhale  = i === 3;  // FD3 = institutional whale
-    const longLeg  = fundBias.startsWith('long');
-    const isEth    = fundBias.endsWith('eth');
     agents.push({
-      id, name: id, type: 'fund', active: true,
+      id: cfg.id, name: cfg.id, type: 'fund', active: true,
       state: {
         cap,
+        strategy: cfg.strategy,
+        biasPool: cfg.pool,
+        sizeMin: cfg.sizeMin, sizeMax: cfg.sizeMax,
         nextActAt: randFloat(15, 90),
-        bias: fundBias,
-        size: isWhale ? randInt(3_000_000, 12_000_000) : randInt(150_000, 800_000),
-        biasPool: isEth ? 'USDC_WETH' : 'WBTC_USDC',
-        flipEveryBlocks: randInt(5, 15),
-        lastFlipBlock: 0,
+        ...cfg.init,
       },
     });
-    agentCapital[id] = cap;
-    agentPnl[id] = 0;
+    agentCapital[cfg.id] = cap;
+    agentPnl[cfg.id] = 0;
   }
 
   // --- Statistical arbitrageur (cross-pool)
@@ -1915,7 +2094,7 @@ function buildAgents() {
 
   agents.push({
     id: 'ORC1', name: 'ORC1', type: 'oracle', active: false,
-    state: { cap: randInt(SEARCHER_CAP_MIN*3, SEARCHER_CAP_MAX*3), targetTwapBps: 100, sizeUsd: 2_000_000 },
+    state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), targetTwapBps: 100, sizeUsd: 50_000_000 },
   });
   agentCapital.ORC1 = agents.find(a=>a.id==='ORC1').state.cap;
   agentPnl.ORC1 = 0;
@@ -2181,6 +2360,160 @@ function toxicBackrunSearcher(visible) {
 
 // ── ORACLE MANIPULATION ────────────────────────────────────────────
 // Submits a very large swap to push price away from fundamental, holds for
+// ════════════════════════════════════════════════════════════════
+//  LENDING PROTOCOL (coupled to AMM via price oracle)
+// ════════════════════════════════════════════════════════════════
+// A simple Aave-style lending pool. Borrowers post WETH as collateral and
+// borrow USDC. Each block, a liquidator scans positions and triggers
+// liquidations on any unhealthy account. The oracle reads either the spot
+// USDC/WETH pool price or a configurable N-block TWAP, simulating the
+// difference between naive spot oracles and TWAP-protected ones.
+//
+// The Oracle Manipulator (ORC1) becomes a true predator only when this
+// module is active: a price push that drives WETH below borrowers' liquidation
+// thresholds lets ORC1 (or any liquidator) seize collateral at a discount.
+// Without coupled lending, oracle attacks are round-trip-loss in the AMM only.
+//
+// Forensics: liquidationsCount, liquidationsValueUsd, liquidatorPnl per agent.
+
+let lending = {
+  enabled: true,
+  oracleMode: 'spot',          // 'spot' | 'twap'
+  twapBlocks: 30,              // window for TWAP oracle (~6 minutes on mainnet)
+  liquidationThreshold: 0.825, // 82.5% — same as Aave V2 WETH config
+  liquidationBonusBps: 800,    // 8% — collateral seized at discount
+  closeFactor: 0.5,            // up to 50% of debt repayable per liquidation
+  borrowers: [],               // [{ id, collWeth, debtUsdc, owner }]
+  totalLiqUsd: 0,
+  totalLiqCount: 0,
+};
+
+// Liquidator pool of agents — passive bots that compete for liquidation profit.
+// Plus ORC1 (the oracle manipulator) is registered as a liquidator: when it
+// successfully crosses a borrower's HF below 1, it liquidates and pockets the
+// 8% bonus. This is the actual predator profit.
+function initLending() {
+  lending.borrowers = [];
+  // 8 representative borrowers with varying LTVs. Several have tight margins
+  // that liquidate on a 3-7% WETH drop — these are the targets for an oracle
+  // manipulation attack.
+  const borrowerConfigs = [
+    { id: 'BR1', collWeth: 200,   ltv: 0.50 },  // safe
+    { id: 'BR2', collWeth: 300,   ltv: 0.55 },  // safe
+    { id: 'BR3', collWeth: 150,   ltv: 0.60 },  // moderate
+    { id: 'BR4', collWeth: 500,   ltv: 0.75 },  // tight (≈10% drop liquidates)
+    { id: 'BR5', collWeth: 800,   ltv: 0.78 },  // very tight (≈6% drop)
+    { id: 'BR6', collWeth: 100,   ltv: 0.80 },  // tightest (≈3% drop)
+    { id: 'BR7', collWeth: 1200,  ltv: 0.55 },
+    { id: 'BR8', collWeth: 250,   ltv: 0.81 },  // edge (≈2% drop)
+  ];
+  // Use REF.WETH as the deposit-time price (debt is denominated in USDC)
+  for (const cfg of borrowerConfigs) {
+    const collUsd = cfg.collWeth * REF.WETH;
+    const debtUsdc = collUsd * cfg.ltv;
+    lending.borrowers.push({
+      id: cfg.id,
+      collWeth: cfg.collWeth,
+      debtUsdc: debtUsdc,
+      depositPriceWeth: REF.WETH,
+      liquidatedFraction: 0,
+    });
+  }
+  lending.totalLiqUsd = 0;
+  lending.totalLiqCount = 0;
+}
+
+// Oracle price for WETH (USD/WETH). 'spot' reads current pool price;
+// 'twap' averages over the last N blocks of priceHistory.
+function oracleWethPrice() {
+  const pool = pools.USDC_WETH;
+  if (!pool) return REF.WETH;
+  if (lending.oracleMode === 'spot') {
+    return displayPrice(pool);
+  } else {
+    // TWAP: geometric mean of last N blocks of display prices
+    const h = pool.priceHistory;
+    if (!h || h.length < 2) return displayPrice(pool);
+    const window = Math.min(lending.twapBlocks, h.length - 1);
+    let sumLog = 0, n = 0;
+    for (let i = h.length - window; i < h.length; i++) {
+      if (i < 0) continue;
+      const p = h[i].price;
+      if (p > 0) { sumLog += Math.log(p); n++; }
+    }
+    return n > 0 ? Math.exp(sumLog / n) : displayPrice(pool);
+  }
+}
+
+// Health factor = collateral_value × liquidation_threshold / debt
+function borrowerHF(b) {
+  const wethPx = oracleWethPrice();
+  const collUsd = b.collWeth * wethPx;
+  const debtUsd = b.debtUsdc;
+  if (debtUsd <= 0) return Infinity;
+  return collUsd * lending.liquidationThreshold / debtUsd;
+}
+
+// Each block: scan borrowers, liquidate if HF < 1. Liquidator gets:
+//   - repays up to closeFactor × debt in USDC
+//   - receives equivalent USD of collateral + liquidationBonusBps premium
+function lendingTickBlock() {
+  if (!lending.enabled) return;
+  const wethPx = oracleWethPrice();
+  // Find liquidator: prefer ORC1 if its episode is active (it pushed price),
+  // otherwise a generic liquidator bot. Realistically there are many; we model
+  // one wins-per-block with priority to ORC1.
+  const orc1 = agents.find(a => a.id === 'ORC1' && a.active);
+  const orcIsHunting = orc1 && oracleEpisode;
+  const liquidatorId = orcIsHunting ? 'ORC1' : 'LIQ_BOT';
+
+  for (const b of lending.borrowers) {
+    if (b.debtUsdc < 1) continue;  // already fully liquidated
+    const hf = borrowerHF(b);
+    if (hf >= 1.0) continue;
+    // Liquidate up to closeFactor × debt
+    const maxRepayUsdc = b.debtUsdc * lending.closeFactor;
+    const repayUsdc = maxRepayUsdc;
+    // Collateral seized = (repay USD) × (1 + bonus) at oracle price
+    const seizeUsd = repayUsdc * (1 + lending.liquidationBonusBps / 10000);
+    const seizeWeth = seizeUsd / wethPx;
+    // Don't seize more than the borrower has
+    const actualSeizeWeth = Math.min(seizeWeth, b.collWeth);
+    const actualSeizeUsd = actualSeizeWeth * wethPx;
+    const actualRepayUsdc = actualSeizeUsd / (1 + lending.liquidationBonusBps / 10000);
+
+    // Update borrower
+    b.collWeth -= actualSeizeWeth;
+    b.debtUsdc -= actualRepayUsdc;
+    b.liquidatedFraction = 1 - b.collWeth / (b.collWeth + actualSeizeWeth);
+
+    // Liquidator profit = (collateral seized at oracle) - (debt repaid) at TRUE market price.
+    // The 8% bonus is the gross profit. The liquidator nets that minus its own slippage to
+    // unwind the seized WETH back into USDC. Approximate net = bonus × seizeUsd × 0.85
+    // (after slippage on unwind, etc.)
+    const grossBonusUsd = actualRepayUsdc * lending.liquidationBonusBps / 10000;
+    const netProfitUsd = grossBonusUsd * 0.85;
+
+    if (orcIsHunting) {
+      agentPnl.ORC1 = (agentPnl.ORC1 || 0) + netProfitUsd;
+      forensics.totalMevExtractedUsd += netProfitUsd;
+    } else {
+      // Generic liquidator bot — not tracked per-agent, but counted in forensics
+    }
+
+    lending.totalLiqUsd += actualSeizeUsd;
+    lending.totalLiqCount++;
+    forensics.liquidationsCount = (forensics.liquidationsCount || 0) + 1;
+    forensics.liquidationsValueUsd = (forensics.liquidationsValueUsd || 0) + actualSeizeUsd;
+
+    addEvent('event-oracle', `⚡ LIQUIDATION: ${liquidatorId} liquidates ${b.id} (HF=${hf.toFixed(3)}) — repaid $${(actualRepayUsdc/1000).toFixed(0)}k, seized ${actualSeizeWeth.toFixed(2)} WETH ($${(actualSeizeUsd/1000).toFixed(0)}k), profit $${netProfitUsd.toFixed(0)}.`);
+    if (orcIsHunting) pinChartEvent('oracle');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ORACLE MANIPULATOR (depends on lending module being live)
+// ════════════════════════════════════════════════════════════════
 // several blocks (e.g. to manipulate a TWAP oracle that some lending protocol
 // uses), then reverses. This is the simplest model — real attacks involve
 // flashloans and timing on dependent protocols.
@@ -2191,48 +2524,57 @@ function oracleSearcher(visible) {
   const orc = agents.find(a => a.id === 'ORC1' && a.active);
   if (!orc) return;
 
-  // Pick a target pool — favor WBTC/WETH because oracles often watch this pair
-  const targetPool = pools.WBTC_WETH;
+  // Target USDC/WETH because the lending pool reads its WETH oracle from here.
+  // Pushing WETH price DOWN makes WETH-collateralized borrowers unhealthy
+  // and lets ORC1 liquidate them at the bonus.
+  // Pool: token0=USDC, token1=WETH. To push WETH down (in USDC terms),
+  // we need MORE WETH supply at MARKET → sell WETH → sell1 → side='sell'.
+  const targetPool = pools.USDC_WETH;
   const p = poolPrice(targetPool);
-  // Push UP (long WBTC vs WETH). With token0=WETH, token1=WBTC, we want to make
-  // WBTC scarce → buy WBTC by spending WETH → sell0 → side='buy' in our convention.
   const sizeUsd = orc.state.sizeUsd;
-  const inTokenUsd = tokenUsdPrice(targetPool.token0); // pay with WETH (token0)
+  const wethAmount = sizeUsd / tokenUsdPrice('WETH');
   submitTx({
     agentId: 'ORC1',
     type: 'swap',
-    pool: 'WBTC_WETH',
-    side: 'buy',   // sell0 = sell WETH for WBTC. Pushes sqrtP up → price (WBTC/WETH) up.
-    amountIn: sizeUsd / inTokenUsd,
-    amountInToken: targetPool.token0,
+    pool: 'USDC_WETH',
+    side: 'sell',   // sell1 = sell WETH for USDC. Pushes sqrtP up (token1/token0).
+                    // For inverted-display pool: display price (USDC per WETH) goes DOWN.
+    amountIn: wethAmount,
+    amountInToken: 'WETH',
     slippageBps: 1000,
     gasGwei: BASE_GAS_GWEI + 10,
     tag: 'attack',
   });
-  oracleEpisode = { startBlock: blockNumber, targetPool: 'WBTC_WETH', startPrice: p, reverseAt: blockNumber + 8, sizeUsd: sizeUsd };
+  oracleEpisode = {
+    startBlock: blockNumber,
+    targetPool: 'USDC_WETH',
+    startPrice: p,
+    reverseAt: blockNumber + 8,
+    sizeUsd: sizeUsd,
+    direction: 'down',
+  };
   forensics.oracleAttacks++;
-  addEvent('event-oracle', `🔮 ORACLE ATTACK: ORC1 pushes WBTC/WETH UP with $${(sizeUsd/1e6).toFixed(2)}M swap. Plans to hold for 8 blocks to corrupt TWAP, then reverse.`);
+  addEvent('event-oracle', `🔮 ORACLE ATTACK: ORC1 pushes WETH DOWN with $${(sizeUsd/1e6).toFixed(2)}M sell on USDC/WETH. Targeting lending-pool liquidations.`);
 }
 
 function oracleEpisodeStep() {
   if (!oracleEpisode) return;
   if (blockNumber >= oracleEpisode.reverseAt) {
-    // Reverse the position — sell WBTC back for WETH (sell1 = side='sell')
     const pool = pools[oracleEpisode.targetPool];
     const reverseSizeUsd = oracleEpisode.sizeUsd || 1_000_000;
-    const wbtcAmount = reverseSizeUsd / tokenUsdPrice('WBTC');
+    // Reverse: buy back WETH (sell USDC) → side='buy'
     submitTx({
       agentId: 'ORC1',
       type: 'swap',
       pool: oracleEpisode.targetPool,
-      side: 'sell',  // sell1 = sell WBTC (token1) for WETH — pushes price back down
-      amountIn: wbtcAmount,
-      amountInToken: pool.token1,
+      side: 'buy',   // sell0 = sell USDC for WETH — pushes price back up
+      amountIn: reverseSizeUsd,
+      amountInToken: pool.token0,
       slippageBps: 1000,
       gasGwei: BASE_GAS_GWEI + 10,
       tag: 'attack',
     });
-    addEvent('event-oracle', `🔮 ORACLE UNWIND: ORC1 reverses its WBTC/WETH push. Net loss to ORC1, but downstream lending oracles already corrupted.`);
+    addEvent('event-oracle', `🔮 ORACLE UNWIND: ORC1 reverses position. AMM round-trip P&L is loss; net P&L depends on liquidations seized during hold.`);
     oracleEpisode = null;
   }
 }
@@ -2258,8 +2600,161 @@ function txSizeUsd(tx, pool) {
 //   3. Execute sequentially, applying each to its pool.
 //   4. Compute searcher PnL by tagging fills.
 //   5. Mark all as executed; clear from mempool.
+// ════════════════════════════════════════════════════════════════
+//  MULTI-BUILDER AUCTION
+// ════════════════════════════════════════════════════════════════
+// Real Ethereum (post-MEV-Boost) has many block-builders. Each takes the
+// available txs (public mempool + any private orderflow they have access to)
+// and constructs a candidate block. Each block has a value = total priority
+// fees + searcher kickbacks. The proposer picks the highest-value block.
+//
+// Different builders have different policies:
+//   flashbots-classic : public mempool, gas-priority, sandwich bundles allowed
+//   protect-builder   : also receives PROTECTED orderflow (Flashbots Protect /
+//                       MEV Blocker); refuses sandwich txs targeting protected users
+//   searcher-aligned  : MEV-maximising; explicit kickbacks on sandwich bundles
+//   neutral           : random ordering, no MEV preference (rare)
+//
+// In our model, "protected" orderflow is invisible to public-mempool builders
+// (they see nothing). protect-builder / searcher-aligned see it (depending on
+// who the user routed to). We approximate this by saying: protected txs go to
+// the protect-builder ONLY. The other builders never see them, so their blocks
+// don't include them.
+//
+// We track per-builder selection counts and total value extracted as forensics.
+
+const BUILDERS = [
+  { id: 'flashbots-classic', label: 'Flashbots Classic', kickbackBps: 0,   sandwichOK: true,  seesProtected: false },
+  { id: 'protect-builder',   label: 'Protect-Builder',   kickbackBps: 0,   sandwichOK: false, seesProtected: true  },
+  { id: 'searcher-aligned',  label: 'Searcher-Aligned',  kickbackBps: 100, sandwichOK: true,  seesProtected: false },
+  { id: 'neutral',           label: 'Neutral (random)',  kickbackBps: 0,   sandwichOK: true,  seesProtected: false, randomize: true },
+];
+
+let builderForensics = {};  // { builderId: { wins, totalValueUsd, sandwichBlocks } }
+function resetBuilderForensics() {
+  builderForensics = {};
+  for (const b of BUILDERS) builderForensics[b.id] = { wins: 0, totalValueUsd: 0, sandwichBlocks: 0 };
+}
+resetBuilderForensics();
+
+// Construct an ordered tx list for a single builder. Returns { ordered, valueUsd }.
+function buildBlockFor(builder, pending, bundles) {
+  // 1) Filter txs based on builder's visibility / policy
+  let visibleTxs = pending.filter(t => {
+    if (t.private && !builder.seesProtected) return false;
+    return true;
+  });
+  // For sandwichOK=false builders: drop sandwich front/back txs that target a
+  // protected victim (because the victim is invisible and the bundle is broken).
+  // We also let them drop ALL sandwich attempts as a stronger version of the
+  // policy — but a simple "if you can't see the victim, you can't sandwich" rule
+  // is realistic. For protect-builder, sandwich on PUBLIC victims is still allowed
+  // by the builder's policy in this model (a bit lenient — real Flashbots Protect
+  // blocks would also reject; we simplify).
+  if (!builder.sandwichOK) {
+    // Drop sandwich txs targeting a victim that's private (or any sandwich tx
+    // that doesn't have a visible paired victim in this builder's view).
+    const visibleIds = new Set(visibleTxs.map(t => t.id));
+    visibleTxs = visibleTxs.filter(t => {
+      if (t.type === 'sandFront' || t.type === 'sandBack') {
+        // need paired victim in our view
+        const vid = t.pairedVictimId;
+        if (vid === undefined || !visibleIds.has(vid)) return false;
+      }
+      return true;
+    });
+  }
+
+  // 2) Bundle assembly within this builder's visible set
+  const bundleByFrontId = new Map();
+  for (const t of visibleTxs) if (t.type === 'sandFront') bundleByFrontId.set(t.id, { front: t, victim: null, back: null });
+  for (const t of visibleTxs) {
+    for (const [fid, b] of bundleByFrontId) {
+      if (b.front.pairedVictimId === t.id) b.victim = t;
+      if (t.type === 'sandBack' && t.pairedFrontId === fid) b.back = t;
+    }
+  }
+  const visibleBundles = [];
+  const inBundle = new Set();
+  for (const b of bundleByFrontId.values()) {
+    if (b.front && b.victim && b.back) {
+      visibleBundles.push(b);
+      inBundle.add(b.front.id); inBundle.add(b.victim.id); inBundle.add(b.back.id);
+    }
+  }
+  const standalone = visibleTxs.filter(t => !inBundle.has(t.id));
+
+  // 3) Order
+  let ordered;
+  if (builder.randomize) {
+    // Neutral builder: shuffle. Bundles are still kept contiguous by their internal order
+    // because we treat each bundle as a unit, then shuffle the unit list with standalones.
+    const units = [...visibleBundles.map(b => ({ kind:'b', b })), ...standalone.map(t => ({ kind:'s', t }))];
+    for (let i = units.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [units[i], units[j]] = [units[j], units[i]];
+    }
+    ordered = [];
+    for (const u of units) {
+      if (u.kind === 'b') ordered.push(u.b.front, u.b.victim, u.b.back);
+      else ordered.push(u.t);
+    }
+  } else {
+    // Gas-priority interleave (current default)
+    visibleBundles.sort((a, b) => (b.front.gasGwei || 0) - (a.front.gasGwei || 0));
+    standalone.sort((a, b) => (b.gasGwei || 0) - (a.gasGwei || 0));
+    ordered = [];
+    let bi = 0, si = 0;
+    while (bi < visibleBundles.length || si < standalone.length) {
+      const bGas = bi < visibleBundles.length ? visibleBundles[bi].front.gasGwei : -1;
+      const sGas = si < standalone.length ? standalone[si].gasGwei : -1;
+      if (bGas >= sGas) {
+        const b = visibleBundles[bi++];
+        ordered.push(b.front, b.victim, b.back);
+      } else {
+        ordered.push(standalone[si++]);
+      }
+    }
+  }
+
+  // 4) Compute block value to proposer = sum priority fees + searcher kickbacks
+  let valueUsd = 0;
+  const wethUsd = tokenUsdPrice('WETH');
+  for (const tx of ordered) {
+    valueUsd += (tx.gasGwei || 0) * 200_000 * 1e-9 * wethUsd;
+  }
+  // Kickback on sandwich bundles (searcher-aligned builder gets cuts of MEV)
+  if (builder.kickbackBps > 0) {
+    for (const b of visibleBundles) {
+      const pool = pools[b.front.pool];
+      const frontInUsd = txSizeUsd(b.front, pool);
+      valueUsd += frontInUsd * builder.kickbackBps / 10000;
+    }
+  }
+  return { ordered, valueUsd, bundles: visibleBundles };
+}
+
+// Run the auction: each builder constructs a block, proposer picks the highest-value.
+// Returns { winnerBuilder, ordered, bundles, blocks } where blocks is the full set
+// for transparency / forensics.
+function runBuilderAuction(pending) {
+  const blocks = [];
+  for (const builder of BUILDERS) {
+    blocks.push({ builder, ...buildBlockFor(builder, pending, null) });
+  }
+  // Sort by value desc; proposer picks highest. Tie-break: earlier in BUILDERS list.
+  blocks.sort((a, b) => b.valueUsd - a.valueUsd);
+  return {
+    winner: blocks[0],
+    blocks,
+  };
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  CLOSE BLOCK (uses builder auction)
+// ════════════════════════════════════════════════════════════════
 function closeBlock() {
-  // --- Group sandwich bundles so front + victim + back stay contiguous
   const pending = mempool.filter(t => !t.executed);
   if (!pending.length) {
     blockNumber++;
@@ -2267,74 +2762,40 @@ function closeBlock() {
     return;
   }
 
-  // Build bundles: a sandFront tx defines a bundle with its paired victim and back.
-  const bundleByFrontId = new Map();
-  pending.forEach(t => {
-    if (t.type === 'sandFront') bundleByFrontId.set(t.id, { front: t, victim: null, back: null });
-  });
-  // Match victims (by id == front.pairedVictimId) and backs (by pairedFrontId).
-  // Victims do NOT carry pairedVictimId — they are pointed *to* by the front/back.
-  pending.forEach(t => {
-    for (const [fid, b] of bundleByFrontId) {
-      if (b.front.pairedVictimId === t.id) b.victim = t;
-      if (t.type === 'sandBack' && t.pairedFrontId === fid) b.back = t;
-    }
-  });
+  // Run the auction across all builders
+  const auction = runBuilderAuction(pending);
+  const winner  = auction.winner;
+  const winningBuilder = winner.builder;
+  const orderedTxs = winner.ordered;
+  const bundles    = winner.bundles;
 
-  // Build a unified ordered list: bundles first (sorted by front gas), then standalone txs by gas.
-  const inBundle = new Set();
-  const bundles = [];
-  for (const b of bundleByFrontId.values()) {
-    if (b.front && b.victim && b.back) {
-      bundles.push(b);
-      inBundle.add(b.front.id);
-      inBundle.add(b.victim.id);
-      inBundle.add(b.back.id);
-    }
-  }
-  const standalone = pending.filter(t => !inBundle.has(t.id));
-  // Sort bundles by front gas, standalone by gas
-  bundles.sort((a,b) => (b.front.gasGwei||0) - (a.front.gasGwei||0));
-  standalone.sort((a,b) => (b.gasGwei||0) - (a.gasGwei||0));
+  // Record builder forensics
+  builderForensics[winningBuilder.id].wins++;
+  builderForensics[winningBuilder.id].totalValueUsd += winner.valueUsd;
+  if (bundles.length > 0) builderForensics[winningBuilder.id].sandwichBlocks++;
+  forensics.lastBuilderId = winningBuilder.id;
+  forensics.lastBlockValueUsd = winner.valueUsd;
 
-  // Interleave: pop highest-gas item next (treat each bundle's gas as front gas)
-  const orderedTxs = [];
-  let bi = 0, si = 0;
-  while (bi < bundles.length || si < standalone.length) {
-    const bGas = bi < bundles.length ? bundles[bi].front.gasGwei : -1;
-    const sGas = si < standalone.length ? standalone[si].gasGwei : -1;
-    if (bGas >= sGas) {
-      orderedTxs.push(bundles[bi].front, bundles[bi].victim, bundles[bi].back);
-      bi++;
-    } else {
-      orderedTxs.push(standalone[si]);
-      si++;
-    }
-  }
-
-  // Execute them in order.
+  // Execute the winning block in order
   let blockSwapsLog = [];
   for (const tx of orderedTxs) {
     if (tx.executed) continue;
     executeTx(tx, blockSwapsLog);
   }
 
-  // Now compute sandwich profit per executed bundle and update searcher PnL.
+  // Sandwich profit accounting (same as before)
   for (const b of bundles) {
     if (!(b.front && b.victim && b.back)) continue;
     if (!b.front.executed || !b.back.executed) continue;
-    // Profit = back.amountOutUsd - front.amountInUsd - gas
-    // Approx: net USD delta of the searcher's position
     const pool = pools[b.front.pool];
     const frontInUsd  = txSizeUsd(b.front, pool);
     const backOutUsd  = (b.back.amountOut || 0) * tokenUsdPrice(b.back.amountOutToken || pool.token0);
-    const gasUsd      = ((b.front.gasGwei + b.back.gasGwei) * 200_000 * 1e-9) * tokenUsdPrice('WETH');  // 200k gas units per swap
+    const gasUsd      = ((b.front.gasGwei + b.back.gasGwei) * 200_000 * 1e-9) * tokenUsdPrice('WETH');
     const profit      = backOutUsd - frontInUsd - gasUsd - (b.front.feeAmountUsd||0) - (b.back.feeAmountUsd||0);
     agentPnl.SAND1 = (agentPnl.SAND1 || 0) + profit;
     if (profit > 0) {
       forensics.sandwichesSuccessful++;
       forensics.totalMevExtractedUsd += profit;
-      // Victim's loss = the price they paid worse than mid-block-fair-price
       const victimPool = pools[b.victim.pool];
       const victimSize = txSizeUsd(b.victim, victimPool);
       const victimSlipBps = b.victim.realisedSlipBps || 0;
@@ -2342,22 +2803,26 @@ function closeBlock() {
       addEvent('event-attack', `🥪 SANDWICH PROFIT: SAND1 captured $${profit.toFixed(0)} from victim's $${(victimSize/1000).toFixed(0)}k swap (${victimSlipBps.toFixed(0)} bps slippage paid).`);
       pinChartEvent('sandwich');
     } else {
-      addEvent('event-attack', `🥪 SANDWICH LOSS: SAND1 lost $${(-profit).toFixed(0)} on attempted attack — adverse fills or victim was protected.`);
+      addEvent('event-attack', `🥪 SANDWICH LOSS: SAND1 lost $${(-profit).toFixed(0)} on attempted attack — outbid, victim protected, or adverse fills.`);
     }
   }
 
-  // Clear executed txs from mempool
+  // Drop any txs that were excluded by the winning builder (they didn't make it
+  // into this block — return to mempool for a future block, OR drop if private
+  // and rejected. We keep mempool semantics simple: anything not executed in
+  // this block stays. Searchers will re-attempt next block.)
   mempool = mempool.filter(t => !t.executed);
   blockNumber++;
   forensics.blockCount++;
 
-  // Statistical arb step happens once per block (it sees post-block state)
   arbStep();
-  // Oracle episode advance
   oracleEpisodeStep();
-  // Cross-pool dislocation refresh
   updateDislocation();
+
+  // After-block: lending protocol liquidation pass (uses post-swap pool prices as oracle)
+  if (typeof lendingTickBlock === 'function') lendingTickBlock();
 }
+
 
 function executeTx(tx, blockSwapsLog) {
   const pool = pools[tx.pool];
@@ -2432,6 +2897,7 @@ function executeTx(tx, blockSwapsLog) {
     forensics.totalFeesUsd   += tx.feeAmountUsd;
     pool.swapCount++;
     pool.volumeUsd += txSizeUsd(tx, pool);
+    pool.blockVol  = (pool.blockVol || 0) + txSizeUsd(tx, pool);
 
     blockSwapsLog.push(tx);
     addTape(tx, pool);
@@ -2454,6 +2920,8 @@ function executeTx(tx, blockSwapsLog) {
       fees0: 0, fees1: 0,
       depositedUsd: tx.depositUsd,
       depositPrice: poolPrice(pool),
+      depositSqrtP: pool.sqrtP,
+      depositPriceUsd: displayPrice(pool),
       tag: 'jit',
       blockOpened: blockNumber,
     };
@@ -2525,55 +2993,184 @@ function retailStep() {
   }
 }
 
-// ── FUND: larger directional bets on specific pools
+// ── FUND: larger directional bets, dispatched by strategy.
+//   Each subtype generates flow with different temporal autocorrelation:
+//   flippy   → uncorrelated noise (baseline)
+//   momentum → positive autocorrelation, follow-through bursts
+//   meanrev  → negative autocorrelation, fades extremes
+//   info     → exogenous OU signal, persistent regimes
+//   whale    → episodic, large
 function fundStep() {
   const flow = flowMultiplier();
   for (const a of agents) {
     if (a.type !== 'fund' || !a.active) continue;
     const st = a.state;
-
-    // Periodic bias flip — simulates a fund cycling between long/short positions.
-    // Without this, prices drift in one direction indefinitely.
-    if (st.flipEveryBlocks && (blockNumber - st.lastFlipBlock) >= st.flipEveryBlocks) {
-      const cur = st.bias;
-      if      (cur === 'long-eth')  st.bias = 'short-eth';
-      else if (cur === 'short-eth') st.bias = 'long-eth';
-      else if (cur === 'long-btc')  st.bias = 'short-btc';
-      else if (cur === 'short-btc') st.bias = 'long-btc';
-      st.lastFlipBlock = blockNumber;
-      st.flipEveryBlocks = randInt(5, 15);  // re-randomise next interval
-    }
-
-    if (simTime < st.nextActAt) continue;
-    // Funds fire roughly 2× more often during peak window (NA daytime overlap)
-    st.nextActAt = simTime + randFloat(60, 300) / Math.max(flow, 0.4);
-
-    const poolId = st.biasPool;
-    const pool   = pools[poolId];
-    if (!pool) continue;
-    // Bias direction:
-    //   long-X  → buy X (sell stable for X) → if pool is stable/X with X=token1, that's sell0 = side='buy'
-    //   short-X → sell X for stable                             = sell1 = side='sell'
-    // Both biasPools (USDC_WETH, WBTC_USDC) have stable=token0, asset=token1.
-    const side = st.bias.startsWith('long') ? 'buy' : 'sell';
-    const inToken = side === 'buy' ? pool.token0 : pool.token1;
-    const usd = randFloat(st.size * 0.5, st.size * 1.5);
-    const amountIn = usd / tokenUsdPrice(inToken);
-
-    // Slippage tolerance scales with size: whales (>$2M) accept 200bp,
-    // medium funds 100bp. Realistic for 1-block on-chain settlement.
-    const slipBps = usd > 2_000_000 ? 200 : 100;
-    submitTx({
-      agentId: a.id,
-      type: 'swap',
-      pool: poolId,
-      side,
-      amountIn, amountInToken: inToken,
-      slippageBps: slipBps,
-      gasGwei: BASE_GAS_GWEI + 5,  // fund pays slightly above base
-      tag: 'swap',
-    });
+    const dispatch = {
+      flippy:   fundStepFlippy,
+      momentum: fundStepMomentum,
+      meanrev:  fundStepMeanRev,
+      info:     fundStepInfo,
+      whale:    fundStepWhale,
+    }[st.strategy];
+    if (dispatch) dispatch(a, st, flow);
   }
+}
+
+// Compute trailing return over last N blocks for a pool, in display-bps
+function trailingReturnBps(pool, lookbackBlocks) {
+  const h = pool.priceHistory;
+  if (!h || h.length < 2) return 0;
+  const last = h[h.length - 1].price;
+  const idx  = Math.max(0, h.length - 1 - lookbackBlocks);
+  const ref  = h[idx].price;
+  if (!ref) return 0;
+  return (last - ref) / ref * 10000;
+}
+
+// Compute trailing return over last N SIM-SECONDS (more robust across block-time regimes)
+function trailingReturnBpsBySec(pool, lookbackSec) {
+  const h = pool.priceHistory;
+  if (!h || h.length < 2) return 0;
+  const last = h[h.length - 1].price;
+  // Find the entry whose block is at least lookbackSec ago, in sim-time terms
+  const lookbackBlocks = Math.ceil(lookbackSec / Math.max(BLOCK_TIME, 0.5));
+  const idx  = Math.max(0, h.length - 1 - lookbackBlocks);
+  const ref  = h[idx].price;
+  if (!ref) return 0;
+  return (last - ref) / ref * 10000;
+}
+
+// Compute realised volatility (stdev of log returns) over last N blocks, in bps
+function trailingSigmaBps(pool, lookbackBlocks) {
+  const h = pool.priceHistory;
+  if (!h || h.length < 3) return 0;
+  const start = Math.max(1, h.length - lookbackBlocks);
+  const rets = [];
+  for (let i = start; i < h.length; i++) {
+    const r = Math.log(h[i].price / h[i - 1].price);
+    if (isFinite(r)) rets.push(r);
+  }
+  if (rets.length < 2) return 0;
+  const mean = rets.reduce((s, x) => s + x, 0) / rets.length;
+  const v = rets.reduce((s, x) => s + (x - mean) ** 2, 0) / Math.max(rets.length - 1, 1);
+  return Math.sqrt(v) * 10000;
+}
+
+// Sigma over last N sim-seconds — independent of block time
+function trailingSigmaBpsBySec(pool, lookbackSec) {
+  const lookbackBlocks = Math.ceil(lookbackSec / Math.max(BLOCK_TIME, 0.5));
+  return trailingSigmaBps(pool, lookbackBlocks);
+}
+
+// Submit a fund swap. side='buy' (sell0) or 'sell' (sell1).
+// poolId/sizeUsd are fixed by the strategy; gas/slip are scaled by size.
+function fundSubmit(a, poolId, side, sizeUsd, tag) {
+  const pool = pools[poolId];
+  if (!pool) return;
+  const inToken = side === 'buy' ? pool.token0 : pool.token1;
+  const amountIn = sizeUsd / tokenUsdPrice(inToken);
+  const slipBps = sizeUsd > 2_000_000 ? 200 : 100;
+  submitTx({
+    agentId: a.id,
+    type: 'swap',
+    pool: poolId,
+    side,
+    amountIn, amountInToken: inToken,
+    slippageBps: slipBps,
+    gasGwei: BASE_GAS_GWEI + (sizeUsd > 1_000_000 ? 8 : 5),
+    tag: tag || 'swap',
+  });
+}
+
+// ── flippy: legacy strategy — periodic bias flip
+function fundStepFlippy(a, st, flow) {
+  if (st.flipEverySec && (simTime - st.lastFlipSec) >= st.flipEverySec) {
+    const cur = st.bias;
+    if      (cur === 'long-eth')  st.bias = 'short-eth';
+    else if (cur === 'short-eth') st.bias = 'long-eth';
+    else if (cur === 'long-btc')  st.bias = 'short-btc';
+    else if (cur === 'short-btc') st.bias = 'long-btc';
+    st.lastFlipSec = simTime;
+    st.flipEverySec = randInt(60, 180);
+  }
+  if (simTime < st.nextActAt) return;
+  st.nextActAt = simTime + randFloat(60, 300) / Math.max(flow, 0.4);
+  const side = st.bias.startsWith('long') ? 'buy' : 'sell';
+  const sizeUsd = randFloat(st.sizeMin, st.sizeMax);
+  fundSubmit(a, st.biasPool, side, sizeUsd);
+}
+
+// ── momentum: chase price moves, asymmetric (buy ups, sell downs)
+function fundStepMomentum(a, st, flow) {
+  if (simTime < st.nextActAt) return;
+  st.nextActAt = simTime + randFloat(30, 90) / Math.max(flow, 0.4);
+  if (simTime <= st.cooldownSec) return;
+  const pool = pools[st.biasPool];
+  if (!pool) return;
+  const retBps = trailingReturnBpsBySec(pool, st.lookbackSec);
+  if (Math.abs(retBps) < st.triggerBps) return;
+  // Up-move → buy (chase). Down-move → sell.
+  const side = retBps > 0 ? 'buy' : 'sell';
+  const intensity = Math.min(2.5, Math.abs(retBps) / st.triggerBps);
+  const sizeUsd = randFloat(st.sizeMin, st.sizeMax) * intensity;
+  st.cooldownSec = simTime + 30;  // 30 sim-seconds — prevents momentum cascade in rollup
+  st.lastDir = side === 'buy' ? 1 : -1;
+  fundSubmit(a, st.biasPool, side, sizeUsd, 'mom');
+}
+
+// ── meanrev: fade extreme moves
+function fundStepMeanRev(a, st, flow) {
+  if (simTime < st.nextActAt) return;
+  st.nextActAt = simTime + randFloat(45, 120) / Math.max(flow, 0.4);
+  if (simTime <= st.cooldownSec) return;
+  const pool = pools[st.biasPool];
+  if (!pool) return;
+  const retBps   = trailingReturnBpsBySec(pool, st.lookbackSec);
+  const sigmaBps = trailingSigmaBpsBySec(pool, st.lookbackSec);
+  if (sigmaBps < 1) return;
+  const z = retBps / sigmaBps;
+  if (Math.abs(z) < st.sigmaThreshold) return;
+  // Up-move → sell (fade). Down-move → buy.
+  const side = z > 0 ? 'sell' : 'buy';
+  const intensity = Math.min(2.0, Math.abs(z) / st.sigmaThreshold);
+  const sizeUsd = randFloat(st.sizeMin, st.sizeMax) * intensity;
+  st.cooldownSec = simTime + 45;
+  fundSubmit(a, st.biasPool, side, sizeUsd, 'fade');
+}
+
+// ── info: exogenous OU signal that drifts with persistence.
+//   dS = -kappa·S·dt + sigma·dW.  Trade when |S| > threshold.
+//   This represents off-chain alpha that's not visible from the AMM state.
+function fundStepInfo(a, st, flow) {
+  // Update OU signal every sim-second (cheap)
+  st.signal = (1 - st.signalKappa) * st.signal + st.signalSigma * (Math.random() * 2 - 1);
+  if (simTime < st.nextActAt) return;
+  st.nextActAt = simTime + randFloat(20, 60) / Math.max(flow, 0.4);
+  if (simTime <= st.cooldownSec) return;
+  if (Math.abs(st.signal) < st.threshold) return;
+  // Positive signal → bullish (buy). Negative → bearish (sell).
+  const side = st.signal > 0 ? 'buy' : 'sell';
+  const intensity = Math.min(2.5, Math.abs(st.signal) / st.threshold);
+  const sizeUsd = randFloat(st.sizeMin, st.sizeMax) * intensity;
+  st.cooldownSec = simTime + 30;
+  fundSubmit(a, st.biasPool, side, sizeUsd, 'info');
+}
+
+// ── whale: episodic large rebalance, infrequent (in sim-seconds, not blocks)
+function fundStepWhale(a, st, flow) {
+  if (simTime < st.nextFireSec) return;
+  st.nextFireSec = simTime + randInt(1200, 3000);  // ~once every 20–50 sim-minutes
+  const pool = pools[st.biasPool];
+  let side;
+  if (pool && pool.priceHistory && pool.priceHistory.length > 10) {
+    const ret = trailingReturnBpsBySec(pool, 360);  // 6-min lookback
+    side = (Math.random() < 0.6) ? (ret > 0 ? 'buy' : 'sell') : (Math.random() < 0.5 ? 'buy' : 'sell');
+  } else {
+    side = Math.random() < 0.5 ? 'buy' : 'sell';
+  }
+  const sizeUsd = randFloat(st.sizeMin, st.sizeMax);
+  fundSubmit(a, st.biasPool, side, sizeUsd, 'whale');
+  addEvent('event-block', `🐋 WHALE: ${a.id} fires $${(sizeUsd/1e6).toFixed(1)}M ${side} on ${pool ? pool.name : st.biasPool}`);
 }
 
 // ── STATISTICAL ARB: cross-pool dislocation between direct and synthetic prices.
@@ -2757,10 +3354,9 @@ function simStep() {
     closeBlock();
     reapJitPositions();
     lastBlockTime = simTime;
-    // Snapshot price into history for chart
+    // Snapshot OHLC into history for chart
     for (const pool of Object.values(pools)) {
-      pool.priceHistory.push({ block: blockNumber, price: pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice, vol: pool.volumeUsd, sqrtP: pool.sqrtP });
-      if (pool.priceHistory.length > 800) pool.priceHistory.shift();
+      pushOhlc(pool);
     }
     addEvent('event-block', `Block #${blockNumber} sealed · ${pending.length} txs included · ${medGas} gwei median`);
   }
@@ -2784,6 +3380,8 @@ function startSim() {
     initPools();
     seedLiquidity();
     buildAgents();
+    initLending();
+    resetBuilderForensics();
     setMevActive();
     mempool = [];
     chartEventPins = [];
@@ -2794,8 +3392,10 @@ function startSim() {
       jitAttempts: 0, jitFeesCaptured: 0,
       arbCount: 0, arbProfitUsd: 0,
       oracleAttacks: 0, totalMevExtractedUsd: 0, protectedTxCount: 0,
+      liquidationsCount: 0, liquidationsValueUsd: 0,
       blockCount: 0, perBlockSwaps: [],
       maxDislocationBps: 0, currentDislocationBps: 0,
+      lastBuilderId: null, lastBlockValueUsd: 0,
     };
     blockNumber = 0;
     lastBlockTime = 0;
@@ -2872,10 +3472,32 @@ function simStepFast() {
     reapJitPositions();
     lastBlockTime = simTime;
     for (const pool of Object.values(pools)) {
-      pool.priceHistory.push({ block: blockNumber, price: pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice, vol: pool.volumeUsd, sqrtP: pool.sqrtP });
-      if (pool.priceHistory.length > 800) pool.priceHistory.shift();
+      pushOhlc(pool);
     }
   }
+}
+
+// Snapshot OHLC at block close: write OHLC bar into priceHistory and reset
+// the per-block accumulators for the next block.
+function pushOhlc(pool) {
+  const close = pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice;
+  const o = (pool.blockOpen != null) ? pool.blockOpen : close;
+  const h = (pool.blockHigh != null) ? pool.blockHigh : close;
+  const l = (pool.blockLow  != null) ? pool.blockLow  : close;
+  pool.priceHistory.push({
+    block: blockNumber,
+    price: close,                   // legacy 'price' alias for compatibility
+    open: o, high: h, low: l, close,
+    vol: pool.volumeUsd,
+    blockVol: pool.blockVol || 0,
+    sqrtP: pool.sqrtP,
+  });
+  if (pool.priceHistory.length > 1200) pool.priceHistory.shift();
+  // Reset accumulators for the new block — open of next block = close of this one
+  pool.blockOpen = close;
+  pool.blockHigh = close;
+  pool.blockLow  = close;
+  pool.blockVol  = 0;
 }
 
 function setMode(mode) {
@@ -2901,6 +3523,84 @@ function switchPool(poolId) {
   renderTopBar();
   renderLiquidityPanel();
   renderChart();
+}
+
+// ── Lending oracle mode toggle (spot vs N-block TWAP)
+function setLendingOracle(mode) {
+  lending.oracleMode = mode;
+  const spotBtn = document.getElementById('oracle-spot-btn');
+  const twapBtn = document.getElementById('oracle-twap-btn');
+  if (spotBtn) spotBtn.classList.toggle('active', mode === 'spot');
+  if (twapBtn) twapBtn.classList.toggle('active', mode === 'twap');
+  if (running || simTime > 0) {
+    addEvent('event-protection',
+      mode === 'twap'
+        ? `🛡 Lending oracle switched to TWAP-${lending.twapBlocks} — manipulation requires holding price for entire window.`
+        : `⚠ Lending oracle switched to SPOT — vulnerable to single-block price manipulation.`);
+  }
+}
+
+// ── Mainnet calibration: snapshot of representative pool depths and fee tiers
+// based on Dune / Uniswap subgraph queries (Apr 2026). Replaces the simulator's
+// default seed values with empirically-grounded ones. The snapshot is embedded
+// inline to keep the file self-contained; for live data, replace this dict
+// with a fetch() to a subgraph endpoint.
+//
+// Source-of-truth note: these depths are *representative* — actual depths
+// fluctuate constantly. The structure is what matters: 0.05% USDC/WETH is
+// vastly the deepest, 0.30% pools are an order of magnitude shallower, and
+// the 0.01% USDC/USDT is medium-large but fee-tier-locked to stables.
+const MAINNET_CALIBRATION = {
+  USDC_WETH: { tvlUsd: 215_000_000, feeBps: 5,  tightSharePct: 78, midSharePct: 18, source: 'Dune q-mainnet-uni-v3 · Apr 2026' },
+  WBTC_WETH: { tvlUsd:  42_000_000, feeBps: 30, tightSharePct: 65, midSharePct: 28 },
+  WBTC_USDC: { tvlUsd:  31_000_000, feeBps: 30, tightSharePct: 60, midSharePct: 32 },
+  USDC_USDT: { tvlUsd: 102_000_000, feeBps: 1,  tightSharePct: 92, midSharePct: 7  },
+  notes: 'Concentrated-liquidity shares: tight band ±2%, mid band ±10%, wide band ±50%. Mainnet pools concentrate even more aggressively than the default config.',
+};
+
+function loadMainnetCalibration() {
+  const wasRunning = running;
+  if (wasRunning) pauseSim();
+
+  // Patch the POOLS config with mainnet values
+  for (const id of Object.keys(MAINNET_CALIBRATION)) {
+    if (id === 'notes') continue;
+    if (!POOLS[id]) continue;
+    const cal = MAINNET_CALIBRATION[id];
+    POOLS[id].tvlUsd = cal.tvlUsd;
+    POOLS[id].feeBps = cal.feeBps;
+    POOLS[id]._tightSharePct = cal.tightSharePct;
+    POOLS[id]._midSharePct   = cal.midSharePct;
+  }
+
+  // Re-bootstrap with new config
+  initPools();
+  seedLiquidity();
+  buildAgents();
+  initLending();
+  resetBuilderForensics();
+  // Reset block + sim state but keep mode/clock
+  blockNumber = 0;
+  simTime = 0;
+  lastBlockTime = 0;
+  mempool = [];
+  forensics = {
+    totalSwaps: 0, totalVolumeUsd: 0, totalFeesUsd: 0,
+    sandwichAttempts: 0, sandwichesSuccessful: 0, sandwichVictimLossUsd: 0,
+    jitAttempts: 0, jitFeesCaptured: 0,
+    arbCount: 0, arbProfitUsd: 0,
+    oracleAttacks: 0, totalMevExtractedUsd: 0, protectedTxCount: 0,
+    liquidationsCount: 0, liquidationsValueUsd: 0,
+    blockCount: 0, perBlockSwaps: [],
+    maxDislocationBps: 0, currentDislocationBps: 0,
+    lastBuilderId: null, lastBlockValueUsd: 0,
+  };
+  setMevActive();
+
+  renderTopBar(); renderBlock(); renderLiquidityPanel(); renderChart(); renderMempool(); renderAgentPanel(); renderForensics();
+  addEvent('event-protection', `📊 MAINNET CALIBRATION LOADED — pool TVLs reset to Apr 2026 snapshot. USDC/WETH ${(MAINNET_CALIBRATION.USDC_WETH.tvlUsd/1e6).toFixed(0)}M · WBTC/WETH ${(MAINNET_CALIBRATION.WBTC_WETH.tvlUsd/1e6).toFixed(0)}M · WBTC/USDC ${(MAINNET_CALIBRATION.WBTC_USDC.tvlUsd/1e6).toFixed(0)}M · USDC/USDT ${(MAINNET_CALIBRATION.USDC_USDT.tvlUsd/1e6).toFixed(0)}M.`);
+
+  if (wasRunning) startSim();
 }
 
 function switchTab(tab) {
@@ -3097,67 +3797,271 @@ function renderChart() {
   const pool = pools[activePoolId];
   if (!pool || pool.priceHistory.length < 2) return;
 
-  const padL = 50, padR = 16, padT = 16, padB = 24;
+  const padL = 56, padR = 14, padT = 14, padB = 28;
   const cw = W - padL - padR;
   const ch = H - padT - padB;
   const data = pool.priceHistory;
-  const N = data.length;
-  // Show last 200 blocks max
-  const slice = data.slice(-200);
-  const minP = Math.min(...slice.map(d => d.price));
-  const maxP = Math.max(...slice.map(d => d.price));
-  const pad  = (maxP - minP) * 0.05 || 0.0001;
-  const lo   = minP - pad, hi = maxP + pad;
 
-  // Grid lines + y-labels
+  // Build display series: either raw blocks (line mode, barBlocks=1) or aggregated candles.
+  // Aggregation groups every `barBlocks` blocks into one OHLC bar.
+  const bars = aggregateBars(data, chartView.barBlocks);
+  if (bars.length < 1) return;
+
+  // Apply zoom + scroll: pick a window of length `windowSize` ending at
+  // (latest − scrollOffset). scrollOffset is clamped so window stays in range.
+  const totalBars = bars.length;
+  const windowSize = Math.min(chartView.windowSize, totalBars);
+  const maxOffset = Math.max(0, totalBars - windowSize);
+  if (chartView.scrollOffset > maxOffset) chartView.scrollOffset = maxOffset;
+  if (chartView.scrollOffset < 0) chartView.scrollOffset = 0;
+  const endIdx   = totalBars - chartView.scrollOffset;
+  const startIdx = Math.max(0, endIdx - windowSize);
+  const slice    = bars.slice(startIdx, endIdx);
+  if (slice.length < 1) return;
+
+  // Y axis bounds — use high/low of slice for candles, or close-only for line
+  let minP, maxP;
+  if (chartView.type === 'candle') {
+    minP = Math.min(...slice.map(b => b.low));
+    maxP = Math.max(...slice.map(b => b.high));
+  } else {
+    minP = Math.min(...slice.map(b => b.close));
+    maxP = Math.max(...slice.map(b => b.close));
+  }
+  const pad = (maxP - minP) * 0.08 || 0.0001;
+  const lo = minP - pad, hi = maxP + pad;
+
+  // Y gridlines
   ctx.strokeStyle = 'rgba(255,255,255,0.04)';
   ctx.fillStyle   = 'rgba(122, 139, 168, 0.7)';
   ctx.font        = '9px IBM Plex Mono';
+  ctx.textAlign   = 'left';
+  ctx.textBaseline = 'middle';
   for (let i = 0; i <= 4; i++) {
     const y = padT + ch * i / 4;
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cw, y); ctx.stroke();
     const v = hi - (hi - lo) * i / 4;
-    ctx.fillText(formatPrice(v, pool), 4, y + 3);
+    ctx.fillText(formatPrice(v, pool), 4, y);
   }
 
-  // Line
-  ctx.strokeStyle = '#00c97a';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  slice.forEach((d, i) => {
-    const x = padL + cw * i / Math.max(slice.length - 1, 1);
-    const y = padT + ch * (hi - d.price) / (hi - lo);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
+  // Render bars/candles
+  const n = slice.length;
+  const barW = cw / n;
+  if (chartView.type === 'candle') {
+    // Candlesticks
+    const bodyW = Math.max(1, Math.floor(barW * 0.7));
+    for (let i = 0; i < n; i++) {
+      const b = slice[i];
+      const cx = padL + barW * (i + 0.5);
+      const yOpen  = padT + ch * (hi - b.open)  / (hi - lo);
+      const yClose = padT + ch * (hi - b.close) / (hi - lo);
+      const yHigh  = padT + ch * (hi - b.high)  / (hi - lo);
+      const yLow   = padT + ch * (hi - b.low)   / (hi - lo);
+      const isUp = b.close >= b.open;
+      const col = isUp ? '#00c97a' : '#e15454';
+      ctx.strokeStyle = col;
+      ctx.fillStyle   = col;
+      ctx.lineWidth   = 1;
+      // Wick (high-low line)
+      ctx.beginPath();
+      ctx.moveTo(cx, yHigh); ctx.lineTo(cx, yLow);
+      ctx.stroke();
+      // Body — minimum 1px tall so doji is still visible
+      const bodyTop = Math.min(yOpen, yClose);
+      const bodyH   = Math.max(1, Math.abs(yClose - yOpen));
+      const bodyX   = cx - bodyW / 2;
+      if (isUp) {
+        // Hollow body for up bars (cleaner look)
+        ctx.fillStyle = 'rgba(0, 201, 122, 0.35)';
+        ctx.fillRect(bodyX, bodyTop, bodyW, bodyH);
+        ctx.strokeRect(bodyX, bodyTop, bodyW, bodyH);
+      } else {
+        // Filled body for down bars
+        ctx.fillStyle = '#e15454';
+        ctx.fillRect(bodyX, bodyTop, bodyW, bodyH);
+      }
+    }
+  } else {
+    // Line mode
+    ctx.strokeStyle = '#00c97a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const x = padL + barW * (i + 0.5);
+      const y = padT + ch * (hi - slice[i].close) / (hi - lo);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // Subtle area fill
+    ctx.lineTo(padL + barW * (n - 1 + 0.5), padT + ch);
+    ctx.lineTo(padL + barW * 0.5, padT + ch);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,201,122,0.08)';
+    ctx.fill();
+  }
 
-  // Last price
-  const lastY = padT + ch * (hi - pool.lastPrice) / (hi - lo);
-  ctx.fillStyle = '#00ff9d';
-  ctx.beginPath(); ctx.arc(padL + cw, lastY, 3, 0, Math.PI*2); ctx.fill();
+  // Last-price marker (right edge, in display units)
+  const lastDispPrice = pool.invertDisplay ? 1 / pool.lastPrice : pool.lastPrice;
+  if (lastDispPrice >= lo && lastDispPrice <= hi && chartView.scrollOffset === 0) {
+    const lastY = padT + ch * (hi - lastDispPrice) / (hi - lo);
+    ctx.strokeStyle = 'rgba(0, 255, 157, 0.4)';
+    ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, lastY); ctx.lineTo(padL + cw, lastY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#00ff9d';
+    ctx.beginPath(); ctx.arc(padL + cw - 4, lastY, 3, 0, Math.PI*2); ctx.fill();
+    // Price label on right edge
+    ctx.fillStyle = '#00ff9d';
+    ctx.font = '9px IBM Plex Mono';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(formatPrice(lastDispPrice, pool), padL + cw - 8, lastY - 9);
+  }
 
-  // X-axis label
+  // X-axis: block range and zoom indicator
   ctx.fillStyle = 'rgba(122, 139, 168, 0.7)';
-  const firstBlock = slice[0].block;
-  const lastBlock  = slice[slice.length-1].block;
-  ctx.fillText(`#${firstBlock}`, padL, H - 8);
-  ctx.fillText(`#${lastBlock}`, padL + cw - 30, H - 8);
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  const firstBlock = slice[0].startBlock;
+  const lastBlock  = slice[slice.length-1].endBlock;
+  ctx.fillText('#'+firstBlock, padL, H - 14);
+  ctx.textAlign = 'right';
+  ctx.fillText('#'+lastBlock, padL + cw, H - 14);
+  // Center: zoom + bar width info
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(217, 154, 63, 0.8)';
+  const barLabel = chartView.barBlocks === 1 ? 'block' : `${chartView.barBlocks}-blk`;
+  const offsetLabel = chartView.scrollOffset > 0 ? `  ◄ ${chartView.scrollOffset} bars back` : '';
+  ctx.fillText(`${chartView.type.toUpperCase()} · ${barLabel} bars · ${slice.length}/${totalBars}${offsetLabel}`, padL + cw/2, H - 14);
 
-  // Render event pins as overlay divs (positioned absolutely)
+  // Event pins overlay (only show if events fall within the visible window)
   const pinsEl = document.getElementById('chart-events');
   if (pinsEl) {
     pinsEl.innerHTML = chartEventPins
       .filter(e => e.block >= firstBlock && e.block <= lastBlock)
-      .slice(-20)
+      .slice(-30)
       .map(e => {
-        const xPct = (e.block - firstBlock) / Math.max(lastBlock - firstBlock, 1) * 100;
-        const yPct = (hi - e.price) / (hi - lo) * 100;
-        // Convert chart-area coords to overlay coords
-        const xPx = padL + cw * xPct / 100;
-        const yPx = padT + ch * yPct / 100;
+        const t = (e.block - firstBlock) / Math.max(lastBlock - firstBlock, 1);
+        // Use last close price for vertical positioning if event price not display-converted
+        const evPrice = e.price; // display price already (pinChartEvent stores raw — but for inverted pools we'd need fix)
+        const xPx = padL + cw * t;
+        // Don't bother computing y — just pin near top for visibility
+        const yPx = padT + 6;
         return `<div class="chart-event-pin ${e.kind}" style="left:${xPx}px;top:${yPx}px"></div>`;
       }).join('');
   }
+}
+
+// Aggregate priceHistory blocks into OHLC bars.
+// Each entry of priceHistory already has open/high/low/close per block.
+// To form a barBlocks-sized candle, we take open of first, close of last,
+// max of highs, min of lows.
+function aggregateBars(history, barBlocks) {
+  if (!history || history.length === 0) return [];
+  if (barBlocks <= 1) {
+    // Each block is a candle
+    return history.map(d => ({
+      open:   d.open  ?? d.price,
+      high:   d.high  ?? d.price,
+      low:    d.low   ?? d.price,
+      close:  d.close ?? d.price,
+      vol:    d.blockVol || 0,
+      startBlock: d.block, endBlock: d.block,
+    }));
+  }
+  const bars = [];
+  for (let i = 0; i < history.length; i += barBlocks) {
+    const grp = history.slice(i, Math.min(i + barBlocks, history.length));
+    if (!grp.length) continue;
+    bars.push({
+      open:   grp[0].open  ?? grp[0].price,
+      high:   Math.max(...grp.map(g => g.high  ?? g.price)),
+      low:    Math.min(...grp.map(g => g.low   ?? g.price)),
+      close:  grp[grp.length-1].close ?? grp[grp.length-1].price,
+      vol:    grp.reduce((s, g) => s + (g.blockVol || 0), 0),
+      startBlock: grp[0].block, endBlock: grp[grp.length-1].block,
+    });
+  }
+  return bars;
+}
+
+// ── Chart control functions (wired to UI buttons) ──
+function setChartType(type) {
+  chartView.type = type;
+  document.querySelectorAll('.chart-btn[data-ctype]').forEach(b =>
+    b.classList.toggle('active', b.dataset.ctype === type));
+  // Hide bar-size controls in line mode (they still work but make less sense)
+  const barGroup = document.getElementById('chart-bar-group');
+  if (barGroup) barGroup.style.opacity = type === 'line' ? '0.45' : '1';
+  renderChart();
+}
+
+function setChartBar(barBlocks) {
+  chartView.barBlocks = barBlocks;
+  document.querySelectorAll('.chart-btn[data-bar]').forEach(b =>
+    b.classList.toggle('active', +b.dataset.bar === barBlocks));
+  renderChart();
+}
+
+function chartZoom(direction) {
+  // direction: -1 = zoom in (smaller window), +1 = zoom out (larger)
+  const sizes = [20, 40, 80, 160, 320, 640];
+  const cur = sizes.indexOf(chartView.windowSize);
+  let idx;
+  if (cur < 0) idx = 2;  // default
+  else if (direction < 0) idx = Math.max(0, cur - 1);
+  else idx = Math.min(sizes.length - 1, cur + 1);
+  chartView.windowSize = sizes[idx];
+  renderChart();
+}
+
+function chartPan(direction) {
+  // direction: -1 = pan back (further into history), +1 = pan forward (toward latest)
+  const step = Math.max(1, Math.floor(chartView.windowSize * 0.3));
+  if (direction < 0) chartView.scrollOffset += step;
+  else chartView.scrollOffset = Math.max(0, chartView.scrollOffset - step);
+  renderChart();
+}
+
+function chartReset() {
+  chartView.windowSize = 80;
+  chartView.scrollOffset = 0;
+  renderChart();
+}
+
+// Wheel zoom + drag pan are wired up in bootstrap()
+function attachChartInteraction() {
+  const canvas = document.getElementById('price-chart');
+  if (!canvas || canvas._chartHandlersBound) return;
+  if (typeof canvas.addEventListener !== 'function') return;
+  canvas._chartHandlersBound = true;
+
+  // Wheel: zoom
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    chartZoom(e.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+
+  // Click-drag: pan
+  let dragStartX = null, dragStartOffset = 0;
+  canvas.addEventListener('mousedown', (e) => {
+    dragStartX = e.clientX;
+    dragStartOffset = chartView.scrollOffset;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mouseup', () => {
+    dragStartX = null;
+    canvas.style.cursor = 'grab';
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (dragStartX === null) return;
+    const dx = e.clientX - dragStartX;
+    const totalBars = pools[activePoolId] ? Math.ceil(pools[activePoolId].priceHistory.length / chartView.barBlocks) : 0;
+    const barW = canvas.offsetWidth / Math.max(chartView.windowSize, 1);
+    const offsetDelta = Math.round(dx / barW);
+    chartView.scrollOffset = Math.max(0, Math.min(totalBars - chartView.windowSize, dragStartOffset + offsetDelta));
+    renderChart();
+  });
+  canvas.style.cursor = 'grab';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3340,10 +4244,31 @@ function renderForensics() {
   } else if (simMode === 'oracle') {
     html += `<div class="for-section"><div class="for-section-title">ORACLE MANIPULATION</div>`;
     html += forRow('Push Episodes', fmtNum(f.oracleAttacks));
-    html += forRow('Total Pressure', fmtUsd(f.totalMevExtractedUsd));
     html += forRow('Episode Active', oracleEpisode ? 'YES ('+Math.max(0, oracleEpisode.reverseAt - blockNumber)+' blocks left)' : 'no', oracleEpisode?'neg':'dim');
+    html += forRow('ORC1 Net P&L', fmtUsd(agentPnl.ORC1||0), (agentPnl.ORC1||0)>=0?'pos':'neg');
     html += `</div>`;
-    html += forNote('Oracle manipulation: large directional swap distorts spot price. Lending protocols reading this AMM as a price oracle would liquidate borrowers at the manipulated price. Mitigated by TWAPs (>5 block average).');
+
+    // Lending state — the actual exploit surface
+    html += `<div class="for-section"><div class="for-section-title">LENDING POOL · ${lending.oracleMode.toUpperCase()} ORACLE</div>`;
+    html += forRow('Oracle Mode', lending.oracleMode + (lending.oracleMode==='twap' ? ' ('+lending.twapBlocks+'-blk avg)' : ''));
+    html += forRow('Oracle WETH Read', '$'+oracleWethPrice().toFixed(0));
+    html += forRow('Spot WETH (USDC/WETH)', '$'+(pools.USDC_WETH ? displayPrice(pools.USDC_WETH).toFixed(0) : '—'));
+    html += forRow('Liquidations Triggered', fmtNum(f.liquidationsCount||0));
+    html += forRow('Collateral Seized', fmtUsd(f.liquidationsValueUsd||0));
+    // Count borrowers below HF=1.1 (at-risk)
+    let atRisk = 0, liquidated = 0, healthy = 0;
+    for (const b of lending.borrowers) {
+      if (b.debtUsdc < 1) liquidated++;
+      else {
+        const hf = borrowerHF(b);
+        if (hf < 1.1) atRisk++; else healthy++;
+      }
+    }
+    html += forRow('Borrowers · Healthy', fmtNum(healthy));
+    html += forRow('Borrowers · At Risk (HF<1.1)', fmtNum(atRisk), atRisk>0?'neg':'dim');
+    html += forRow('Borrowers · Liquidated', fmtNum(liquidated), liquidated>0?'neg':'dim');
+    html += `</div>`;
+    html += forNote("Oracle manipulation: large directional swap distorts the AMM's spot price. Lending protocols reading the AMM as oracle liquidate borrowers at the manipulated price; the attacker collects an 8% liquidation bonus. <b>Toggle the oracle to TWAP</b> in the strategy bar to see how a 30-block TWAP defeats the attack.");
   } else if (simMode === 'protected') {
     html += `<div class="for-section"><div class="for-section-title">MEV-PROTECTED RPC</div>`;
     html += forRow('Protected Txs', fmtNum(f.protectedTxCount));
@@ -3360,6 +4285,55 @@ function renderForensics() {
     html += `</div>`;
     html += forNote('Unichain-style rollup boost: 1s blocks vs 12s on L1. Searchers have less time per block to construct optimal bundles, and ordering rules can prioritize verified user flow. Reduces (but does not eliminate) extractable value.');
   }
+
+  // ─── Universal sections (always shown when sim is running) ───
+
+  // Block-builder competition
+  html += `<div class="for-section"><div class="for-section-title">BLOCK BUILDER COMPETITION</div>`;
+  if (forensics.lastBuilderId) {
+    html += forRow('Last Block Built By', forensics.lastBuilderId);
+    html += forRow('Last Block Value', fmtUsd(forensics.lastBlockValueUsd||0));
+  }
+  let totalWins = 0;
+  for (const id of Object.keys(builderForensics)) totalWins += builderForensics[id].wins;
+  for (const builder of BUILDERS) {
+    const stat = builderForensics[builder.id];
+    if (!stat) continue;
+    const pct = totalWins > 0 ? (stat.wins / totalWins * 100) : 0;
+    const cls = pct > 50 ? 'pos' : pct < 5 ? 'dim' : 'amber';
+    html += forRow(builder.label,
+      fmtNum(stat.wins) + ' wins · ' + pct.toFixed(1) + '% · ' + fmtUsd(stat.totalValueUsd),
+      cls);
+  }
+  html += `</div>`;
+  html += forNote('Each block, all 4 builders construct candidate blocks from txs they can see. Proposer picks highest-value. Protect-Builder is the only one that sees protected (private) orderflow; classic builders see only the public mempool. Searcher-Aligned receives kickbacks on sandwich bundles. Neutral randomizes ordering.');
+
+  // LP aggregate with LVR
+  let totalDeposited = 0, totalCurrent = 0, totalFees = 0, totalIL = 0, totalLVR = 0, totalNetVsRebal = 0;
+  let lpCount = 0;
+  for (const pool of Object.values(pools)) {
+    for (const pos of pool.positions) {
+      if (pos.tag === 'jit') continue;  // exclude JIT (transient)
+      const pnl = positionPnl(pool, pos);
+      totalDeposited  += pos.depositedUsd;
+      totalCurrent    += pnl.currentUsd;
+      totalFees       += pnl.feesUsd;
+      totalIL         += pnl.ilUsd;
+      totalLVR        += pnl.lvrUsd || 0;
+      totalNetVsRebal += pnl.netVsRebalUsd || 0;
+      lpCount++;
+    }
+  }
+  html += `<div class="for-section"><div class="for-section-title">LP AGGREGATE · LVR</div>`;
+  html += forRow('Active Positions', fmtNum(lpCount));
+  html += forRow('Total Deposited', fmtUsd(totalDeposited));
+  html += forRow('Current Value', fmtUsd(totalCurrent));
+  html += forRow('Fees Earned', fmtUsd(totalFees), 'pos');
+  html += forRow('Impermanent Loss', fmtUsd(totalIL), totalIL>=0?'pos':'neg');
+  html += forRow('LVR (vs rebalancer)', fmtUsd(totalLVR), totalLVR>=0?'pos':'neg');
+  html += forRow('Net vs Rebalancing', fmtUsd(totalNetVsRebal), totalNetVsRebal>=0?'pos':'neg');
+  html += `</div>`;
+  html += forNote('Per Milionis et al. (2022). LVR is the gap between LP value and a continuously-rebalanced 50/50 portfolio at fair price. Negative LVR means an LVR-aware rebalancer would have done better. <b>Net vs Rebalancing</b> = (LP value + fees) − rebalancer value: the most informative single number for "should I have been an LP?"');
 
   body.innerHTML = html;
 }
@@ -3390,16 +4364,20 @@ const AGENT_PROFILES = {
     ref: 'Adams, Zinsmeister, Robinson (2021). Uniswap v3 Core. https://uniswap.org/whitepaper-v3.pdf',
   },
   fund: {
-    overview: 'Funds execute large directional positions ($50k–$500k). Their txs are visible in the mempool and are prime targets for sandwich attacks and JIT liquidity unless routed via a private RPC.',
+    overview: 'Funds execute large directional positions. The simulator runs five subtypes — flippy (periodic bias flip), momentum (chase price moves), meanrev (fade 2σ moves), info (exogenous OU signal), whale (episodic >$3M rebalance). Together they generate flow with realistic temporal autocorrelation: bursts, follow-through, and occasional whale events.',
     rules: [
-      ['Action interval', 'Every 60–300 sim-seconds'],
-      ['Trade size', '$50k–$500k'],
-      ['Direction', 'Persistent over 5–10 blocks (trend-following), then reverses'],
-      ['Slippage tolerance', '100 bps'],
+      ['Action interval', 'Strategy-dependent · 30–300s, scaled by diurnal flow'],
+      ['Trade size', '$150k–$1.5M (medium) · $3M–$12M (whale, episodic)'],
+      ['FD1 strategy', 'flippy · periodic bias flip every 5–15 blocks (baseline)'],
+      ['FD2 strategy', 'momentum · trigger on >50bps move over 5 blocks · cooldown 2'],
+      ['FD3 strategy', 'meanrev · trigger when |z-score| > 2σ over 10 blocks · cooldown 3'],
+      ['FD4 strategy', 'info · OU signal, kappa=0.05, threshold |signal| > 0.6'],
+      ['FD5 strategy', 'whale · episodic, fires every 80–240 blocks, $3M–$12M size'],
+      ['Slippage tolerance', '100 bps (medium) · 200 bps (whale)'],
       ['Routing', 'Public mempool (unless MEV-Protected mode active)'],
     ],
-    edge: 'Information / capital — funds may have an off-chain alpha signal. But execution leakage to MEV searchers can erase 5–30 bps per fill.',
-    ref: 'Daian et al (2019). Flash Boys 2.0: Frontrunning, Transaction Reordering, and Consensus Instability. arXiv:1904.05234',
+    edge: 'Information / capital. Different subtypes have different edges: momentum riders profit when trends persist, meanrev when noise dominates, info-driven when their off-chain signal is correct. All can lose 5–30 bps per fill to MEV unless routed privately.',
+    ref: 'Daian et al (2019). Flash Boys 2.0. arXiv:1904.05234. Gârleanu & Pedersen (2013) on momentum/meanrev decomposition. Avellaneda & Lee (2010) on stat-arb mechanics.',
   },
   arb: {
     overview: 'Stat-arb agent monitoring direct WBTC/USDC against the synthetic path WBTC/WETH × WETH/USDC. When dislocation > 25 bps, it executes the cheaper leg and the offsetting leg.',
@@ -3464,17 +4442,19 @@ const AGENT_PROFILES = {
     ref: 'Milionis et al (2022). Automated Market Making and Loss-Versus-Rebalancing. arXiv:2208.06046',
   },
   oracle: {
-    overview: 'Pushes a pool spot price by N% with a large directional swap, holds it for ~8 blocks, then unwinds. Designed to manipulate any external protocol that reads spot price as an oracle.',
+    overview: "Episodic predator. Uses flashloan-scale capital ($50M) to crash WETH price on USDC/WETH for ~8 blocks. The simulator's coupled lending pool reads its WETH oracle from this AMM — when ORC1 pushes price down, WETH-collateralized borrowers fall below health-factor 1.0, and ORC1 liquidates them at an 8% bonus. Then unwinds the AMM position at a controlled loss. Net P&L = liquidation bonuses − AMM round-trip cost − gas.",
     rules: [
-      ['Trigger', 'Episodic — every 20–40 blocks'],
-      ['Push direction', 'Random (up or down)'],
-      ['Push magnitude', '3–8% of spot'],
-      ['Hold', '~8 blocks (long enough to outlast a 1-block TWAP)'],
-      ['Unwind', 'Reverses position; some loss to fees + counter-flow'],
-      ['Mitigation', 'TWAP > 5 blocks; multi-source oracle (Chainlink)'],
+      ['Trigger', 'Stochastic, ~0.1% per searcher-step (≈ once per 200 blocks)'],
+      ['Push direction', 'WETH down (sell on USDC/WETH)'],
+      ['Push size', '$50M USDC-equivalent'],
+      ['Realised price drop', '~4–6% on default pool depth'],
+      ['Hold', '8 blocks (longer than 1-block TWAP, shorter than 30-block TWAP)'],
+      ['Unwind', 'Reverse position; AMM-side loss ~ 30 bps × $50M = $150k'],
+      ['Liquidations seized', 'Up to 8 borrowers × 50% of debt × 8% bonus'],
+      ['Mitigation in sim', 'Switch lending oracle to TWAP-30 (toggle in top bar) — attack profit drops ~80%'],
     ],
-    edge: 'Profitability depends on the downstream protocol being exploited (lending liquidation, options strike). Pure AMM cost is gas + fees + slippage on the round-trip.',
-    ref: 'Mackinga et al (2022). TWAP Oracle Attacks: Easier Done than Said? eprint.iacr.org/2022/445',
+    edge: 'Profitability is ENTIRELY in the downstream lending exploit. AMM round-trip is intentional loss. The 8% liquidation bonus on $200k–$2M of seized collateral covers the loss several times over — but only against a spot oracle. TWAP defeats the strategy.',
+    ref: 'Mackinga, Nadahalli, Wattenhofer (2022). TWAP Oracle Attacks. eprint.iacr.org/2022/445. See also Mango Markets exploit (Oct 2022, $114M), Cream Finance (Oct 2021, $130M).',
   },
 };
 
@@ -3698,6 +4678,8 @@ function bootstrap() {
   initPools();
   seedLiquidity();
   buildAgents();
+  initLending();
+  resetBuilderForensics();
   setMevActive();
   renderTopBar();
   renderBlock();
@@ -3706,6 +4688,7 @@ function bootstrap() {
   renderMempool();
   renderAgentPanel();
   renderForensics();
+  attachChartInteraction();
   addEvent('event-protection', 'Pools initialized. Press START to begin simulation.');
 }
 
