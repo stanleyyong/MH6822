@@ -1,0 +1,2529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMM Simulator — Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0c0e10;
+  --bg2:       #131619;
+  --bg3:       #1a1d22;
+  --bg4:       #22262c;
+  --ink:       #e4e1d8;
+  --ink2:      #b8b2a3;
+  --ink3:      #7a7466;
+  --ink4:      #4a4538;
+  --line:      #2c2f35;
+  --line2:     #3d4148;
+  --amber:     #d99a3f;
+  --amber2:    #f5b94d;
+  --rust:      #b85c2f;
+  --moss:      #6b8a3a;
+  --slate:     #4a6a82;
+  --plum:      #7a4a82;
+  --crimson:   #b54848;
+
+  --serif: 'Fraunces', ui-serif, Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--serif);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.65;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'kern';
+  background-image:
+    radial-gradient(ellipse at top left, rgba(217, 154, 63, 0.04), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(74, 106, 130, 0.03), transparent 60%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.masthead {
+  position: relative;
+  z-index: 1;
+  padding: 80px 60px 60px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(217, 154, 63, 0.04), transparent 70%),
+    var(--bg);
+}
+.masthead-inner { max-width: 1100px; margin: 0 auto; position: relative; }
+.masthead-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 28px;
+}
+.masthead-meta::before {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--amber);
+  display: inline-block;
+}
+.masthead-meta .pill {
+  border: 1px solid var(--line2);
+  padding: 3px 10px;
+  border-radius: 2px;
+  letter-spacing: 0.12em;
+}
+.masthead h1 {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(46px, 6.5vw, 86px);
+  line-height: 0.96;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 0;
+}
+.masthead h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--amber);
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+}
+.masthead-tagline {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.45;
+  color: var(--ink2);
+  max-width: 660px;
+  margin: 0 0 36px;
+  font-weight: 400;
+}
+.masthead-attrs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0;
+  margin-top: 36px;
+}
+.masthead-attr {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px dotted var(--line2);
+  padding: 0 22px;
+}
+.masthead-attr:first-child { padding-left: 0; }
+.masthead-attr:last-child { border-right: none; padding-right: 0; }
+.masthead-attr-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.masthead-attr-value {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.tabstrip {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+.tabstrip-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  color: var(--ink3);
+  padding: 18px 22px 16px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color 0.2s;
+  font-weight: 500;
+}
+.tab:first-child { padding-left: 0; }
+.tab .tab-num {
+  font-size: 9px;
+  color: var(--ink4);
+  margin-right: 8px;
+  font-weight: 400;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--amber); }
+.tab.active .tab-num { color: var(--amber); }
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--amber);
+}
+
+.content-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px;
+  position: relative;
+  z-index: 1;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; animation: fadeIn 0.4s; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 36px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 60px 0 18px;
+  font-variation-settings: 'opsz' 96;
+  position: relative;
+  padding-left: 28px;
+}
+h2::before {
+  content: '§';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--amber);
+  font-style: italic;
+}
+.tab-pane > h2:first-child { margin-top: 0; }
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.005em;
+  margin: 36px 0 12px;
+  color: var(--ink);
+}
+h4 {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 28px 0 10px;
+}
+p { margin: 0 0 14px; }
+p strong { color: var(--ink); font-weight: 600; }
+em { font-style: italic; color: var(--ink); }
+a { color: var(--amber2); text-decoration: none; border-bottom: 1px solid var(--ink4); }
+a:hover { color: var(--amber); border-bottom-color: var(--amber); }
+code, kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--amber2);
+}
+.lead {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink2);
+  font-weight: 400;
+  border-left: 2px solid var(--amber);
+  padding: 4px 0 4px 24px;
+  margin: 0 0 32px;
+}
+ul, ol { padding-left: 0; margin: 0 0 16px; list-style: none; }
+ul > li, ol > li {
+  padding-left: 22px;
+  position: relative;
+  margin-bottom: 6px;
+}
+ul > li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--amber);
+  font-family: var(--mono);
+}
+ol { counter-reset: olcount; }
+ol > li { counter-increment: olcount; }
+ol > li::before {
+  content: counter(olcount) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.callout {
+  background: var(--bg2);
+  border-left: 3px solid var(--amber);
+  padding: 18px 24px;
+  margin: 24px 0;
+  border-radius: 0 2px 2px 0;
+}
+.callout-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 8px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.warn  { border-left-color: var(--rust); }
+.callout.warn .callout-label { color: var(--rust); }
+.callout.note  { border-left-color: var(--slate); }
+.callout.note .callout-label { color: var(--slate); }
+.callout.new   { border-left-color: var(--moss); }
+.callout.new .callout-label { color: var(--moss); }
+
+.spec-card {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 22px 26px;
+  margin: 22px 0;
+}
+.spec-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  border-bottom: 1px dotted var(--line2);
+  padding-bottom: 10px;
+}
+.spec-card-title {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spec-card-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+.spec-card-tag.new { color: var(--moss); border-color: var(--moss); }
+
+table.spec {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 22px;
+  font-size: 14px;
+}
+table.spec th, table.spec td {
+  text-align: left;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+table.spec th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  font-weight: 500;
+  background: var(--bg2);
+}
+table.spec tr:hover td { background: var(--bg2); }
+table.spec td.mono { font-family: var(--mono); font-size: 13px; color: var(--amber2); }
+table.spec td.label { color: var(--ink2); white-space: nowrap; width: 32%; }
+
+.key {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-bottom-width: 2px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  color: var(--ink);
+  margin: 0 2px;
+}
+
+.steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  margin: 28px 0;
+}
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 28px 60px;
+  margin-bottom: 0;
+  border-left: 1px dotted var(--line2);
+  margin-left: 22px;
+}
+.steps > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: -22px;
+  top: -6px;
+  width: 44px;
+  height: 44px;
+  background: var(--bg);
+  border: 1px solid var(--amber);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.steps > li:last-child { border-left-color: transparent; }
+.step-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink);
+  margin-bottom: 5px;
+}
+
+.diagram {
+  margin: 28px 0;
+  padding: 28px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  position: relative;
+  overflow-x: auto;
+}
+.diagram-caption {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 16px;
+}
+.diagram-caption .fig {
+  color: var(--amber);
+  margin-right: 8px;
+}
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin: 24px 0;
+}
+.two-col > div {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 22px;
+}
+.two-col .pos { border-top: 2px solid var(--moss); }
+.two-col .neg { border-top: 2px solid var(--rust); }
+.two-col h4 { margin-top: 0; }
+
+.ref-list { list-style: none; padding: 0; margin: 22px 0; counter-reset: ref; }
+.ref-list > li {
+  counter-increment: ref;
+  padding: 16px 0 16px 60px;
+  border-bottom: 1px dotted var(--line2);
+  position: relative;
+}
+.ref-list > li::before {
+  content: '[' counter(ref, decimal-leading-zero) ']';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+.ref-list > li::after { display: none; }
+.ref-authors { font-family: var(--serif); color: var(--ink); font-weight: 500; }
+.ref-year { color: var(--ink3); }
+.ref-title {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink2);
+  display: block;
+  margin: 4px 0;
+}
+.ref-venue { font-family: var(--mono); font-size: 12px; color: var(--ink3); }
+.ref-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber2);
+  display: block;
+  margin-top: 4px;
+  word-break: break-all;
+  border-bottom: none;
+}
+.ref-cluster {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin: 28px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.math-block {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--amber);
+  padding: 16px 22px;
+  margin: 18px 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+  overflow-x: auto;
+}
+.math-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+
+.chart-block {
+  margin: 28px 0;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 22px;
+}
+.chart-block h4 { margin-top: 0; }
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  margin: 8px 0;
+}
+.chart-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+.chart-legend {
+  display: flex;
+  gap: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-legend i {
+  width: 12px; height: 3px;
+  display: inline-block;
+}
+.chart-note {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink3);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.changelog-entry {
+  border-left: 2px solid var(--line2);
+  padding: 4px 0 4px 22px;
+  margin-bottom: 22px;
+  position: relative;
+}
+.changelog-entry::before {
+  content: '';
+  position: absolute;
+  left: -5px; top: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.changelog-entry h4 {
+  margin-top: 0;
+  margin-bottom: 4px;
+  color: var(--amber);
+}
+
+.footer {
+  margin-top: 80px;
+  padding: 40px 60px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.footer-mark {
+  color: var(--amber);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 8px;
+  display: block;
+}
+
+@media (max-width: 800px) {
+  .masthead { padding: 60px 28px 40px; }
+  .masthead-attrs { grid-template-columns: 1fr 1fr; }
+  .masthead-attr { border-right: none; border-bottom: 1px dotted var(--line2); padding: 12px 0; }
+  .content-wrap { padding: 40px 28px; }
+  .tabstrip-inner { padding: 0 28px; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-meta">
+      <span class="pill">Technical Note · v2</span>
+      <span>Movmint Research</span>
+      <span>April 2026</span>
+    </div>
+    <h1>AMM Simulator <em>Documentation</em></h1>
+    <p class="masthead-tagline">
+      A single-file Uniswap V3 simulator with concentrated liquidity, a public mempool,
+      adversarial searchers, the mitigations they face, and a coupled lending pool that
+      makes oracle attacks actually profitable.
+    </p>
+    <div class="masthead-attrs">
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Pools</span>
+        <span class="masthead-attr-value">4 (5bp / 30bp / 1bp)</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Agents</span>
+        <span class="masthead-attr-value">33 across 8 types</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Builders</span>
+        <span class="masthead-attr-value">4 competing per block</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Format</span>
+        <span class="masthead-attr-value">Single HTML file, no deps</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabstrip">
+  <div class="tabstrip-inner">
+    <button class="tab active" data-tab="overview"><span class="tab-num">01</span>Overview</button>
+    <button class="tab" data-tab="quickstart"><span class="tab-num">02</span>Quick Start</button>
+    <button class="tab" data-tab="architecture"><span class="tab-num">03</span>Architecture</button>
+    <button class="tab" data-tab="agents"><span class="tab-num">04</span>Agents</button>
+    <button class="tab" data-tab="lending"><span class="tab-num">05</span>Lending &amp; Oracles</button>
+    <button class="tab" data-tab="builders"><span class="tab-num">06</span>Builders &amp; LVR</button>
+    <button class="tab" data-tab="ui"><span class="tab-num">07</span>UI Controls</button>
+    <button class="tab" data-tab="sandwich"><span class="tab-num">08</span>Bug Notes</button>
+    <button class="tab" data-tab="changelog"><span class="tab-num">09</span>Changelog</button>
+    <button class="tab" data-tab="references"><span class="tab-num">10</span>References</button>
+  </div>
+</nav>
+
+<main class="content-wrap">
+
+<!-- ============================================================ -->
+<!-- TAB 1 — OVERVIEW                                               -->
+<!-- ============================================================ -->
+<section class="tab-pane active" id="overview">
+
+<p class="lead">
+  This is a Uniswap V3 simulator that runs in your browser. It has four pools with seeded
+  liquidity, 33 agents (passive LPs, retail traders, five fund subtypes, a stat-arb agent,
+  and toggleable MEV searchers), a public mempool, four block-builders that compete each
+  block, and a coupled lending pool whose WETH oracle reads from the AMM.
+</p>
+
+<p>
+  You can switch between MEV strategies, change the lending oracle from spot to TWAP-30,
+  load a mainnet TVL snapshot, fast-forward by hours, and read forensic metrics in real
+  time. CSV exports of every swap and event are one click away.
+</p>
+
+<p>
+  The simulator is meant for building intuition about how AMMs behave under different
+  flow regimes and adversarial conditions. It's not calibrated to any specific historical
+  period and doesn't replay on-chain events. If you want that, the CSV schemas match what
+  you'd expect from pandas after a Dune query.
+</p>
+
+<h2>What's inside</h2>
+
+<div class="diagram">
+<div class="diagram-caption"><span class="fig">FIG. 01</span>System diagram — agents, mempool, builder auction, pools, lending pool.</div>
+<svg viewBox="0 0 880 520" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono, monospace" font-size="11">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d99a3f"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a7466"/>
+    </marker>
+  </defs>
+
+  <!-- agents -->
+  <g>
+    <rect x="20" y="40" width="180" height="450" fill="none" stroke="#2c2f35" stroke-dasharray="3,3"/>
+    <text x="110" y="32" text-anchor="middle" fill="#7a7466" letter-spacing="2">AGENTS</text>
+
+    <g transform="translate(36,60)">
+      <rect width="148" height="40" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="20" r="4" fill="#6b8a3a"/>
+      <text x="26" y="18" fill="#e4e1d8">LPs (4)</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">tight / mid / wide</text>
+    </g>
+
+    <g transform="translate(36,108)">
+      <rect width="148" height="40" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="20" r="4" fill="#4a6a82"/>
+      <text x="26" y="18" fill="#e4e1d8">Retail × 10</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">$500–$5k swaps</text>
+    </g>
+
+    <g transform="translate(36,156)">
+      <rect width="148" height="40" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="20" r="4" fill="#4a6a82"/>
+      <text x="26" y="18" fill="#e4e1d8">Funds × 5</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">flippy/mom/rev/info/whale</text>
+    </g>
+
+    <g transform="translate(36,204)">
+      <rect width="148" height="40" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="20" r="4" fill="#7a4a82"/>
+      <text x="26" y="18" fill="#e4e1d8">Stat-Arb</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">cross-pool basis</text>
+    </g>
+
+    <g transform="translate(36,252)">
+      <rect width="148" height="40" fill="#131619" stroke="#b54848"/>
+      <circle cx="14" cy="20" r="4" fill="#b54848"/>
+      <text x="26" y="18" fill="#e4e1d8">Sandwich × 2</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">front + back paired</text>
+    </g>
+
+    <g transform="translate(36,300)">
+      <rect width="148" height="40" fill="#131619" stroke="#d99a3f"/>
+      <circle cx="14" cy="20" r="4" fill="#d99a3f"/>
+      <text x="26" y="18" fill="#e4e1d8">JIT / Toxic / Oracle</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">mode-activated</text>
+    </g>
+
+    <g transform="translate(36,400)">
+      <rect width="148" height="40" fill="#131619" stroke="#7a4a82"/>
+      <circle cx="14" cy="20" r="4" fill="#7a4a82"/>
+      <text x="26" y="18" fill="#e4e1d8">Borrowers × 8</text>
+      <text x="26" y="32" fill="#7a7466" font-size="10">in lending pool</text>
+    </g>
+  </g>
+
+  <!-- mempool -->
+  <g>
+    <rect x="240" y="180" width="180" height="80" fill="#1a1d22" stroke="#d99a3f" stroke-width="1.5"/>
+    <text x="330" y="170" text-anchor="middle" fill="#d99a3f" letter-spacing="2">PUBLIC MEMPOOL</text>
+    <text x="330" y="206" text-anchor="middle" fill="#e4e1d8" font-size="10">tx queue · gas-priced</text>
+    <text x="330" y="224" text-anchor="middle" fill="#7a7466" font-size="9">protected txs are private</text>
+    <text x="330" y="246" text-anchor="middle" fill="#b8b2a3" font-size="9" font-style="italic">─ pending ─</text>
+  </g>
+
+  <line x1="186" y1="80"  x2="240" y2="200" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="128" x2="240" y2="215" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="176" x2="240" y2="225" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="224" x2="240" y2="235" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="272" x2="240" y2="245" stroke="#b54848" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="186" y1="320" x2="240" y2="255" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- builder auction -->
+  <g>
+    <rect x="450" y="60" width="200" height="320" fill="none" stroke="#2c2f35" stroke-dasharray="3,3"/>
+    <text x="550" y="52" text-anchor="middle" fill="#7a7466" letter-spacing="2">BUILDER AUCTION</text>
+
+    <g transform="translate(465,80)">
+      <rect width="170" height="48" fill="#22262c" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8">Flashbots Classic</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">gas-priority public</text>
+      <text x="10" y="44" fill="#7a7466" font-size="9">sandwich-OK</text>
+    </g>
+    <g transform="translate(465,134)">
+      <rect width="170" height="48" fill="#22262c" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8">Protect-Builder</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">sees private orderflow</text>
+      <text x="10" y="44" fill="#7a7466" font-size="9">no sandwich on private</text>
+    </g>
+    <g transform="translate(465,188)">
+      <rect width="170" height="48" fill="#22262c" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8">Searcher-Aligned</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">100bp kickback on bundles</text>
+      <text x="10" y="44" fill="#7a7466" font-size="9">MEV-maximising</text>
+    </g>
+    <g transform="translate(465,242)">
+      <rect width="170" height="48" fill="#22262c" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8">Neutral</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">random ordering</text>
+      <text x="10" y="44" fill="#7a7466" font-size="9">no MEV preference</text>
+    </g>
+
+    <g transform="translate(465,300)">
+      <rect width="170" height="60" fill="#1a1d22" stroke="#d99a3f" stroke-width="1.5"/>
+      <text x="85" y="20" text-anchor="middle" fill="#d99a3f" letter-spacing="1">PROPOSER</text>
+      <text x="85" y="38" text-anchor="middle" fill="#e4e1d8" font-size="10">picks highest-value</text>
+      <text x="85" y="52" text-anchor="middle" fill="#7a7466" font-size="9">block</text>
+    </g>
+  </g>
+
+  <line x1="420" y1="220" x2="450" y2="200" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- pools -->
+  <g>
+    <rect x="690" y="40" width="180" height="200" fill="none" stroke="#2c2f35" stroke-dasharray="3,3"/>
+    <text x="780" y="32" text-anchor="middle" fill="#7a7466" letter-spacing="2">V3 POOLS</text>
+
+    <g transform="translate(706,52)">
+      <rect width="148" height="38" fill="#131619" stroke="#3d4148"/>
+      <text x="10" y="16" fill="#d99a3f">USDC / WETH</text>
+      <text x="10" y="30" fill="#7a7466" font-size="9">5 bp · $120M</text>
+    </g>
+    <g transform="translate(706,98)">
+      <rect width="148" height="38" fill="#131619" stroke="#3d4148"/>
+      <text x="10" y="16" fill="#d99a3f">WBTC / WETH</text>
+      <text x="10" y="30" fill="#7a7466" font-size="9">30 bp · $30M</text>
+    </g>
+    <g transform="translate(706,144)">
+      <rect width="148" height="38" fill="#131619" stroke="#3d4148"/>
+      <text x="10" y="16" fill="#d99a3f">WBTC / USDC</text>
+      <text x="10" y="30" fill="#7a7466" font-size="9">30 bp · $18M</text>
+    </g>
+    <g transform="translate(706,190)">
+      <rect width="148" height="38" fill="#131619" stroke="#3d4148"/>
+      <text x="10" y="16" fill="#d99a3f">USDC / USDT</text>
+      <text x="10" y="30" fill="#7a7466" font-size="9">1 bp · $60M</text>
+    </g>
+  </g>
+
+  <line x1="640" y1="330" x2="690" y2="100" stroke="#d99a3f" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- lending pool (downstream of pools) -->
+  <g>
+    <rect x="690" y="280" width="180" height="180" fill="#22262c" stroke="#7a4a82" stroke-width="1.5"/>
+    <text x="780" y="298" text-anchor="middle" fill="#7a4a82" letter-spacing="2">LENDING POOL</text>
+    <text x="780" y="320" text-anchor="middle" fill="#e4e1d8" font-size="10">8 borrowers · WETH coll.</text>
+    <text x="780" y="338" text-anchor="middle" fill="#e4e1d8" font-size="10">USDC debt · LTV 50–81%</text>
+    <text x="780" y="362" text-anchor="middle" fill="#7a7466" font-size="9" font-style="italic">─ oracle reads from ─</text>
+    <text x="780" y="378" text-anchor="middle" fill="#7a7466" font-size="9" font-style="italic">USDC/WETH AMM</text>
+    <text x="780" y="402" text-anchor="middle" fill="#d99a3f" font-size="10">Mode: SPOT or TWAP-30</text>
+    <text x="780" y="424" text-anchor="middle" fill="#7a7466" font-size="9">Liquidator: 8% bonus</text>
+    <text x="780" y="442" text-anchor="middle" fill="#b85c2f" font-size="10" font-weight="600">→ Oracle attack target</text>
+  </g>
+
+  <line x1="780" y1="240" x2="780" y2="280" stroke="#7a4a82" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr)"/>
+
+  <line x1="186" y1="420" x2="690" y2="380" stroke="#7a4a82" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arr2)"/>
+</svg>
+</div>
+
+<h3>Six MEV modes plus two mitigations</h3>
+
+<table class="spec">
+  <thead>
+    <tr><th>Mode</th><th>What activates</th><th>Output to look at</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">none</td>
+      <td>Just organic flow — retail, funds, stat-arb</td>
+      <td class="label">Baseline volume, drift, LP fees vs LVR</td>
+    </tr>
+    <tr>
+      <td class="mono">sandwich</td>
+      <td>Two sandwich searchers scan public mempool</td>
+      <td class="label">Attempts vs landed, victim slip cost, success rate</td>
+    </tr>
+    <tr>
+      <td class="mono">jit</td>
+      <td>JIT bot mints ±10bp range before large swaps</td>
+      <td class="label">Mints/burns, fees captured, passive-LP fee dilution</td>
+    </tr>
+    <tr>
+      <td class="mono">toxic</td>
+      <td>Toxic backrunner reverses single-block moves &gt;10bp</td>
+      <td class="label">Backrun count, LP IL accumulation</td>
+    </tr>
+    <tr>
+      <td class="mono">oracle</td>
+      <td>Oracle manipulator pushes WETH down with $50M flash size; targets the lending pool's borrowers</td>
+      <td class="label">Liquidations triggered, ORC1 net P&amp;L (depends on oracle mode)</td>
+    </tr>
+    <tr>
+      <td class="mono">protected</td>
+      <td>All retail/fund txs route privately (Flashbots Protect / MEV Blocker)</td>
+      <td class="label">Sandwich attempts drop to zero; protect-builder wins all blocks</td>
+    </tr>
+    <tr>
+      <td class="mono">rollup</td>
+      <td>Block time drops to 1s (Unichain rollup-boost)</td>
+      <td class="label">Block frequency, sandwich landing rate, throughput</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  Switching modes mid-run is the most useful thing you can do. A clean way to start: run
+  in <code>sandwich</code> mode for 6 hours of sim time, note the searcher P&amp;L, then
+  switch to <code>protected</code> and run another 6 hours. The dollar gap between the two
+  is what private orderflow is worth to a trader on that flow profile.
+</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2 — QUICK START                                             -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="quickstart">
+
+<p class="lead">
+  Open the file, hit START, switch modes. Below is a step-by-step that touches the most
+  useful controls in roughly the order you'd want to learn them.
+</p>
+
+<h2>Five minutes to first MEV</h2>
+
+<ol class="steps">
+  <li>
+    <div class="step-title">Open <code>amm.html</code> in a browser</div>
+    <p>
+      The page loads with all four pools seeded, agents created but idle, sim paused.
+      The top bar shows the active pool's price, TVL, cumulative volume, and a UTC clock
+      that drives diurnal flow intensity. The default time is <strong>13:00 UTC</strong>,
+      which is the peak of the US/EU overlap window.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Hit <span class="key">▶ START</span></div>
+    <p>
+      Retail and fund txs start flowing into the public mempool. The mempool panel shows
+      pending txs ordered by gas tip. Every 12 seconds a block closes — four builders
+      each construct a candidate block, the proposer picks the one with the highest value,
+      and that block is what executes.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Click <span class="key">🥪 Sandwich</span></div>
+    <p>
+      Two sandwich-searcher agents (SAND1, SAND2) activate. They scan the mempool every
+      sim-tick for victims, size their front-run to fit inside the victim's slippage
+      tolerance, and submit paired front/back txs. Watch the forensics panel — Attempts
+      and Profitable counters update in real time. Success rate stabilizes around 60% on
+      the 5bp pool against whale victims.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Switch to <span class="key">🛡 MEV-Protected RPC</span></div>
+    <p>
+      Sandwich attempts drop to zero. In the Builder Competition section of forensics,
+      you'll see Protect-Builder go from never winning to winning every block — because
+      protected txs are invisible to the other builders, only Protect-Builder can include
+      them, so its blocks are the only ones with positive value.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Switch to <span class="key">🔮 Oracle Attack</span></div>
+    <p>
+      Now ORC1 is active. Oracle attacks fire stochastically about once every 200 blocks.
+      Use <span class="key">+6h</span> to fast-forward — in a 6-hour skip you'll usually
+      see one or two attacks. Each one: ORC1 sells $50M of WETH on USDC/WETH, holds for
+      8 blocks while the lending pool reads its WETH oracle from the depressed price,
+      liquidates 3–5 borrowers at the 8% bonus, then unwinds the AMM position.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Toggle the lending oracle to <span class="key">TWAP-30</span></div>
+    <p>
+      The toggle is on the right side of the strategy bar. Run the same oracle attack
+      experiment with TWAP active — ORC1's profit drops by about 80%. The attack still
+      fires (the AMM-side push happens regardless), but a 30-block TWAP smooths the
+      manipulated price across the hold window, so the oracle never reads low enough to
+      liquidate. This is what TWAP oracles are for.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Click <span class="key">↻ MAINNET</span></div>
+    <p>
+      Replaces the default pool TVLs with an April 2026 mainnet snapshot — $215M
+      USDC/WETH, $42M WBTC/WETH, $31M WBTC/USDC, $102M USDC/USDT. Real pools also
+      concentrate more aggressively in the tight band, so swap impact per dollar drops.
+      The simulator resets and you can compare MEV economics on real-pool depths.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Pan and zoom the price chart</div>
+    <p>
+      The chart now does candlesticks. <span class="key">+</span>/<span class="key">−</span>
+      to zoom in/out, <span class="key">‹</span>/<span class="key">›</span> to pan,
+      <span class="key">⤢</span> to reset. Mouse wheel zooms; click-and-drag pans freely.
+      Toggle between LINE and CANDLES; pick bar size 1, 5, 15, or 60 blocks. At mainnet
+      12s blocks, "5" gives you 1-minute candles.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Click any agent card</div>
+    <p>
+      Opens a modal with the agent's decision rules, edge, and the academic reference
+      for the strategy. Worth doing for FD2 (momentum) and FD3 (meanrev) — they were
+      added in v2 and have non-trivial trigger conditions.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Download the swap log or event log</div>
+    <p>
+      <span class="key">⬇ SWAPS</span> exports every executed trade with block, sim_time,
+      pool, side, size, price, agent, tag. <span class="key">⬇ MEV LOG</span> exports the
+      event stream — sandwich landings, JIT mints, oracle pushes, liquidations, block
+      closes, builder switches.
+    </p>
+  </li>
+</ol>
+
+<h2>Things worth trying</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Experiment</th><th>Setup</th><th>What it shows</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Protected vs unprotected sandwich</td>
+      <td>Sandwich for +6h, note MEV. Switch to protected for +6h on same pool.</td>
+      <td>Direct dollar cost of public-mempool exposure for funds.</td>
+    </tr>
+    <tr>
+      <td>Spot vs TWAP oracle</td>
+      <td>Oracle mode, +6h. Note ORC1 P&amp;L. Toggle to TWAP, run again.</td>
+      <td>Why every modern lending protocol uses TWAP. ~80% reduction.</td>
+    </tr>
+    <tr>
+      <td>JIT vs passive LP fee share</td>
+      <td>JIT mode, +24h. Compare JIT1's net P&amp;L to LP aggregate fees in the LVR section.</td>
+      <td>Wealth transfer from passive LPs to JIT bots on large swaps.</td>
+    </tr>
+    <tr>
+      <td>Diurnal MEV intensity</td>
+      <td>Sandwich mode, +24h. Note attempt timing.</td>
+      <td>Most MEV happens in the 13:00–17:00 UTC peak. Quiet at 06:00–10:00.</td>
+    </tr>
+    <tr>
+      <td>Mainnet vs default depth</td>
+      <td>Run sandwich for +6h. Click MAINNET. Run again.</td>
+      <td>Sandwich profitability scales with pool depth — mainnet pools are deeper.</td>
+    </tr>
+    <tr>
+      <td>Rollup vs mainnet sandwich</td>
+      <td>Sandwich + rollup mode. Then sandwich + mainnet block time.</td>
+      <td>1s blocks reduce sandwich landing rates because front+back must both fit a smaller window.</td>
+    </tr>
+  </tbody>
+</table>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3 — ARCHITECTURE                                            -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="architecture">
+
+<p class="lead">
+  The simulator is one HTML file with one inline script. There are no external
+  dependencies. Everything from V3 swap math to candle aggregation is implemented inline.
+</p>
+
+<h2>I. Concentrated liquidity math</h2>
+
+<p>
+  Each pool maintains <code>sqrtP</code> (the square-root of price, in token1/token0
+  convention) and a list of liquidity positions, each with bounds <code>(sqrtPa, sqrtPb)</code>
+  and an L value. Active liquidity at any point is the sum of L over positions whose range
+  contains the current sqrtP.
+</p>
+
+<div class="math-block">
+<div class="math-label">Swap step — selling token0 (sell0)</div>
+sqrtP_new = (L · sqrtP) / (L + Δx · sqrtP)<br>
+Δy        = L · (sqrtP − sqrtP_new)
+</div>
+
+<div class="math-block">
+<div class="math-label">Swap step — selling token1 (sell1)</div>
+sqrtP_new = sqrtP + Δy / L<br>
+Δx        = L · (1/sqrtP − 1/sqrtP_new)
+</div>
+
+<p>
+  When a swap would push price across a tick boundary, the simulator caps the step at
+  the boundary, applies it, updates active L, and recurses — up to 32 hops per swap.
+  This is the algorithm Uniswap V3 uses, in floating-point rather than Q64.96 fixed-point.
+</p>
+
+<h3>Display price vs internal price</h3>
+
+<p>
+  V3's internal convention is <code>price = token1/token0</code>. For USDC/WETH that's
+  WETH/USDC ≈ 1/3400, but the human-readable price is USDC/WETH = 3400. The simulator
+  stores the internal V3 price in <code>pool.sqrtP</code> and exposes a
+  <code>displayPrice(pool)</code> helper that flips for inverted pools. Swap math, fee
+  accounting, and tick arithmetic use the internal price; the UI and USD conversion
+  layer use the display side. Getting this wrong was the main bug discussed in the
+  Bug Notes tab.
+</p>
+
+<h2>II. Mempool and block closure</h2>
+
+<p>
+  Time advances one sim-second at a time. Every tick, agents may submit transactions
+  to the <code>mempool</code> array, and searchers run their detection routines. Once
+  <code>simTime − lastBlockTime ≥ BLOCK_TIME</code> (12s on mainnet, 1s on Unichain
+  rollup), <code>closeBlock()</code> runs the builder auction.
+</p>
+
+<div class="diagram">
+<div class="diagram-caption"><span class="fig">FIG. 02</span>Block closure with builder auction. Each builder constructs a candidate block; proposer picks highest value.</div>
+<svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono, monospace" font-size="11">
+  <g>
+    <text x="80" y="30" fill="#7a7466" letter-spacing="2">PENDING TXS</text>
+    <g transform="translate(20,50)"><rect width="160" height="28" fill="#131619" stroke="#3d4148"/><text x="10" y="18" fill="#e4e1d8">retail · 25 gwei</text></g>
+    <g transform="translate(20,84)"><rect width="160" height="28" fill="#131619" stroke="#b54848"/><text x="10" y="18" fill="#e4e1d8">sandFront · 33</text></g>
+    <g transform="translate(20,118)"><rect width="160" height="28" fill="#131619" stroke="#3d4148"/><text x="10" y="18" fill="#e4e1d8">fund · 30 (victim)</text></g>
+    <g transform="translate(20,152)"><rect width="160" height="28" fill="#131619" stroke="#b54848"/><text x="10" y="18" fill="#e4e1d8">sandBack · 29</text></g>
+    <g transform="translate(20,186)"><rect width="160" height="28" fill="#131619" stroke="#3d4148"/><text x="10" y="18" fill="#e4e1d8">retail-protected · 27</text></g>
+    <g transform="translate(20,220)"><rect width="160" height="28" fill="#131619" stroke="#7a4a82"/><text x="10" y="18" fill="#e4e1d8">arb · 33</text></g>
+  </g>
+
+  <line x1="186" y1="148" x2="240" y2="148" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <g>
+    <text x="380" y="30" fill="#7a7466" letter-spacing="2">EACH BUILDER PROPOSES</text>
+    <g transform="translate(240,50)">
+      <rect width="290" height="65" fill="#1a1d22" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8" font-size="11">Flashbots Classic</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">sees: 5 public txs</text>
+      <text x="10" y="46" fill="#7a7466" font-size="9">value: $145 (gas) + sandwich bundle</text>
+      <text x="280" y="60" fill="#d99a3f" font-size="11" font-weight="600" text-anchor="end">$245</text>
+    </g>
+    <g transform="translate(240,124)">
+      <rect width="290" height="65" fill="#1a1d22" stroke="#7a4a82" stroke-width="1.5"/>
+      <text x="10" y="18" fill="#e4e1d8" font-size="11">Protect-Builder</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">sees: 5 public + 1 private</text>
+      <text x="10" y="46" fill="#7a7466" font-size="9">value: $172 (gas, no sandwich on private)</text>
+      <text x="280" y="60" fill="#d99a3f" font-size="11" font-weight="600" text-anchor="end">$172</text>
+    </g>
+    <g transform="translate(240,198)">
+      <rect width="290" height="65" fill="#1a1d22" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8" font-size="11">Searcher-Aligned</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">sees: 5 public + 100bp kickback</text>
+      <text x="10" y="46" fill="#7a7466" font-size="9">value: $145 + $325 kickback</text>
+      <text x="280" y="60" fill="#6b8a3a" font-size="11" font-weight="700" text-anchor="end">$470 ✓</text>
+    </g>
+    <g transform="translate(240,272)">
+      <rect width="290" height="55" fill="#1a1d22" stroke="#3d4148"/>
+      <text x="10" y="18" fill="#e4e1d8" font-size="11">Neutral</text>
+      <text x="10" y="32" fill="#7a7466" font-size="9">random ordering · gas only</text>
+      <text x="280" y="50" fill="#d99a3f" font-size="11" font-weight="600" text-anchor="end">$145</text>
+    </g>
+  </g>
+
+  <line x1="540" y1="228" x2="600" y2="228" stroke="#6b8a3a" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="570" y="218" text-anchor="middle" fill="#6b8a3a" font-size="9">winner</text>
+
+  <g>
+    <rect x="610" y="195" width="240" height="80" fill="#22262c" stroke="#6b8a3a" stroke-width="1.5"/>
+    <text x="730" y="215" text-anchor="middle" fill="#6b8a3a" letter-spacing="2">EXECUTE</text>
+    <text x="730" y="234" text-anchor="middle" fill="#e4e1d8" font-size="10">apply ordered txs to pools</text>
+    <text x="730" y="250" text-anchor="middle" fill="#e4e1d8" font-size="10">credit fees · seal block</text>
+    <text x="730" y="266" text-anchor="middle" fill="#7a7466" font-size="9" font-style="italic">push OHLC into priceHistory</text>
+  </g>
+</svg>
+</div>
+
+<p>
+  Sandwich bundles are kept atomic — a builder that includes a sandwich front always
+  includes the matching victim and back-run as a contiguous triple. Builders that don't
+  see the victim (because it's protected) drop the sandwich attempt entirely.
+</p>
+
+<h2>III. Searchers, agents, timing</h2>
+
+<p>
+  Each sim-second the loop runs <code>searcherStep()</code>, <code>retailStep()</code>,
+  and <code>fundStep()</code>. Searchers see only public mempool entries — anything
+  marked <code>tx.private = true</code> (set when MEV-protected mode is active) is
+  invisible to them.
+</p>
+
+<p>
+  Agent firing rates are modulated by a diurnal flow multiplier derived from empirical
+  hourly DEX-volume data. Retail trade intervals scale inversely with the multiplier;
+  fund firing rate scales directly. The schedule is bimodal — peaks at 13:00–17:00 UTC
+  (US/EU overlap) and 01:00–05:00 UTC (Asia morning), trough at 06:00–10:00 UTC.
+</p>
+
+<div class="callout new">
+<div class="callout-label">v2 fix</div>
+<p>
+  Fund decision rules use sim-seconds for lookback and cooldown windows, not blocks.
+  Earlier versions used block counts which produced unintended behavior in rollup mode
+  (1s blocks made momentum cooldowns 12× shorter, causing stairstep cascades). All time
+  windows are now block-time-independent.
+</p>
+</div>
+
+<div class="chart-block">
+  <h4>Diurnal flow multiplier (empirical, normalised)</h4>
+  <div class="chart-canvas-wrap"><canvas id="chart-diurnal"></canvas></div>
+  <div class="chart-legend">
+    <span><i style="background:var(--amber)"></i>Flow multiplier</span>
+    <span><i style="background:var(--moss)"></i>Peak window (≥1.20×)</span>
+    <span><i style="background:var(--rust)"></i>Trough (&lt;0.50×)</span>
+  </div>
+  <div class="chart-note">
+    Source: simulator's <code>DIURNAL_FLOW</code> table, calibrated to public Kaiko/Block-Analitica
+    hourly distributions. Hour 13 is the default sim start.
+  </div>
+</div>
+
+<h2>IV. Forensics and accounting</h2>
+
+<p>
+  Every block, the simulator updates a <code>forensics</code> object with totals (swaps,
+  volume, fees), MEV-specific counters (sandwich attempts, JIT mints, toxic backruns,
+  oracle pushes, liquidations), and the cross-pool dislocation in bps. The forensics
+  panel renders a mode-specific view plus two universal sections (Builder Competition
+  and LP Aggregate · LVR) that always appear once the sim is running.
+</p>
+
+<p>
+  Per-agent capital and P&amp;L are tracked in <code>agentCapital</code> and
+  <code>agentPnl</code>. For LP positions, P&amp;L decomposes into fees, IL (vs HODL),
+  LVR (vs continuously-rebalanced 50/50 portfolio), and net-vs-rebalancing.
+</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4 — AGENTS                                                  -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="agents">
+
+<p class="lead">
+  Eight agent types populate the simulator. The MEV searchers are off by default and
+  activate only when the matching mode is selected.
+</p>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Liquidity Providers (4 — passive)</div>
+    <span class="spec-card-tag">passive</span>
+  </div>
+  <p>
+    One concentrated-liquidity provider per pool. Each pool's TVL is split 70/25/5 across
+    tight (±2%), mid (±10%), and wide (±50%) ranges by default. Loading the mainnet
+    calibration changes these to 78/18/4 on USDC/WETH and similar real-pool distributions.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Default allocation</td><td>70% tight / 25% mid / 5% wide</td></tr>
+    <tr><td class="label">Mainnet calibration</td><td>USDC/WETH 78/18/4 · others vary</td></tr>
+    <tr><td class="label">Fee credit</td><td>Pro-rata of L over active L when price crosses through</td></tr>
+    <tr><td class="label">Risk</td><td>IL when price moves vs entry, LVR vs rebalancer</td></tr>
+    <tr><td class="label">Reference</td><td>Adams et al. (2021), Uniswap v3 whitepaper [01]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Retail traders (×10)</div>
+    <span class="spec-card-tag">flow</span>
+  </div>
+  <p>
+    Small directional swaps with 50bps slippage tolerance. Trade size $500–$5,000 with a
+    1.0–1.6× boost in peak hours. Symmetric direction (50/50 buy/sell), high frequency,
+    low individual size.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Action interval</td><td>20–180 sim-seconds, scaled by 1/flow</td></tr>
+    <tr><td class="label">Trade size</td><td>$500–$5,000 USD, peak-hour boost 1.0–1.6×</td></tr>
+    <tr><td class="label">Pool selection</td><td>Random across all four pools</td></tr>
+    <tr><td class="label">Reference</td><td>Capponi & Jia (2023), DEX adoption [04]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Directional funds (×5 — five subtypes)</div>
+    <span class="spec-card-tag new">v2</span>
+  </div>
+  <p>
+    Five different decision rules, generating flow with realistic temporal autocorrelation
+    instead of white noise. All five together keep the population net-flat over time.
+  </p>
+  <table class="spec">
+    <tr><td class="label">FD1 · flippy</td><td>Periodic bias flip every 60–180 sim-seconds. Baseline.</td></tr>
+    <tr><td class="label">FD2 · momentum</td><td>Trigger on |return| &gt; 50bps over 60s. Trades with the move. 30s cooldown.</td></tr>
+    <tr><td class="label">FD3 · meanrev</td><td>Trigger on |z-score| &gt; 2σ over 120s. Trades against the move. 45s cooldown.</td></tr>
+    <tr><td class="label">FD4 · info</td><td>Exogenous OU signal (κ=0.05, σ=0.15). Trades when |signal| &gt; 0.6.</td></tr>
+    <tr><td class="label">FD5 · whale</td><td>Episodic. Fires every 1200–3000 sim-seconds with size $3M–$12M.</td></tr>
+    <tr><td class="label">Action interval</td><td>30–300s per strategy, scaled by diurnal flow</td></tr>
+    <tr><td class="label">Slippage tolerance</td><td>100bps (medium) · 200bps (whale)</td></tr>
+    <tr><td class="label">Routing</td><td>Public mempool unless protected mode active</td></tr>
+  </table>
+  <p>
+    Momentum and meanrev together produce the autocorrelation pattern you see in real
+    markets: a triggering tx kicks off a follow-through cascade until momentum's lookback
+    window decays, at which point meanrev typically takes over. Info adds persistent
+    regimes that aren't visible from the AMM state alone.
+  </p>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Statistical arbitrageur (AR1)</div>
+    <span class="spec-card-tag">flow</span>
+  </div>
+  <p>
+    Watches the cross-pool basis between WBTC/USDC <em>direct</em> and the synthetic
+    path <em>WBTC/WETH × WETH/USDC</em>. When divergence exceeds 25bps, fires the
+    cheaper leg of the trade. Runs in all modes and is the closing force that keeps
+    the multi-pool quotes coherent.
+  </p>
+  <div class="math-block">
+    dislocation_bps = (synthetic_price − direct_price) / direct_price × 10000<br>
+    if |dislocation_bps| &gt; 25: trade size = min(0.3 × capital, $250k)
+  </div>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Sandwich searcher (SAND1, SAND2)</div>
+    <span class="spec-card-tag" style="border-color:var(--rust);color:var(--rust)">MEV</span>
+  </div>
+  <p>
+    Detects pending public-mempool swaps with sufficient impact, sizes the front-run so
+    combined front+victim impact stays inside the victim's slip tolerance (avoiding revert),
+    and submits a back-run in the opposite direction. Front+back share paired-ids so
+    builders keep them contiguous.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Detection</td><td>Public mempool scan, victim impact ≥ 3 bps</td></tr>
+    <tr><td class="label">Front gas</td><td>victim_gas + 5 gwei (front-run priority)</td></tr>
+    <tr><td class="label">Back gas</td><td>victim_gas − 1 gwei (settles after victim)</td></tr>
+    <tr><td class="label">Front size</td><td>~70% of victim's slip headroom</td></tr>
+    <tr><td class="label">Profit gate</td><td>(victim_size × front_impact / 10000) − 2× front fee − $50 gas &gt; $50</td></tr>
+    <tr><td class="label">References</td><td>Daian et al. (2019) [02]; Qin et al. (2023) [03]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">JIT liquidity bot (JIT1)</div>
+    <span class="spec-card-tag" style="border-color:var(--amber);color:var(--amber)">MEV</span>
+  </div>
+  <p>
+    On detecting a victim swap above $100k, mints a tight (±10bp) LP position around
+    current price right before the swap, captures the disproportionate fee share when
+    the victim crosses through, and burns the position the same block.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Detection</td><td>Mempool swap ≥ $100k notional</td></tr>
+    <tr><td class="label">Mint range</td><td>±10 bps around current price</td></tr>
+    <tr><td class="label">Mint capital</td><td>min(0.8 × searcher capital, 5× victim size)</td></tr>
+    <tr><td class="label">Burn</td><td>Same block, after victim swap settles</td></tr>
+    <tr><td class="label">Reference</td><td>Wan & Adams (2022), JIT Liquidity [06]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Toxic backrunner (TX1)</div>
+    <span class="spec-card-tag" style="border-color:var(--rust);color:var(--rust)">MEV</span>
+  </div>
+  <p>
+    Watches for single-block price moves greater than 10bps and trades against them.
+    Profits from LPs being adversely selected.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Trigger</td><td>Single-block price move &gt; 10 bps</td></tr>
+    <tr><td class="label">Action</td><td>Trade opposite direction, 20–40% of triggering swap</td></tr>
+    <tr><td class="label">Cooldown</td><td>2 blocks</td></tr>
+    <tr><td class="label">Reference</td><td>Milionis et al. (2022), LVR [07]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Oracle manipulator (ORC1)</div>
+    <span class="spec-card-tag" style="border-color:var(--plum);color:var(--plum)">MEV</span>
+  </div>
+  <p>
+    Episodic. Fires roughly once every 200 blocks. Sells $50M of WETH on USDC/WETH —
+    flashloan-scale capital — pushing the pool's WETH price down 4–6%, holds for 8 blocks,
+    then unwinds. Profit comes from the lending pool, not the AMM round-trip — see the
+    Lending &amp; Oracles tab.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Trigger</td><td>Stochastic, ~0.1% per searcher-step</td></tr>
+    <tr><td class="label">Push direction</td><td>WETH down (sells WETH on USDC/WETH)</td></tr>
+    <tr><td class="label">Push size</td><td>$50M USDC-equivalent</td></tr>
+    <tr><td class="label">Realised price drop</td><td>~4–6% on default depths</td></tr>
+    <tr><td class="label">Hold</td><td>8 blocks (96s on mainnet, 8s on rollup)</td></tr>
+    <tr><td class="label">AMM round-trip cost</td><td>~$150k (intentional loss)</td></tr>
+    <tr><td class="label">Liquidation profit</td><td>$50–150k vs spot oracle, ~$10k vs TWAP-30</td></tr>
+  </table>
+</div>
+
+<h2>Population summary</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Agent type</th><th>Count</th><th>Active when</th><th>Aggregate capital</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>LP</td><td class="mono">4 (per pool)</td><td>Always</td><td class="mono">$228M (sum of pool TVLs)</td></tr>
+    <tr><td>Retail</td><td class="mono">10</td><td>Always</td><td class="mono">~$50k–$200k</td></tr>
+    <tr><td>Fund (5 subtypes)</td><td class="mono">5</td><td>Always</td><td class="mono">$2M–$25M</td></tr>
+    <tr><td>Stat-arb</td><td class="mono">1</td><td>Always</td><td class="mono">$500k–$2M</td></tr>
+    <tr><td>Sandwich</td><td class="mono">2</td><td>sandwich mode</td><td class="mono">$200k–$2M each</td></tr>
+    <tr><td>JIT</td><td class="mono">1</td><td>jit mode</td><td class="mono">$1M–$10M</td></tr>
+    <tr><td>Toxic</td><td class="mono">1</td><td>toxic mode</td><td class="mono">$200k–$2M</td></tr>
+    <tr><td>Oracle</td><td class="mono">1</td><td>oracle mode</td><td class="mono">$5M–$50M (flashloan)</td></tr>
+    <tr><td>Borrowers</td><td class="mono">8</td><td>Always (in lending pool)</td><td class="mono">~$13M total collateral</td></tr>
+  </tbody>
+</table>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5 — LENDING & ORACLES                                       -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="lending">
+
+<p class="lead">
+  The lending pool is the simulator's downstream protocol. Without it, oracle attacks
+  have nowhere to land — the AMM round-trip is intentional loss for the attacker. With
+  it, oracle manipulation becomes the sim's only consistently-profitable MEV form.
+</p>
+
+<h2>The setup</h2>
+
+<p>
+  Eight borrowers post WETH as collateral and borrow USDC. They span the LTV spectrum
+  from safe (50%) to edge (81%). The lending pool reads its WETH oracle from the
+  USDC/WETH AMM. Every block, a liquidator scans positions and triggers liquidations
+  on any account with health factor below 1.0.
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>ID</th><th>Collateral (WETH)</th><th>LTV</th><th>Initial HF</th><th>Drop to liquidation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="mono">BR1</td><td>200</td><td>50%</td><td class="mono">1.65</td><td>40% drop</td></tr>
+    <tr><td class="mono">BR2</td><td>300</td><td>55%</td><td class="mono">1.50</td><td>33% drop</td></tr>
+    <tr><td class="mono">BR3</td><td>150</td><td>60%</td><td class="mono">1.38</td><td>27% drop</td></tr>
+    <tr><td class="mono">BR4</td><td>500</td><td>75%</td><td class="mono">1.10</td><td>9% drop</td></tr>
+    <tr><td class="mono">BR5</td><td>800</td><td>78%</td><td class="mono">1.06</td><td>5% drop</td></tr>
+    <tr><td class="mono">BR6</td><td>100</td><td>80%</td><td class="mono">1.03</td><td>3% drop</td></tr>
+    <tr><td class="mono">BR7</td><td>1200</td><td>55%</td><td class="mono">1.50</td><td>33% drop</td></tr>
+    <tr><td class="mono">BR8</td><td>250</td><td>81%</td><td class="mono">1.02</td><td>2% drop</td></tr>
+  </tbody>
+</table>
+
+<h2>Health factor and liquidation</h2>
+
+<div class="math-block">
+<div class="math-label">Health factor</div>
+HF = (collateral_USD × liquidation_threshold) / debt_USD<br>
+liquidation_threshold = 0.825 (Aave V2 WETH parameter)
+</div>
+
+<p>
+  If HF drops below 1.0, the liquidator can repay up to 50% of the debt (the close
+  factor) and seize collateral worth that amount plus an 8% bonus. The liquidator's
+  profit is the bonus, minus their own slippage to convert seized WETH back to USDC.
+  We approximate net profit as 85% of the gross bonus.
+</p>
+
+<h2>Spot vs TWAP oracle</h2>
+
+<p>
+  The toggle is the lending oracle mode in the strategy bar. Two settings:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Mode</th><th>What it reads</th><th>Vulnerability</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">spot</td>
+      <td>Current pool price (one-block snapshot)</td>
+      <td>Single large swap can move it 4–6%, triggering immediate liquidations</td>
+    </tr>
+    <tr>
+      <td class="mono">twap</td>
+      <td>Geometric mean of last 30 blocks</td>
+      <td>Attacker must hold the manipulated price for the whole window</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="math-block">
+<div class="math-label">TWAP oracle (window N)</div>
+oracle_price = exp(  (1/N) × Σᵢ log(price_i)  )  for i in last N blocks
+</div>
+
+<h2>Why the oracle attack works (and doesn't, with TWAP)</h2>
+
+<p>
+  ORC1 sells $50M of WETH on USDC/WETH. With $120M default TVL and ~70% concentrated in
+  the tight band, the active depth at price is ~$42M. A $50M swap pushes price about 5%.
+  Most borrowers in the LTV-distribution table above have liquidation thresholds inside
+  that 5% band — so HF crosses 1.0 for 3–8 of them.
+</p>
+
+<p>
+  With <strong>spot oracle</strong>: the manipulated price is what the lending pool sees.
+  ORC1 liquidates the unhealthy borrowers at the depressed price, collects the 8% bonus
+  on $200k–$2M of seized collateral. Net profit ≈ $50–150k per attack.
+</p>
+
+<p>
+  With <strong>TWAP-30</strong>: the oracle is the geometric mean of the last 30 blocks.
+  Even when the spot price is depressed 5%, the TWAP barely moves because 29 of the 30
+  data points are unaffected. To corrupt a 30-block TWAP, ORC1 would need to hold the
+  manipulated price for 30+ blocks, which means $50M × 30 blocks of capital lockup and
+  30 blocks of accumulated slippage. The math doesn't close. ORC1's profit drops by
+  about 80%.
+</p>
+
+<div class="callout">
+<div class="callout-label">Important caveat</div>
+<p>
+  In TWAP mode, you'll still see <em>some</em> liquidations during a price push — those
+  are organic, caused by the natural variance in WETH price during the warm-up period.
+  But ORC1 only collects profit when its episode is active (the 8-block hold). After the
+  episode unwinds, any remaining liquidations go to a generic liquidator bot, and ORC1
+  isn't credited. This is empirically correct: TWAP doesn't prevent liquidations from
+  happening; it prevents the <em>attacker</em> from being the one who profits.
+</p>
+</div>
+
+<h2>Historical context</h2>
+
+<p>
+  Real exploits in this category include Mango Markets (Oct 2022, $114M), Cream Finance
+  (Oct 2021, $130M), and Inverse Finance (April 2022, $15M). All used variants of the
+  pattern modeled here: borrow flashloans, push an AMM price, exploit a downstream
+  protocol that read that price as oracle, unwind. Most current lending protocols have
+  moved to TWAP or multi-source (Chainlink) oracles in response.
+</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 6 — BUILDERS & LVR                                          -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="builders">
+
+<p class="lead">
+  Two universal forensic sections appear once the sim is running: Block Builder Competition
+  and LP Aggregate · LVR. Both apply to every mode.
+</p>
+
+<h2>Block builder competition</h2>
+
+<p>
+  Real Ethereum (post-MEV-Boost) has many block-builders. Each takes the available
+  transactions and constructs a candidate block. Each block has a value — the sum of
+  priority fees plus searcher kickbacks. The proposer picks the highest-value block.
+</p>
+
+<p>
+  The simulator runs four builders every block:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Builder</th><th>Mempool visibility</th><th>Sandwich policy</th><th>Kickback</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">flashbots-classic</td>
+      <td>Public only</td>
+      <td>Allowed</td>
+      <td class="mono">0 bps</td>
+    </tr>
+    <tr>
+      <td class="mono">protect-builder</td>
+      <td>Public + protected</td>
+      <td>Refuses on private victims</td>
+      <td class="mono">0 bps</td>
+    </tr>
+    <tr>
+      <td class="mono">searcher-aligned</td>
+      <td>Public only</td>
+      <td>Allowed, kickback-incentivized</td>
+      <td class="mono">100 bps on bundles</td>
+    </tr>
+    <tr>
+      <td class="mono">neutral</td>
+      <td>Public only</td>
+      <td>Allowed but random ordering</td>
+      <td class="mono">0 bps</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  In normal mode, Flashbots-Classic wins most blocks because its straightforward
+  gas-priority sort produces consistent value. Searcher-Aligned wins the blocks with
+  large sandwich bundles (the kickback puts it ahead). Protect-Builder wins zero
+  blocks unless protected mode is active — without private orderflow it has nothing
+  the other builders can't see.
+</p>
+
+<p>
+  In protected mode, the picture flips: Protect-Builder wins every block because it's
+  the only one that can include the private retail/fund txs. The other builders'
+  candidate blocks are nearly empty.
+</p>
+
+<h2>LP aggregate · LVR</h2>
+
+<p>
+  The forensics panel decomposes LP P&amp;L into four components:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Component</th><th>Definition</th><th>Sign convention</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="mono">currentUsd</td>
+      <td>Current USD value of the LP position at fair price</td>
+      <td>Positive</td>
+    </tr>
+    <tr>
+      <td class="mono">feesUsd</td>
+      <td>Fees earned in the pool (cumulative)</td>
+      <td>Positive when accumulated</td>
+    </tr>
+    <tr>
+      <td class="mono">ilUsd</td>
+      <td>currentUsd − HODL value of original token mix</td>
+      <td>Negative whenever price moves vs entry</td>
+    </tr>
+    <tr>
+      <td class="mono">lvrUsd</td>
+      <td>HODL value − rebalancing portfolio value</td>
+      <td>Negative when rebalancer would have done better</td>
+    </tr>
+    <tr>
+      <td class="mono">netVsRebalUsd</td>
+      <td>(LP value + fees) − rebalancer value</td>
+      <td>The single most informative number</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  HODL is the original token mix held forever. Rebalancing is a continuously-rebalanced
+  50/50 portfolio at fair price — the strategy a CEX-trading market-maker would run.
+  LVR is the gap between these two: how much an LVR-aware rebalancer would have done
+  better than just sitting in the original mix.
+</p>
+
+<p>
+  The most informative single number is <strong>netVsRebal</strong> — it answers "should
+  I have been an LP, or rebalanced on a CEX?" Negative means the rebalancer wins.
+  Positive means the LP captured enough fees to offset both IL and LVR.
+</p>
+
+<h3>What changes the LVR number</h3>
+
+<ul>
+  <li><strong>Volatility</strong> — LVR scales with σ². A quiet trading session has near-zero LVR; a volatile one can blow past fee revenue.</li>
+  <li><strong>Toxic mode</strong> — Toxic backrunners specifically extract LVR. Running in toxic mode for +24h shows LVR accumulating faster than fees offset it.</li>
+  <li><strong>Oracle attacks</strong> — During an attack, prices on USDC/WETH move 5%+ then snap back. LPs eat the round-trip IL.</li>
+  <li><strong>Diurnal effects</strong> — LVR is worse for LPs in the 06:00–10:00 UTC trough hours, when CEX volumes are higher than DEX volumes and arbs widen the gap.</li>
+</ul>
+
+<h3>The "fair price" estimator</h3>
+
+<p>
+  Computing LVR requires a CEX-equivalent fair price. The simulator approximates it as
+  the average of two estimators:
+</p>
+
+<div class="math-block">
+<div class="math-label">Fair WETH price</div>
+e1 = displayPrice(USDC_WETH)<br>
+e2 = displayPrice(WBTC_USDC) / displayPrice(WBTC_WETH)  // synthetic via WBTC<br>
+fair_weth = (e1 + e2) / 2
+</div>
+
+<p>
+  Both estimators converge fast under the cross-pool stat-arb agent's pressure. In
+  practice they're within a few bps of each other, so the average is a stable proxy for
+  the external CEX price.
+</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 7 — UI CONTROLS                                              -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="ui">
+
+<p class="lead">
+  Quick reference for everything you can click. Every control is in the top bar, the
+  strategy bar, or the chart panel — no hidden menus.
+</p>
+
+<h2>Top bar</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Control</th><th>What it does</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="key">Pool dropdown</span></td><td>Switches which pool the chart and liquidity panel display</td></tr>
+    <tr><td><span class="key">Speed</span> 1× / 3× / 8× / 20×</td><td>Multiplies sim-seconds-per-real-second. 20× runs about a minute of sim per 3 seconds</td></tr>
+    <tr><td><span class="key">Skip +1h / +6h / +24h</span></td><td>Fast-forwards N blocks without rendering each step. Renders once at the end. 4-second wall cap</td></tr>
+    <tr><td><span class="key">UTC clock</span></td><td>Sim-time wallclock. Drives diurnal flow modulation. Default 13:00 UTC</td></tr>
+    <tr><td><span class="key">FLOW indicator</span></td><td>PEAK / NORMAL / THIN — current diurnal multiplier</td></tr>
+    <tr><td><span class="key">▶ START / ⏸ PAUSE</span></td><td>Toggle simulation</td></tr>
+  </tbody>
+</table>
+
+<h2>Strategy bar</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Control</th><th>What it does</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="key">No MEV</span></td><td>Just organic flow — retail, funds, stat-arb</td></tr>
+    <tr><td><span class="key">🥪 Sandwich</span></td><td>Activates SAND1, SAND2</td></tr>
+    <tr><td><span class="key">⚡ JIT Liquidity</span></td><td>Activates JIT1</td></tr>
+    <tr><td><span class="key">☣ Toxic Backrun</span></td><td>Activates TX1</td></tr>
+    <tr><td><span class="key">🔮 Oracle Attack</span></td><td>Activates ORC1 + makes lending exploit possible</td></tr>
+    <tr><td><span class="key">🛡 MEV-Protected RPC</span></td><td>All retail/fund txs route privately. Only Protect-Builder sees them</td></tr>
+    <tr><td><span class="key">⚙ Unichain Rollup-Boost</span></td><td>Block time drops to 1s</td></tr>
+    <tr><td><span class="key">SPOT / TWAP-30</span></td><td>Lending pool's WETH oracle source</td></tr>
+    <tr><td><span class="key">↻ MAINNET</span></td><td>Reload pool TVLs from April 2026 mainnet snapshot</td></tr>
+  </tbody>
+</table>
+
+<h2>Chart controls (v2)</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Control</th><th>What it does</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><span class="key">LINE / CANDLES</span></td><td>Switch between line chart and OHLC candlesticks</td></tr>
+    <tr><td><span class="key">BAR 1 / 5 / 15 / 60</span></td><td>How many blocks aggregate into one candle. At mainnet 12s blocks: 5 = 1-min candles, 15 = 3-min, 60 = 12-min</td></tr>
+    <tr><td><span class="key">+ / −</span></td><td>Zoom in / out. Cycles through 20 / 40 / 80 / 160 / 320 / 640 candles visible</td></tr>
+    <tr><td><span class="key">‹ / ›</span></td><td>Pan back / forward by 30% of window</td></tr>
+    <tr><td><span class="key">⤢</span></td><td>Reset to default (80 candles, latest)</td></tr>
+    <tr><td>Mouse wheel</td><td>Same as +/− buttons</td></tr>
+    <tr><td>Click and drag</td><td>Pan the chart freely. Cursor changes to grab/grabbing</td></tr>
+  </tbody>
+</table>
+
+<p>
+  When you've panned back into history, the bottom-center label shows <code>◄ N bars
+  back</code> so you know you're not looking at the latest data. The dashed last-price
+  line and the green dot only render when scrolled to latest — when scrolled back,
+  they're hidden because they refer to current state, not the visible window.
+</p>
+
+<h2>Forensics panel</h2>
+
+<p>
+  The right-side panel updates every 4 sim-seconds. Three section types:
+</p>
+
+<ul>
+  <li><strong>Mode-specific</strong> — Sandwich/JIT/Toxic/Oracle/Protected/Rollup metrics for whichever mode is active</li>
+  <li><strong>Cross-pool stat-arb</strong> — Always shown. Direct vs synthetic dislocation, arb count, arb profit</li>
+  <li><strong>Block builder competition</strong> — Always shown once running. Per-builder win counts, total value, dominant builder</li>
+  <li><strong>LP aggregate · LVR</strong> — Always shown once running. Full P&amp;L decomposition for all passive LP positions</li>
+</ul>
+
+<h2>Downloads</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Button</th><th>Output</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="key">⬇ SWAPS</span></td>
+      <td>CSV of every executed swap: block, sim_time, pool, side, size_usd, exec_price, agent, kind</td>
+    </tr>
+    <tr>
+      <td><span class="key">⬇ MEV LOG</span></td>
+      <td>CSV of every event: block, sim_time, category, message</td>
+    </tr>
+  </tbody>
+</table>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 8 — BUG NOTES                                                -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="sandwich">
+
+<p class="lead">
+  Five bugs were diagnosed during the simulator's development. Each fix exposed a deeper
+  assumption that turned out to be wrong. They're documented here in the order they were
+  found because they're useful examples of how subtle the interactions between AMM
+  mechanics, agent timing, and accounting can be.
+</p>
+
+<h2>Bug 1 — Sandwich bundles never resolved</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    Forensics showed 35 sandwich attempts, 0 profitable, $0 P&amp;L. The searchers were
+    firing, the events were logging, but no profit was ever recorded.
+  </p>
+</div>
+
+<p>
+  Bundle assembly worked by iterating over pending mempool txs and matching each to a
+  bundle by <code>pairedVictimId</code>. The bug: the victim itself doesn't carry
+  <code>pairedVictimId</code> — only the front and back txs do. The victim is what the
+  paired-id <em>points to</em>. The matcher iterated past every victim, leaving
+  <code>b.victim</code> always <code>null</code>, so the profit-computation loop's guard
+  always tripped.
+</p>
+
+<div class="math-block">
+<div class="math-label">Before — broken</div>
+pending.forEach(t =&gt; {<br>
+&nbsp;&nbsp;if (t.pairedVictimId !== undefined) {  // ⚠ skips victim<br>
+&nbsp;&nbsp;&nbsp;&nbsp;for (const [fid, b] of bundleByFrontId) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (b.front.pairedVictimId === t.id) b.victim = t;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}<br>
+});
+</div>
+
+<div class="math-block">
+<div class="math-label">After — fixed</div>
+pending.forEach(t =&gt; {<br>
+&nbsp;&nbsp;for (const [fid, b] of bundleByFrontId) {  // scan all<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if (b.front.pairedVictimId === t.id) b.victim = t;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if (t.type === 'sandBack' &amp;&amp; t.pairedFrontId === fid) b.back = t;<br>
+&nbsp;&nbsp;}<br>
+});
+</div>
+
+<p>
+  After this fix, attempts started resolving. But every single one was a loss, every
+  time. The search continued.
+</p>
+
+<h2>Bug 2 — Inverted price convention</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    Every sandwich attempt on USDC/WETH or WBTC/WETH lost money in a specific pattern:
+    the front-run output and the back-run input had wildly inconsistent USD values.
+  </p>
+</div>
+
+<p>
+  Uniswap V3's internal convention is <code>price = sqrtP² = token1 / token0</code>.
+  The simulator's swap math used this correctly. But the <code>POOLS</code> config
+  stored <code>initialPrice</code> values in the human-readable convention — "USDC per
+  WETH = 3,400" rather than "WETH per USDC = 1/3,400". For two of the four pools
+  (USDC/WETH and WBTC/WETH) the values were inverted.
+</p>
+
+<p>
+  The swap math was internally consistent but operating in the wrong direction for
+  those pools. Selling token0 (USDC) pushed the displayed price down when it should
+  have pushed it up. For the sandwich agent, this meant the front-run pushed price
+  the opposite direction of intent, the victim pushed it further opposite, and the
+  back-run sold into a pool whose price had moved against the searcher every step —
+  guaranteed loss, every time.
+</p>
+
+<p>
+  The fix was to restructure all four pools to store internal V3 prices uniformly,
+  with a separate <code>displayPrice(pool)</code> helper that handles the inversion
+  for UI and USD conversion:
+</p>
+
+<div class="math-block">
+<div class="math-label">POOLS config — uniform convention</div>
+USDC_WETH: { token0: 'USDC', token1: 'WETH', initialPrice: 1 / REF.WETH, invertDisplay: true }<br>
+WBTC_WETH: { token0: 'WETH', token1: 'WBTC', initialPrice: REF.WETH / REF.WBTC, invertDisplay: true }<br>
+WBTC_USDC: { token0: 'USDC', token1: 'WBTC', initialPrice: 1 / REF.WBTC, invertDisplay: true }<br>
+USDC_USDT: { token0: 'USDC', token1: 'USDT', initialPrice: 1.0, invertDisplay: false }
+</div>
+
+<p>
+  All swap math, fee accounting, and tick arithmetic operate on the canonical internal
+  price. The chart, top bar, and tape pass values through <code>displayPrice()</code>
+  before showing them.
+</p>
+
+<h2>Bug 3 — Back-run input was the wrong amount</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    Sandwiches now profitable in principle, but the back-run was leaving small amounts
+    on the table — the searcher's net token position was off by a few percent.
+  </p>
+</div>
+
+<p>
+  At submission time, the back-run's input amount was set to a <em>simulated</em> expected
+  output of the front-run, computed against pool state <em>before</em> the front actually
+  executed. By the time the back ran, the front had already moved the pool and its actual
+  output differed slightly. The back was trying to swap exactly what was predicted, but
+  the searcher held the realised amount.
+</p>
+
+<p>
+  Real sandwich bundles are atomic — the back's input is whatever the front returned,
+  not a pre-simulated estimate. The fix was a small patch in <code>executeTx</code>
+  for sandBack txs only — read the front's actual amountOut and use that as the back's
+  amountIn at execution time.
+</p>
+
+<h2>Bug 4 — Naive sizing triggered victim reverts</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    With prices and accounting fixed, sandwiches were profitable on individual bundles
+    but the success rate was poor. Many attempts had the front execute, then the
+    victim revert (slippage exceeded), leaving the searcher's front position stuck
+    with no exit.
+  </p>
+</div>
+
+<p>
+  The original sandwich sizing aimed to extract maximum impact, ignoring the constraint
+  that the victim's slippage tolerance is finite. If the front pushed price too far,
+  the combined front+victim impact would exceed the victim's <code>slippageBps</code>,
+  the victim's swap would revert, and the searcher would be left with a position that
+  the back-run had to unwind into a worsened pool — almost always at a loss.
+</p>
+
+<p>
+  The fix: size the front so that combined front+victim impact stays within the
+  victim's slip budget, and gate on expected dollar profit before submission.
+</p>
+
+<div class="math-block">
+<div class="math-label">Sandwich sizing — current implementation</div>
+headroom_bps = victim_slip_bps − victim_impact_bps<br>
+if headroom_bps &lt; 5: skip<br>
+size_fraction = clamp(0.7 × headroom_bps / victim_impact_bps, 0.2, 2.0)<br>
+front_usd = min(victim_size × size_fraction, searcher_capital × 0.7)<br>
+<br>
+gross_extract = victim_size × front_impact_bps / 10000<br>
+fee_cost = 2 × front_usd × pool_fee_bps / 10000<br>
+gas_cost = $50<br>
+expected_profit = gross_extract − fee_cost − gas_cost<br>
+<br>
+if expected_profit &lt; $50: skip<br>
+if front_impact_bps + victim_impact_bps &gt; victim_slip_bps − 2: skip
+</div>
+
+<p>
+  After this iteration, the simulator reports a roughly 60% sandwich success rate on
+  whale victims in the 5bp pool — close to historical Flashbots data on mainnet
+  sandwich landings.
+</p>
+
+<h2>Bug 5 — Systematic upward price bias in sandwich mode</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom (user-reported)</div>
+  <p>
+    "When sandwich attacks are present there seems to be a bias towards a rising price
+    in the chart. Is this simply due to the inter-agent dynamics?"
+  </p>
+</div>
+
+<p>
+  Investigated by running 5 trials × 1,000 blocks in <em>none</em> mode (no MEV) and
+  measuring price drift:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Mode</th><th>WETH drift (mean of 5)</th><th>WBTC drift</th><th>Sandwich attempts</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>none (before fix)</td><td class="mono">+1.45%</td><td class="mono">+1.54%</td><td class="mono">0</td></tr>
+    <tr><td>sandwich (before fix)</td><td class="mono">+0.19%</td><td class="mono">+0.96%</td><td class="mono">~10/run</td></tr>
+    <tr><td>none (after fix)</td><td class="mono">+0.01%</td><td class="mono">+0.01%</td><td class="mono">0</td></tr>
+    <tr><td>sandwich (after fix)</td><td class="mono">−0.02%</td><td class="mono">−0.01%</td><td class="mono">~10/run</td></tr>
+  </tbody>
+</table>
+
+<p>
+  The bias was real but had nothing to do with sandwich attacks. The fund-bias selector
+  was <code>Math.random() &lt; 0.5 ? 'long-eth' : 'long-btc'</code> — every fund was
+  perpetually <em>long-only</em>, never short. Three funds buying continuously, with
+  only symmetric retail flow as counter-pressure, produced the drift. The fix expanded
+  the bias pool to four directions distributed across the funds, plus per-fund bias
+  flipping every 5–15 blocks.
+</p>
+
+<p>
+  Sandwich attacks themselves are theoretically price-neutral. The front and back are
+  equal-and-opposite swaps that cancel in expectation; the only price residue the
+  bundle leaves is the victim's own impact, which would have happened anyway.
+</p>
+
+<h2>Bug 6 — Stairstep pattern in rollup mode (v2)</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom (user-reported)</div>
+  <p>
+    "What happens with Unichain rollup-boost? The trend appears to be a step-wise function
+    upwards only."
+  </p>
+</div>
+
+<p>
+  The reactive funds added in v2 measured their lookback windows in <em>blocks</em>
+  rather than sim-seconds. In mainnet mode (12s blocks), <code>lookbackBlocks: 5</code>
+  meant the momentum fund evaluated price moves over 60 sim-seconds. In rollup mode (1s
+  blocks), the same value meant 5 sim-seconds — a 12× shorter window.
+</p>
+
+<p>
+  This created two cascading problems in rollup mode. First, the 50bps trigger threshold
+  was rarely tripped by organic flow — but when it <em>was</em>, the fund fired a
+  $300k–$1M directional buy that moved price ~5–10bps, which kept the trailing
+  5-second return above 50bps. Second, the cooldown
+  <code>blockNumber + 2</code> was a 24-second pause on mainnet but only 2 seconds on
+  rollup. As soon as cooldown expired, the trailing window still showed &gt; 50bps and
+  momentum fired again, in the same direction. Repeat.
+</p>
+
+<p>
+  The result was a stairstep: a single triggering tx kicked off 5–10 follow-on momentum
+  buys before the trailing window fell back below threshold. It looked like an upward
+  bias because momentum is asymmetric — it always trades <em>with</em> the recent
+  direction, so whichever direction the first trigger picked dominated.
+</p>
+
+<p>
+  The fix: all fund decision rules now use <strong>sim-seconds</strong> for lookback
+  and cooldown windows. Same parameters describe the same temporal behavior regardless
+  of block time. After the fix, drift is centered at zero in both modes (mainnet and
+  rollup), with similar variance.
+</p>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 9 — CHANGELOG                                                -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="changelog">
+
+<p class="lead">
+  Major changes since v1. Earlier-version content is in the Bug Notes tab.
+</p>
+
+<h2>v2 — April 2026</h2>
+
+<div class="changelog-entry">
+  <h4>Coupled lending pool</h4>
+  <p>
+    Eight WETH-collateralized borrowers, LTVs from 50% to 81%. Lending oracle reads from
+    USDC/WETH AMM, configurable as <code>spot</code> or <code>twap</code> (30-block
+    geometric mean). Liquidator competes for liquidations at an 8% bonus. Oracle attacks
+    now have a downstream profit path: ORC1 sells $50M of WETH, pushes price ~5%, holds
+    8 blocks, liquidates 3–8 borrowers at the depressed price. With spot oracle, ORC1
+    nets $50–150k per attack. With TWAP-30, profit drops by ~80%.
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>Five fund subtypes (replaced flippy-only)</h4>
+  <p>
+    FD1 flippy (baseline), FD2 momentum, FD3 meanrev, FD4 info (OU signal), FD5 whale.
+    Together they generate flow with realistic temporal autocorrelation: bursts,
+    follow-through, occasional whale events. All decision rules use sim-seconds for
+    timing windows, so behavior is consistent across mainnet (12s blocks) and rollup
+    (1s blocks).
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>Multi-builder competition</h4>
+  <p>
+    Four builders compete every block: Flashbots-Classic, Protect-Builder,
+    Searcher-Aligned, Neutral. Each constructs a candidate block from txs they can see
+    and computes its block value. Proposer picks the highest. Forensics shows
+    per-builder win count and total value extracted.
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>LVR accounting</h4>
+  <p>
+    Every LP position now exposes <code>hodlUsd</code>, <code>rebalUsd</code>,
+    <code>ilUsd</code>, <code>lvrUsd</code>, and <code>netVsRebalUsd</code>. The
+    forensics panel has a new universal "LP Aggregate · LVR" section showing the full
+    decomposition. Fair-price proxy uses the average of two cross-pool estimators.
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>Mainnet calibration loader</h4>
+  <p>
+    <span class="key">↻ MAINNET</span> button replaces default TVLs with an April 2026
+    snapshot ($215M USDC/WETH, $42M WBTC/WETH, $31M WBTC/USDC, $102M USDC/USDT). Real
+    pools also concentrate more aggressively in the tight band, so swap impact per
+    dollar is lower. Snapshot is embedded inline.
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>Candlestick chart with zoom and pan</h4>
+  <p>
+    Each pool now records full OHLC per block. Toggle between LINE and CANDLES; pick
+    bar size 1 / 5 / 15 / 60 blocks. Zoom in/out with +/− buttons or mouse wheel; pan
+    with ‹/› buttons or click-and-drag. Y-axis auto-scales to the visible window.
+    When scrolled back into history, the bottom-center label shows
+    <code>◄ N bars back</code>. The dashed last-price line and green dot only render
+    when at the right edge.
+  </p>
+</div>
+
+<div class="changelog-entry">
+  <h4>Fixes</h4>
+  <p>
+    Stairstep pattern in rollup mode (Bug 6 in Bug Notes — block-vs-second lookback
+    mismatch in reactive funds). Last-price chart marker drawing in raw V3 units
+    instead of display units (off-screen on inverted-display pools).
+  </p>
+</div>
+
+<h2>v1 — earlier</h2>
+
+<div class="changelog-entry">
+  <h4>Initial release</h4>
+  <p>
+    Four pools with concentrated liquidity, 31 agents, public mempool with single
+    builder (gas-priority), six MEV modes, diurnal flow modulation. Documented in
+    Bug Notes as Bugs 1–5.
+  </p>
+</div>
+
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 10 — REFERENCES                                              -->
+<!-- ============================================================ -->
+<section class="tab-pane" id="references">
+
+<p class="lead">
+  Every agent strategy, every mitigation, every back-of-envelope number is grounded
+  in published literature. References are clustered by topic.
+</p>
+
+<div class="ref-cluster">CORE PROTOCOL</div>
+<ol class="ref-list">
+  <li>
+    <span class="ref-authors">Adams, H., Zinsmeister, N., Robinson, D.</span>
+    <span class="ref-year">(2021).</span>
+    <span class="ref-title">Uniswap v3 Core.</span>
+    <span class="ref-venue">Uniswap Labs whitepaper.</span>
+    <a class="ref-link" href="https://uniswap.org/whitepaper-v3.pdf">https://uniswap.org/whitepaper-v3.pdf</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">MEV — FOUNDATIONAL</div>
+<ol class="ref-list" start="2">
+  <li>
+    <span class="ref-authors">Daian, P., Goldfeder, S., Kell, T., Li, Y., Zhao, X., Bentov, I., Breidenbach, L., Juels, A.</span>
+    <span class="ref-year">(2019).</span>
+    <span class="ref-title">Flash Boys 2.0: Frontrunning, Transaction Reordering, and Consensus Instability in Decentralized Exchanges.</span>
+    <span class="ref-venue">arXiv:1904.05234.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/1904.05234">arxiv.org/abs/1904.05234</a>
+  </li>
+  <li>
+    <span class="ref-authors">Qin, K., Zhou, L., Gervais, A.</span>
+    <span class="ref-year">(2023).</span>
+    <span class="ref-title">Quantifying Blockchain Extractable Value: How dark is the forest?</span>
+    <span class="ref-venue">arXiv:2101.05511 (also IEEE S&amp;P).</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2101.05511">arxiv.org/abs/2101.05511</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">DEX FLOW &amp; ADOPTION</div>
+<ol class="ref-list" start="4">
+  <li>
+    <span class="ref-authors">Capponi, A., Jia, R.</span>
+    <span class="ref-year">(2023).</span>
+    <span class="ref-title">The Adoption of Blockchain-based Decentralized Exchanges.</span>
+    <span class="ref-venue">SSRN 3805095.</span>
+    <a class="ref-link" href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3805095">ssrn.com/abstract=3805095</a>
+  </li>
+  <li>
+    <span class="ref-authors">Wang, Y., Chen, Y., Wu, H., Zhou, L., Deng, S., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Cyclic Arbitrage in Decentralized Exchanges.</span>
+    <span class="ref-venue">arXiv:2105.02784.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2105.02784">arxiv.org/abs/2105.02784</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">JIT LIQUIDITY</div>
+<ol class="ref-list" start="6">
+  <li>
+    <span class="ref-authors">Wan, X., Adams, H.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Just-in-Time Liquidity in Uniswap V3.</span>
+    <span class="ref-venue">Uniswap Labs blog.</span>
+    <a class="ref-link" href="https://blog.uniswap.org/jit-liquidity">blog.uniswap.org/jit-liquidity</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">LVR &amp; TOXIC FLOW</div>
+<ol class="ref-list" start="7">
+  <li>
+    <span class="ref-authors">Milionis, J., Moallemi, C. C., Roughgarden, T., Zhang, A. L.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Automated Market Making and Loss-Versus-Rebalancing.</span>
+    <span class="ref-venue">arXiv:2208.06046.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2208.06046">arxiv.org/abs/2208.06046</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">ORACLE MANIPULATION &amp; LENDING</div>
+<ol class="ref-list" start="8">
+  <li>
+    <span class="ref-authors">Mackinga, T., Nadahalli, T., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">TWAP Oracle Attacks: Easier Done than Said?</span>
+    <span class="ref-venue">IACR ePrint 2022/445.</span>
+    <a class="ref-link" href="https://eprint.iacr.org/2022/445">eprint.iacr.org/2022/445</a>
+  </li>
+  <li>
+    <span class="ref-authors">Eskandari, S., Salehi, M., Gu, W. C., Clark, J.</span>
+    <span class="ref-year">(2021).</span>
+    <span class="ref-title">SoK: Oracles from the Ground Truth to Market Manipulation.</span>
+    <span class="ref-venue">arXiv:2106.00667.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2106.00667">arxiv.org/abs/2106.00667</a>
+  </li>
+  <li>
+    <span class="ref-authors">Aave Protocol.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Aave V2 Risk Parameters and Liquidation Mechanics.</span>
+    <span class="ref-venue">Aave docs.</span>
+    <a class="ref-link" href="https://docs.aave.com/">docs.aave.com</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">BUILDER MARKETS &amp; PRIVATE ROUTING</div>
+<ol class="ref-list" start="11">
+  <li>
+    <span class="ref-authors">Heimbach, L., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">SoK: Preventing Transaction Reordering Manipulations in Decentralized Finance.</span>
+    <span class="ref-venue">arXiv:2203.11520.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2203.11520">arxiv.org/abs/2203.11520</a>
+  </li>
+  <li>
+    <span class="ref-authors">Yang, S., Nayak, K., Zhang, F.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Decentralization of Ethereum's Builder Market.</span>
+    <span class="ref-venue">arXiv:2405.01329.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2405.01329">arxiv.org/abs/2405.01329</a>
+  </li>
+  <li>
+    <span class="ref-authors">Flashbots.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Flashbots Protect — Documentation.</span>
+    <span class="ref-venue">Flashbots docs.</span>
+    <a class="ref-link" href="https://docs.flashbots.net/flashbots-protect/overview">docs.flashbots.net/flashbots-protect/overview</a>
+  </li>
+  <li>
+    <span class="ref-authors">CoW DAO / MEV Blocker.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">MEV Blocker — Architecture and refund mechanism.</span>
+    <span class="ref-venue">Project documentation.</span>
+    <a class="ref-link" href="https://mevblocker.io/">mevblocker.io</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">REACTIVE FUND STRATEGIES</div>
+<ol class="ref-list" start="15">
+  <li>
+    <span class="ref-authors">Avellaneda, M., Lee, J.-H.</span>
+    <span class="ref-year">(2010).</span>
+    <span class="ref-title">Statistical Arbitrage in the U.S. Equities Market.</span>
+    <span class="ref-venue">Quantitative Finance, 10(7).</span>
+  </li>
+  <li>
+    <span class="ref-authors">Gârleanu, N., Pedersen, L. H.</span>
+    <span class="ref-year">(2013).</span>
+    <span class="ref-title">Dynamic Trading with Predictable Returns and Transaction Costs.</span>
+    <span class="ref-venue">Journal of Finance, 68(6).</span>
+  </li>
+</ol>
+
+<div class="ref-cluster">ROLLUP DESIGN</div>
+<ol class="ref-list" start="17">
+  <li>
+    <span class="ref-authors">Uniswap Labs.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Unichain: A DeFi-native L2.</span>
+    <span class="ref-venue">Uniswap Labs blog.</span>
+    <a class="ref-link" href="https://blog.uniswap.org/unichain">blog.uniswap.org/unichain</a>
+  </li>
+  <li>
+    <span class="ref-authors">Resnick, M., Schmid, L., et al.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">On the Relevance of Block Time in Blockchain Systems.</span>
+    <span class="ref-venue">arXiv:2305.13598.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2305.13598">arxiv.org/abs/2305.13598</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">REFERENCE IMPLEMENTATIONS &amp; TOOLS</div>
+<ol class="ref-list" start="19">
+  <li>
+    <span class="ref-authors">Anderson, I.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">defipy — Python reference implementation of Uniswap V2/V3.</span>
+    <span class="ref-venue">Open source library.</span>
+    <a class="ref-link" href="https://defipy.org/">defipy.org</a>
+  </li>
+  <li>
+    <span class="ref-authors">Various.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">dark-forest-toolkit — MEV strategy taxonomy and reference implementations.</span>
+    <span class="ref-venue">GitHub.</span>
+    <a class="ref-link" href="https://github.com/dark-forest-fund/dark-forest-toolkit">github.com/dark-forest-fund/dark-forest-toolkit</a>
+  </li>
+  <li>
+    <span class="ref-authors">EigenPhi, Parsec.</span>
+    <span class="ref-year">(ongoing).</span>
+    <span class="ref-title">On-chain MEV monitoring dashboards.</span>
+    <span class="ref-venue">Reference data for sandwich landing rates and JIT detection.</span>
+    <a class="ref-link" href="https://eigenphi.io/">eigenphi.io</a>
+  </li>
+</ol>
+
+</section>
+
+</main>
+
+<footer class="footer">
+  <div>amm-sim · Movmint research · single-file simulator · no dependencies</div>
+  <div class="footer-mark">— educational use only —</div>
+</footer>
+
+<script>
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const id = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (id === 'architecture') drawDiurnal();
+  });
+});
+
+const DIURNAL = [0.55, 0.65, 0.72, 0.78, 0.74, 0.62, 0.45, 0.38, 0.42, 0.55, 0.72, 0.88,
+                 1.05, 1.30, 1.45, 1.50, 1.42, 1.30, 1.10, 0.92, 0.80, 0.72, 0.65, 0.58];
+
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawDiurnal() {
+  const canvas = document.getElementById('chart-diurnal');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  ctx.clearRect(0, 0, w, h);
+  const padL = 44, padR = 16, padT = 16, padB = 36;
+  const cw = w - padL - padR;
+  const ch = h - padT - padB;
+
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textBaseline = 'middle';
+  for (let m = 0; m <= 1.5; m += 0.5) {
+    const y = padT + ch * (1 - m / 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cw, y); ctx.stroke();
+    ctx.fillStyle = '#7a7466';
+    ctx.textAlign = 'right';
+    ctx.fillText(m.toFixed(1) + '×', padL - 8, y);
+  }
+
+  ctx.fillStyle = 'rgba(107, 138, 58, 0.06)';
+  ctx.fillRect(padL, padT, cw, ch * (1 - 1.20 / 1.5));
+  ctx.fillStyle = 'rgba(184, 92, 47, 0.06)';
+  ctx.fillRect(padL, padT + ch * (1 - 0.50 / 1.5), cw, ch * (0.50 / 1.5));
+
+  const barW = cw / 24;
+  for (let i = 0; i < 24; i++) {
+    const v = DIURNAL[i];
+    const barH = ch * v / 1.5;
+    const x = padL + i * barW;
+    const y = padT + ch - barH;
+    let color = '#d99a3f';
+    if (v >= 1.20) color = '#6b8a3a';
+    else if (v < 0.50) color = '#b85c2f';
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 1, y, barW - 2, barH);
+  }
+
+  ctx.beginPath();
+  for (let i = 0; i < 24; i++) {
+    const v = DIURNAL[i];
+    const x = padL + i * barW + barW / 2;
+    const y = padT + ch - ch * v / 1.5;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#f5b94d';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = '#7a7466';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < 24; i += 3) {
+    const x = padL + i * barW + barW / 2;
+    ctx.fillText(i.toString().padStart(2, '0'), x, padT + ch + 8);
+  }
+  ctx.fillStyle = '#7a7466';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('UTC HOUR', padL + cw / 2, padT + ch + 24);
+
+  const startX = padL + 13 * barW + barW / 2;
+  ctx.strokeStyle = '#f5b94d';
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, padT);
+  ctx.lineTo(startX, padT + ch);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#f5b94d';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('SIM START 13:00', startX + 4, padT + 6);
+}
+
+window.addEventListener('load', () => {
+  if (document.getElementById('architecture').classList.contains('active')) drawDiurnal();
+});
+window.addEventListener('resize', () => {
+  if (document.getElementById('architecture').classList.contains('active')) drawDiurnal();
+});
+</script>
+
+</body>
+</html>
