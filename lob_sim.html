@@ -725,6 +725,109 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
 .rm-tag.blue   { background: rgba(41,121,255,0.15); color: var(--blue2); }
 .rm-tag.purple { background: rgba(168,85,247,0.15); color: #d8b4fe; }
 
+
+/* ── AGENT CARD HEADER — clickable ── */
+.agent-card-header {
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.agent-card-header:hover { background: rgba(255,255,255,0.06) !important; }
+.agent-card-header:hover .agent-name::after {
+  content: ' ↗';
+  font-size: 9px;
+  color: var(--amber);
+  opacity: 0.7;
+}
+
+/* ── AGENT DETAIL MODAL ── */
+.agent-modal {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.agent-modal.open { display: flex; }
+.agent-modal-inner {
+  background: var(--bg2); border: 1px solid var(--border2);
+  width: min(720px, 94vw); max-height: 85vh;
+  display: flex; flex-direction: column;
+  border-radius: 4px; box-shadow: 0 24px 60px rgba(0,0,0,0.85);
+  font-family: 'IBM Plex Sans', sans-serif; overflow: hidden;
+}
+.am-header {
+  padding: 0; flex-shrink: 0;
+  border-bottom: 1px solid var(--border2);
+}
+.am-header-top {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px 10px;
+}
+.am-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.am-name { font-size: 18px; font-weight: 700; color: var(--white); flex: 1; }
+.am-type { font-size: 11px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.am-close {
+  cursor: pointer; color: var(--text3); font-size: 20px; line-height: 1;
+  background: none; border: none; padding: 0 0 0 12px;
+}
+.am-close:hover { color: var(--white); }
+
+/* Live stats strip */
+.am-live-strip {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  border-top: 1px solid var(--border);
+  background: var(--bg3); font-family: 'IBM Plex Mono', monospace;
+}
+.am-live-cell {
+  padding: 8px 12px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.am-live-cell:last-child { border-right: none; }
+.am-live-label { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.am-live-val   { font-size: 13px; font-weight: 600; }
+
+.am-body { overflow-y: auto; padding: 16px 18px; flex: 1; }
+.am-body::-webkit-scrollbar { width: 4px; }
+.am-body::-webkit-scrollbar-thumb { background: var(--bg4); }
+
+.am-section { margin-bottom: 18px; }
+.am-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 8px; padding-bottom: 5px;
+  border-bottom: 1px solid var(--border2);
+}
+.am-para { font-size: 12px; color: var(--text2); line-height: 1.65; margin-bottom: 8px; }
+.am-para strong { color: var(--text); }
+
+/* Decision rules table */
+.am-rules { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+.am-rules th {
+  text-align: left; padding: 5px 8px; color: var(--text3);
+  font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--border2); font-weight: 600;
+  background: var(--bg3);
+}
+.am-rules td {
+  padding: 6px 8px; color: var(--text2);
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  vertical-align: top; line-height: 1.5;
+}
+.am-rules tr:last-child td { border-bottom: none; }
+.am-rules td:first-child { color: var(--amber); font-weight: 600; white-space: nowrap; width: 120px; }
+.am-rules td.pos { color: var(--green); }
+.am-rules td.neg { color: var(--red2); }
+.am-rules td.neutral { color: var(--text2); }
+
+.am-tag {
+  display: inline-block; font-size: 9px; padding: 2px 7px; border-radius: 2px;
+  margin: 0 3px 4px 0;
+}
+.am-tag.red    { background: rgba(220,38,38,0.15); color: var(--red2); }
+.am-tag.green  { background: rgba(0,201,122,0.15); color: var(--green2); }
+.am-tag.amber  { background: rgba(240,165,0,0.15);  color: var(--amber2); }
+.am-tag.blue   { background: rgba(41,121,255,0.15); color: var(--blue2); }
+.am-tag.purple { background: rgba(168,85,247,0.15); color: #d8b4fe; }
+.am-tag.grey   { background: rgba(255,255,255,0.06); color: var(--text2); }
+
 /* Scrollbar global */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -939,6 +1042,9 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
 // ═══════════════════════════════════════════════════════
 const TICK       = 0.25;
 const TICK_VAL   = 12.50;  // $12.50 per tick
+const FEE_TAKER  = 1.00;   // $ per contract — aggressive (market) orders
+const FEE_MAKER  = -0.25;  // $ per contract — passive (limit) rebate (negative = revenue)
+const FEE_WASH   = 2.00;   // $ per contract — wash traders pay double (both sides)
 const BASE_PRICE = 5892.50;
 const LEVELS     = 10;
 
@@ -1012,6 +1118,11 @@ let agentRealised = {};  // locked-in realised P&L
 let pendingSpoofs = [];  // {orderId, tCancel, side, price, origQty}
 let layerOrders   = [];  // same structure
 let manipCycle    = 0;
+let spoofCycle    = 0;   // independent cycle counters per strategy
+let layerCycle    = 0;
+let markCycle     = 0;
+let frontCycle    = 0;
+let insideCycle   = 0;
 
 // ═══════════════════════════════════════════════════════
 //  AGENT SETUP
@@ -1031,12 +1142,30 @@ function buildAgents() {
     { id:'WS1',  type:'wash',    name:'???-Wash',   active:false },
     { id:'IN1',  type:'insider', name:'???-Priv',   active:false },
   ];
+  // Per-agent state that drives decisions
+  const agentState = {
+    MM1:  { spreadMult:1, fillCount:0, adverseFills:0, maxPos:0, quoteSize:20 },
+    MM2:  { spreadMult:1, fillCount:0, adverseFills:0, maxPos:0, quoteSize:20 },
+    NT1:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:4*TICK, posLimit:20, lastSignalT:0 },
+    NT2:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:3*TICK, posLimit:15, lastSignalT:0 },
+    NT3:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:5*TICK, posLimit:25, lastSignalT:0 },
+    FD1:  { mandate:'buy',  target: randInt(200,600), filled:0, vwapTarget:0, sliceSize:randInt(15,40) },
+    FD2:  { mandate: Math.random()<0.5?'buy':'sell', target: randInt(150,500), filled:0, vwapTarget:0, sliceSize:randInt(10,30) },
+    AR1:  { fairValue: BASE_PRICE, posLimit:60, entryThresh:2*TICK, exitThresh:TICK, active:false },
+    MN1:  { budgetUsed:0, budgetLimit:500, pauseUntil:0, realQtyFilled:0 },
+    MN2:  { budgetUsed:0, budgetLimit:300, pauseUntil:0 },
+    WS1:  { volTarget: randInt(800,2000), volDone:0, feeBudget:1500 },
+    IN1:  { confidence:0, posLimit:200, exited:false },
+  };
   agents.forEach(a => {
     agentPnl[a.id]      = 0;
     agentPos[a.id]      = 0;
     agentAvgEntry[a.id] = 0;
     agentRealised[a.id] = 0;
+    a.state = agentState[a.id] || {};
   });
+  // Fund VWAP targets — set at open price
+  agents.filter(a=>a.type==='fund').forEach(a => { a.state.vwapTarget = midPrice; });
 }
 
 function setManipActive() {
@@ -1120,52 +1249,218 @@ function matchBook() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  NOISE AGENT LOGIC
+//  AGENT DECISION ENGINE
 // ═══════════════════════════════════════════════════════
+
+// Shared utility: unrealised P&L for a directional agent
+function unrealisedPnl(id) {
+  const pos = agentPos[id] || 0;
+  if (pos === 0) return 0;
+  return pos * (midPrice - (agentAvgEntry[id] || midPrice)) * 50;
+}
+function totalPnl(id) {
+  return (agentRealised[id] || 0) + unrealisedPnl(id);
+}
+
+// ── MARKET MAKERS ────────────────────────────────────────────────
+// Avellaneda-Stoikov inspired: widen spread and skew quotes when
+// adverse selection is high or inventory risk builds.
+// MMs carry no directional inventory; they earn the spread passively.
+function mmStep(id) {
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pnl = agentRealised[id] || 0;
+
+  // Adverse selection ratio: if >50% of recent fills moved against us, widen
+  const adverseRatio = st.fillCount > 0 ? st.adverseFills / st.fillCount : 0;
+  // Spread multiplier: tighten in calm mid-session, widen at open and on adverse flow
+  const sess = currentSession();
+  let sm = 1.0;
+  if (sess.id === 'open')  sm = 2.0;
+  if (sess.id === 'close') sm = 1.5;
+  if (adverseRatio > 0.6)  sm *= 1.5;    // widening due to toxic flow
+  if (adverseRatio < 0.3 && st.fillCount > 5) sm *= 0.85; // can tighten
+
+  st.spreadMult = Math.max(0.75, Math.min(4, sm));
+
+  // Quote size — reduce if PnL deteriorating
+  st.quoteSize = pnl < -500 ? randInt(3, 12)
+               : pnl < -200 ? randInt(5, 20)
+               : randInt(8, 35);
+
+  removeAllByAgent(id);
+  for (let i = 1; i <= 8; i++) {
+    const half = round(st.spreadMult * i * TICK);
+    addOrUpdate('ask', round(midPrice + half), st.quoteSize, id, 'mm');
+    addOrUpdate('bid', round(midPrice - half), st.quoteSize, id, 'mm');
+  }
+
+  // Decay adverse fill memory slowly
+  if (st.fillCount > 20) { st.fillCount = 10; st.adverseFills = Math.floor(st.adverseFills/2); }
+}
+
+// Called from matchBook patch when an MM fill happens — track adverse selection
+function recordMMFill(id, fillPrice, side) {
+  const a = agents.find(x => x.id === id);
+  if (!a || a.type !== 'mm') return;
+  const st = a.state;
+  st.fillCount++;
+  // Adverse: MM sold (ask filled) and price went up; MM bought (bid filled) and price went down
+  // Approximate: if fill price is at the extreme of the spread it was likely adversely selected
+  const isAdverse = (side === 'ask' && fillPrice >= midPrice + TICK*2)
+                 || (side === 'bid' && fillPrice <= midPrice - TICK*2);
+  if (isAdverse) st.adverseFills++;
+}
+
+// ── NOISE / RETAIL TRADERS ───────────────────────────────────────
+// Each NT has a weak directional signal (bull/bear bias + momentum).
+// They: respect position limits, cut losses at stop-loss, don't add to losers.
+function ntStep(id) {
+  if (Math.random() > 0.10) return;   // ~10% chance of acting per step
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const pnl = totalPnl(id);
+  const entry = agentAvgEntry[id] || midPrice;
+
+  // STOP-LOSS: if position is losing more than stopLoss threshold, flatten
+  if (pos !== 0 && Math.abs(entry - midPrice) >= st.stopLoss) {
+    const side = pos > 0 ? 'ask' : 'bid';  // sell to close long, buy to close short
+    const closePrice = side === 'ask' ? round(midPrice - TICK) : round(midPrice + TICK);
+    addOrUpdate(side, closePrice, Math.abs(pos), id, 'noise');
+    return;  // don't add new position this step
+  }
+
+  // POSITION LIMIT: don't add if at limit
+  if (Math.abs(pos) >= st.posLimit) return;
+
+  // DON'T ADD TO LOSERS: if holding a losing position, don't increase it
+  const isLosing = pos !== 0 && (pos > 0 ? midPrice < entry : midPrice > entry);
+  if (isLosing && Math.random() < 0.7) return;
+
+  // DIRECTIONAL SIGNAL: refresh signal occasionally, momentum-influenced
+  if (simTime - st.lastSignalT > randInt(30, 90)) {
+    const momentum = priceHistory.length >= 2
+      ? priceHistory[priceHistory.length-1].price - priceHistory[Math.max(0, priceHistory.length-5)].price
+      : 0;
+    // Signal blends personal bias with recent momentum
+    st.signal = (st.bias === 'bull' ? 0.3 : -0.3) + momentum / (TICK * 10);
+    st.signal = Math.max(-1, Math.min(1, st.signal + randFloat(-0.3, 0.3)));
+    st.lastSignalT = simTime;
+  }
+
+  // Place limit order in direction of signal
+  const wantBuy = st.signal > 0.1;
+  const wantSell = st.signal < -0.1;
+  if (!wantBuy && !wantSell) return;  // no conviction — sit out
+
+  const side = wantBuy ? 'bid' : 'ask';
+  // Limit price: passive — 1-2 ticks from best
+  const offset = randInt(1, 3);
+  const price  = side === 'bid'
+    ? round(bestBid() - (offset-1)*TICK)   // at or near best bid
+    : round(bestAsk() + (offset-1)*TICK);  // at or near best ask
+  const qty = randInt(1, Math.min(5, st.posLimit - Math.abs(pos)));
+  if (qty <= 0) return;
+  addOrUpdate(side, price, qty, id, 'noise');
+}
+
+// ── INSTITUTIONAL FUNDS ──────────────────────────────────────────
+// TWAP execution: fixed mandate (buy or sell target qty), sliced over session.
+// Price limit: won't pay more than VWAP + 2 ticks (buy) or sell below VWAP - 2 ticks.
+// Pauses if market is moving against mandate.
+function fundStep(id) {
+  if (Math.random() > 0.025) return;
+  const a  = agents.find(x => x.id === id);
+  const st = a.state;
+  if (st.filled >= st.target) return;  // mandate complete
+
+  const remaining = st.target - st.filled;
+  const isBuy = st.mandate === 'buy';
+
+  // Price discipline: don't chase — only execute within tolerance of VWAP target
+  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const tolerance = 3 * TICK;
+  const priceOK = isBuy
+    ? midPrice <= vwapNow + tolerance    // buying — don't overpay vs VWAP
+    : midPrice >= vwapNow - tolerance;  // selling — don't undersell vs VWAP
+  if (!priceOK) return;
+
+  // Slice size: smaller when remaining is small, always passive limit
+  const sliceQty = Math.min(st.sliceSize, remaining, randInt(10, 35));
+  const offset   = randInt(1, 3);
+  const side     = isBuy ? 'bid' : 'ask';
+  const price    = isBuy
+    ? round(bestBid() + (offset === 1 ? TICK : 0))   // competitive bid
+    : round(bestAsk() - (offset === 1 ? TICK : 0));  // competitive ask
+
+  addOrUpdate(side, price, sliceQty, id, 'fund');
+  st.filled += sliceQty;   // track toward mandate completion (approximate)
+}
+
+// ── ARBITRAGEUR ──────────────────────────────────────────────────
+// Mean-reversion: enters when mid deviates from rolling VWAP by > 2 ticks.
+// Exits when price reverts or at profit target.
+// Has a clear P&L stop: closes position if unrealised loss > $300.
+function arbStep(id) {
+  if (Math.random() > 0.05) return;
+  const a   = agents.find(x => x.id === id);
+  const st  = a.state;
+  const pos = agentPos[id] || 0;
+  const upnl = unrealisedPnl(id);
+
+  // STOP-LOSS
+  if (pos !== 0 && upnl < -300) {
+    const side  = pos > 0 ? 'ask' : 'bid';
+    const price = side === 'ask' ? round(bestAsk() - TICK) : round(bestBid() + TICK);
+    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+    return;
+  }
+
+  // TAKE PROFIT — exit when position has earned > $150
+  if (pos !== 0 && upnl > 150) {
+    const side  = pos > 0 ? 'ask' : 'bid';
+    const price = side === 'ask' ? round(bestAsk() - TICK) : round(bestBid() + TICK);
+    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
+    return;
+  }
+
+  if (Math.abs(pos) >= st.posLimit) return;
+
+  // ENTRY: deviated from VWAP
+  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const dev = midPrice - vwapNow;
+  if (Math.abs(dev) < st.entryThresh) return;
+
+  const side  = dev > 0 ? 'ask' : 'bid';  // mid above VWAP → sell; below → buy
+  const price = side === 'ask' ? round(bestAsk()) : round(bestBid());
+  const qty   = randInt(3, 12);
+  addOrUpdate(side, price, qty, id, 'arb');
+}
+
+// ── MAIN AGENT STEP (replaces old noiseAgentStep) ────────────────
 function noiseAgentStep() {
   const sess = currentSession();
   const isOpen = sess.id === 'open' || sess.id === 'mid' || sess.id === 'close';
   if (!isOpen) return;
 
-  // Market maker quotes
-  ['MM1','MM2'].forEach(id => {
-    removeAllByAgent(id);
-    const spread = sess.id==='open' ? TICK*2 : TICK;
-    for (let i = 1; i <= 8; i++) {
-      const baseQ = sess.id==='close' ? randInt(3,20) : randInt(5,40);
-      addOrUpdate('ask', round(midPrice + i*TICK), baseQ, id, 'mm');
-      addOrUpdate('bid', round(midPrice - i*spread), baseQ, id, 'mm');
-    }
-  });
+  // Market makers — inventory-aware quoting
+  mmStep('MM1');
+  mmStep('MM2');
 
-  // Random noise trades
-  const noiseIds = ['NT1','NT2','NT3'];
-  noiseIds.forEach(id => {
-    if (Math.random() < 0.4) {
-      const side = Math.random()<0.5 ? 'ask' : 'bid';
-      const offset = randInt(1,4);
-      const price = side==='ask' ? round(midPrice + offset*TICK) : round(midPrice - offset*TICK);
-      addOrUpdate(side, price, randInt(1,8), id, 'noise');
-    }
-    if (Math.random() < 0.15) {
-      // market order hit
-      const side = Math.random()<0.5 ? 'ask' : 'bid';
-      if (side==='ask' && bids.length) { bids[0].qty = Math.max(0, bids[0].qty - randInt(1,5)); }
-      if (side==='bid' && asks.length) { asks[0].qty = Math.max(0, asks[0].qty - randInt(1,5)); }
-    }
-  });
+  // Retail — signal-driven, loss-cutting
+  ntStep('NT1');
+  ntStep('NT2');
+  ntStep('NT3');
 
-  // Fund order - slower, larger
-  ['FD1','FD2'].forEach(id => {
-    if (Math.random() < 0.08) {
-      const side = Math.random()<0.5 ? 'ask' : 'bid';
-      const offset = randInt(2,6);
-      const price = side==='ask' ? round(midPrice + offset*TICK) : round(midPrice - offset*TICK);
-      addOrUpdate(side, price, randInt(20,80), id, 'fund');
-    }
-  });
+  // Funds — TWAP mandate execution
+  fundStep('FD1');
+  fundStep('FD2');
 
-  // Price drift
+  // Arbitrageur — VWAP mean-reversion
+  arbStep('AR1');
+
+  // Price drift — random walk with session volatility
   const drift = (Math.random()-0.495) * TICK * (sess.id==='open' ? 3 : 1.5);
   midPrice = round(midPrice + drift);
   midPrice = Math.max(midPrice, BASE_PRICE - 30);
@@ -1179,9 +1474,32 @@ function noiseAgentStep() {
 // -- SPOOFING --
 function spoofingStep() {
   if (currentSession().id === 'pre') return;
-  manipCycle++;
+  spoofCycle++;
 
-  if (manipCycle % 20 === 0) {
+  if (spoofCycle % 120 === 0) {
+    const mn1  = agents.find(a => a.id === 'MN1');
+    const st   = mn1.state;
+
+    // P&L GATE: pause spoofing if budget is exhausted or strategy is losing badly
+    if (simTime < st.pauseUntil) return;
+    const pnl = totalPnl('MN1');
+    if (pnl < -2000) {
+      // Strategy losing — suspend for a while, reduce activity
+      st.pauseUntil = simTime + randInt(300, 600);
+      addNews(`SPOOF SUSPEND: MN1 P&L at $${pnl.toFixed(0)} — suspending spoofing for ${Math.round((st.pauseUntil-simTime)/60)} sim-min.`, 'event-manip');
+      return;
+    }
+
+    // EDGE CHECK: expected gain from 1 spoof episode
+    // Real order size: 5-15 contracts × 1 tick edge = 5-15 × $12.50 = $62-$187
+    // Taker fee on real order: 5-15 × $1.00 = $5-$15
+    // Net expected: $50-$170 per episode → only proceed if spread is at least 1 tick
+    const currentSpread = bestAsk() - bestBid();
+    if (currentSpread < TICK) {
+      addNews(`SPOOF SKIP: spread too tight (${fmt(currentSpread)}) — insufficient edge for spoofing.`, 'event-manip');
+      return;
+    }
+
     // Cancel existing spoof orders
     pendingSpoofs.forEach(ps => {
       removeFromBook(ps.side, ps.price, 'MN1');
@@ -1189,8 +1507,11 @@ function spoofingStep() {
     });
     pendingSpoofs = [];
 
-    // New spoof: place large visible bid to push price up, then fill sell
-    const spoofSide = Math.random()<0.5 ? 'bid' : 'ask';
+    // Choose direction based on book imbalance — spoof the thin side to maximise impact
+    const bidDepth = bids.slice(0,5).reduce((s,o)=>s+o.qty, 0);
+    const askDepth = asks.slice(0,5).reduce((s,o)=>s+o.qty, 0);
+    // Spoof the side with more depth (creating fake reinforcement), fill opposite thin side
+    const spoofSide = bidDepth >= askDepth ? 'bid' : 'ask';
     const spoofPrice = spoofSide==='bid'
       ? round(midPrice - randInt(3,6)*TICK)
       : round(midPrice + randInt(3,6)*TICK);
@@ -1199,16 +1520,19 @@ function spoofingStep() {
     addOrUpdate(spoofSide, spoofPrice, spoofQty, 'MN1', 'spoof');
     addOrUpdate(spoofSide, round(spoofPrice + (spoofSide==='bid'?TICK:-TICK)), Math.floor(spoofQty*0.6), 'MN2', 'spoof');
 
-    // Real order on opposite side (genuine)
-    const realSide = spoofSide==='bid' ? 'ask' : 'bid';
-    const realPrice = realSide==='ask' ? round(midPrice+TICK) : round(midPrice-TICK);
-    addOrUpdate(realSide, realPrice, randInt(10,30), 'MN1', 'spoof');
+    // Real order on the thin opposite side — small, passive, 1 tick inside best
+    const realSide  = spoofSide === 'bid' ? 'ask' : 'bid';
+    const realPrice = realSide === 'ask'
+      ? round(bestAsk() - TICK)   // undercut existing ask to get filled first
+      : round(bestBid() + TICK);  // overbid to get filled first
+    const realQty = randInt(5, 15);
+    addOrUpdate(realSide, realPrice, realQty, 'MN1', 'spoof');
 
-    pendingSpoofs.push({ side: spoofSide, price: spoofPrice, tCancel: simTime + randFloat(2,6) });
-    pendingSpoofs.push({ side: spoofSide, price: round(spoofPrice+(spoofSide==='bid'?TICK:-TICK)), tCancel: simTime+randFloat(2,6) });
+    pendingSpoofs.push({ side: spoofSide, price: spoofPrice,                                          tCancel: simTime + randFloat(2,6) });
+    pendingSpoofs.push({ side: spoofSide, price: round(spoofPrice+(spoofSide==='bid'?TICK:-TICK)), tCancel: simTime + randFloat(2,6) });
 
-    const dir = spoofSide==='bid' ? 'BID' : 'ASK';
-    addNews(`SPOOF: ${spoofQty}-lot ${dir} order placed at ${fmt(spoofPrice)} by agent MN1. Real ${realSide.toUpperCase()} order placed at ${fmt(realPrice)}.`, 'event-manip');
+    const expectedNet = realQty * TICK_VAL - realQty * FEE_TAKER;
+    addNews(`SPOOF: ${spoofQty}-lot ${spoofSide.toUpperCase()} at ${fmt(spoofPrice)}. Real ${realSide.toUpperCase()} ${realQty}@${fmt(realPrice)}. Expected edge: ~$${expectedNet.toFixed(0)}.`, 'event-manip');
   }
 
   // Cancel expired spoofs
@@ -1226,9 +1550,9 @@ function spoofingStep() {
 // -- LAYERING --
 function layeringStep() {
   if (currentSession().id === 'pre') return;
-  manipCycle++;
+  layerCycle++;
 
-  if (manipCycle % 25 === 0) {
+  if (layerCycle % 150 === 0) {
     // Clear old layers
     ['MN1','MN2'].forEach(id => removeAllByAgent(id));
     layerOrders = [];
@@ -1268,7 +1592,7 @@ function layeringStep() {
 // -- MARKING THE CLOSE --
 function markingStep() {
   const sess = currentSession();
-  manipCycle++;
+  markCycle++;
 
   // Record price at session transitions
   if (sess.id === 'close' && forensics.priceAtCloseStart === null) {
@@ -1299,7 +1623,7 @@ function markingStep() {
   }
 
   if (sess.id !== 'close') {
-    if (manipCycle % 60 === 0) {
+    if (markCycle % 60 === 0) {
       addNews(`Marking the Close: MN1/MN2 inactive until CLOSE session (15:00 CT). Currently in ${sess.label}.`, 'event-close');
     }
     return;
@@ -1307,7 +1631,7 @@ function markingStep() {
 
   const minInClose = simTime/60 - 540; // minutes into close session (540 = 15:00)
 
-  if (manipCycle % 8 === 0) {
+  if (markCycle % 30 === 0) {
     const priceBefore = lastPrice;
     if (minInClose > 30) {
       // Settlement window — most aggressive
@@ -1339,9 +1663,9 @@ function markingStep() {
 let frontRunPending = null;
 function frontRunStep() {
   if (currentSession().id === 'pre') return;
-  manipCycle++;
+  frontCycle++;
 
-  if (manipCycle % 40 === 0) {
+  if (frontCycle % 200 === 0) {
     // Large fund order incoming
     const fundSide = Math.random()<0.5 ? 'bid' : 'ask';
     const fundQty = randInt(200,500);
@@ -1379,18 +1703,25 @@ function washStep() {
   if (currentSession().id === 'pre') return;
   washCycle++;
 
-  if (washCycle % 6 === 0) {
+  if (washCycle % 90 === 0) {
+    const ws = agents.find(a => a.id === 'WS1');
+    const st = ws.state;
+    // Stop when volume target is met or fee budget is exhausted
+    if (st.volDone >= st.volTarget) {
+      addNews(`WASH COMPLETE: WS1 hit volume target of ${st.volTarget} lots. Fees paid: ~$${(st.volDone * FEE_WASH * 2).toFixed(0)}.`, 'event-manip');
+      return;
+    }
+    const feeSoFar = st.volDone * FEE_WASH * 2;
+    if (feeSoFar >= st.feeBudget) {
+      addNews(`WASH HALT: WS1 fee budget of $${st.feeBudget} exhausted at ${st.volDone} lots.`, 'event-manip');
+      return;
+    }
     const price = round(midPrice + (Math.random()-0.5)*2*TICK);
-    const qty = randInt(40,150);
-    // WS1 buys from itself at controlled accounts
+    const qty   = randInt(20, 60);
     addOrUpdate('ask', price, qty, 'WS1', 'wash');
     addOrUpdate('bid', price, qty, 'WS1', 'wash');
-    const fills = matchBook();
-    fills.forEach(f => {
-      totalVol += f.qty;
-      addTape({price:f.price, qty:f.qty, buyId:'WS1', sellId:'WS1', buyTag:'wash', sellTag:'wash'});
-    });
-    addNews(`WASH: WS1 crosses ${qty} lots at ${fmt(price)} — both sides. Volume inflation: +${qty} contracts. No change in beneficial ownership.`, 'event-manip');
+    st.volDone += qty;
+    addNews(`WASH: WS1 crosses ${qty} lots at ${fmt(price)}. Target: ${st.volDone}/${st.volTarget}. Fees ~$${(qty*FEE_WASH*2).toFixed(0)}.`, 'event-manip');
   }
 }
 
@@ -1399,7 +1730,7 @@ let insiderEventFired = false;
 let insiderInfo = null;
 function insiderStep() {
   if (currentSession().id === 'pre') return;
-  manipCycle++;
+  insideCycle++;
 
   // Fire insider event once per sim run
   if (!insiderEventFired && simTime > 18000) { // after 30 min
@@ -1432,7 +1763,7 @@ function insiderStep() {
 
   // Keep adding to position while info is private
   if (insiderEventFired && insiderInfo) {
-    if (manipCycle % 15 === 0) {
+    if (insideCycle % 60 === 0) {
       const side = insiderInfo.direction==='positive' ? 'bid' : 'ask';
       addOrUpdate(side, round(midPrice+(side==='bid'?-TICK:TICK)), randInt(10,30), 'IN1', 'insider');
     }
@@ -1903,7 +2234,8 @@ function skipTo(targetSec) {
     buildAgents(); setManipActive(); initBook();
     insiderEventFired = false; insiderInfo = null;
     pendingSpoofs = []; layerOrders = [];
-    manipCycle = 0; washCycle = 0;
+    manipCycle = 0; spoofCycle = 0; layerCycle = 0;
+    markCycle = 0; frontCycle = 0; insideCycle = 0; washCycle = 0;
     dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
     totalVol = 0; vwapSum = 0; tapeCount = 0;
     priceHistory = []; chartEventPins = [];
@@ -1919,7 +2251,8 @@ function skipTo(targetSec) {
     // Rewind — reset then forward
     simTime = 0; midPrice = BASE_PRICE;
     pendingSpoofs = []; layerOrders = [];
-    manipCycle = 0; washCycle = 0;
+    manipCycle = 0; spoofCycle = 0; layerCycle = 0;
+    markCycle = 0; frontCycle = 0; insideCycle = 0; washCycle = 0;
     insiderEventFired = false; insiderInfo = null;
     dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
     totalVol = 0; vwapSum = 0; tapeCount = 0;
@@ -2168,42 +2501,71 @@ matchBook = function() {
     forensics.agentFills[f.buyerId] += f.qty;
     forensics.agentFills[f.sellerId] += f.qty;
     if (f.buyTag==='wash'||f.sellTag==='wash') forensics.washVolume += f.qty;
+    // MM adverse selection tracking
+    if (f.buyTag === 'mm')  recordMMFill(f.buyerId,  f.price, 'bid');
+    if (f.sellTag === 'mm') recordMMFill(f.sellerId, f.price, 'ask');
     if (f.buyTag==='insider'||f.sellTag==='insider') forensics.insiderFills += f.qty;
     if (f.buyTag==='frontrun'||f.sellTag==='frontrun') forensics.frontrunFills += f.qty;
 
-    // ── P&L accounting — inventory model ──
-    // $50/point. Track position and average entry price.
-    // Realised P&L crystallises when an agent reduces or flips their position.
+    // ── P&L accounting — agent-type-aware ──
     const D = 50; // dollars per index point for ES
-    [
-      { id: f.buyerId,  sign: +1 },  // buyer goes long
-      { id: f.sellerId, sign: -1 },  // seller goes short
-    ].forEach(({ id, sign }) => {
-      if (!id || agentPos[id] === undefined) return;
-      const qty    = f.qty;
-      const price  = f.price;
-      const oldPos = agentPos[id];
-      const newPos = oldPos + sign * qty;
+    const spread = bestAsk() - bestBid();  // current spread in points
 
-      if (oldPos === 0) {
-        // Opening a new position
-        agentAvgEntry[id] = price;
-      } else if (Math.sign(oldPos) === Math.sign(sign)) {
-        // Adding to existing position — update VWAP entry
-        agentAvgEntry[id] = (agentAvgEntry[id] * Math.abs(oldPos) + price * qty)
-                            / (Math.abs(oldPos) + qty);
-      } else {
-        // Reducing or flipping position — crystallise realised P&L
-        const closingQty = Math.min(Math.abs(oldPos), qty);
-        const realisedTick = (price - agentAvgEntry[id]) * Math.sign(oldPos); // positive if profitable
-        agentRealised[id] = (agentRealised[id] || 0) + realisedTick * closingQty * D;
-        if (qty > Math.abs(oldPos)) {
-          // Flipped — reset avg entry for the remaining contracts
-          agentAvgEntry[id] = price;
+    // Determine agent types for fee logic
+    const buyerAgent  = agents.find(a => a.id === f.buyerId);
+    const sellerAgent = agents.find(a => a.id === f.sellerId);
+    const buyerType   = buyerAgent  ? buyerAgent.type  : 'noise';
+    const sellerType  = sellerAgent ? sellerAgent.type : 'noise';
+
+    // Wash trades: both sides pay taker fee, no inventory effect
+    if (f.buyTag === 'wash' || f.sellTag === 'wash') {
+      if (f.buyerId)  agentRealised[f.buyerId]  = (agentRealised[f.buyerId]  || 0) - FEE_WASH * f.qty;
+      if (f.sellerId) agentRealised[f.sellerId] = (agentRealised[f.sellerId] || 0) - FEE_WASH * f.qty;
+    } else {
+      // Normal fills — inventory + fee model
+      [
+        { id: f.buyerId,  sign: +1, type: buyerType,  isPassive: f.buyTag === 'mm' },
+        { id: f.sellerId, sign: -1, type: sellerType, isPassive: f.sellTag === 'mm' },
+      ].forEach(({ id, sign, type, isPassive }) => {
+        if (!id || agentPos[id] === undefined) return;
+        const qty   = f.qty;
+        const price = f.price;
+        const fee   = isPassive ? FEE_MAKER : FEE_TAKER;  // rebate or cost per contract
+
+        // Fee component (always realised immediately)
+        agentRealised[id] = (agentRealised[id] || 0) - fee * qty;
+
+        // Market makers: earn spread capture on fills, don't track directional inventory
+        // Their P&L is purely: (fill price vs mid) * qty * D * sign — spread income
+        if (type === 'mm') {
+          // Seller fills above mid = earned spread; buyer fills below mid = earned spread
+          const spreadCapture = (price - midPrice) * (-sign); // positive when filling passively
+          agentRealised[id] = (agentRealised[id] || 0) + spreadCapture * qty * D;
+          return; // no inventory position for MMs
         }
-      }
-      agentPos[id] = newPos;
-    });
+
+        // Directional agents: inventory model
+        const oldPos = agentPos[id];
+        const newPos = oldPos + sign * qty;
+
+        if (oldPos === 0) {
+          agentAvgEntry[id] = price;
+        } else if (Math.sign(oldPos) === Math.sign(sign) || oldPos === 0) {
+          // Adding to position — VWAP entry
+          agentAvgEntry[id] = (agentAvgEntry[id] * Math.abs(oldPos) + price * qty)
+                              / (Math.abs(oldPos) + qty);
+        } else {
+          // Reducing or flipping — crystallise realised P&L
+          const closingQty = Math.min(Math.abs(oldPos), qty);
+          const pnlPerPoint = (price - agentAvgEntry[id]) * Math.sign(oldPos);
+          agentRealised[id] = (agentRealised[id] || 0) + pnlPerPoint * closingQty * D;
+          if (qty > Math.abs(oldPos)) {
+            agentAvgEntry[id] = price;  // flip — new avg entry
+          }
+        }
+        agentPos[id] = newPos;
+      });
+    }
 
     // Session volume bucketing
     const sessId = currentSession().id;
@@ -2246,11 +2608,11 @@ renderAgents = function() {
 
   list.innerHTML = active.map(a => {
     const type  = AGENT_TYPES[a.type];
-    // Total P&L = realised + unrealised mark-to-mid
     const realised   = agentRealised[a.id] || 0;
     const pos        = agentPos[a.id] || 0;
     const avgEntry   = agentAvgEntry[a.id] || midPrice;
-    const unrealised = pos * (midPrice - avgEntry) * 50;
+    // MMs don't carry inventory — show realised spread income only
+    const unrealised = (a.type === 'mm') ? 0 : pos * (midPrice - avgEntry) * 50;
     const pnl        = realised + unrealised;
     agentPnl[a.id]   = pnl;  // keep in sync for CSV export
     const isM   = type.manip && a.active;
@@ -2271,7 +2633,7 @@ renderAgents = function() {
     const cxlClass = cancelPct > 60 ? 'neg' : cancelPct > 30 ? 'gold' : 'dim';
 
     return `<div class="agent-card ${isM?'is-manip':''}">
-      <div class="agent-card-header">
+      <div class="agent-card-header" onclick="openAgentDetail('${a.id}')" title="Click for agent rules &amp; behaviour">
         <div class="agent-dot" style="background:${type.color}"></div>
         <span class="agent-name">${a.name}</span>
         <span class="agent-type-badge">${type.label}</span>
@@ -2857,6 +3219,284 @@ function openResearch(mode) {
 function closeResearch() {
   document.getElementById('research-modal').classList.remove('open');
 }
+
+// ═══════════════════════════════════════════════════════
+//  AGENT DETAIL MODAL
+// ═══════════════════════════════════════════════════════
+let agentDetailRefreshTimer = null;
+
+const AGENT_PROFILES = {
+  MM1: {
+    fullName: 'JPM Market Maker',
+    role: 'Designated Market Maker — passive liquidity provider',
+    tags: ['green:Passive','blue:Spread Capture','amber:Maker Rebate','grey:No Directional View'],
+    overview: 'JPM-MM is a high-frequency market maker whose sole mandate is to earn the bid-ask spread by quoting on both sides of the order book simultaneously. It has no directional view on price. Its profit comes entirely from filling passive limit orders and collecting the maker rebate ($0.25/contract). It is the primary source of liquidity in this simulation.',
+    rules: [
+      ['Quote width',       'Avellaneda-Stoikov adaptive spread. Base = 1 tick mid-session, 2 ticks at open. Widens when adverse selection ratio exceeds 60% of recent fills.'],
+      ['Adverse selection', 'Tracks the ratio of fills that moved against the quote. Fills far from mid signal informed flow. Widening protects against informed and manipulative traders.'],
+      ['Quote size',        'Reduced when cumulative P&L < -$200 (less capital at risk when losing). Normal range 8-35 lots per level across 8 levels on each side.'],
+      ['Inventory',         'No directional inventory tracked. Every fill is a spread capture event. P&L = sum of (fill price vs mid) credits across all passive fills.'],
+      ['Stop behaviour',    'No hard stop. P&L deterioration triggers quote size reduction and spread widening — passive withdrawal, not hard exit.'],
+    ],
+    edge: 'Earns spread consistently in calm markets. Loses to informed flow — when manipulators spoof the book, MMs fill adverse orders and P&L deteriorates. Responds by widening quotes, which is the real-world market maker reaction to toxic flow.',
+    ref: 'Avellaneda & Stoikov (2008). High-frequency trading in a limit order book. Quantitative Finance 8(3).',
+  },
+  MM2: {
+    fullName: 'GS Market Maker',
+    role: 'Designated Market Maker — passive liquidity provider',
+    tags: ['green:Passive','blue:Spread Capture','amber:Maker Rebate','grey:No Directional View'],
+    overview: 'GS-MM is identical in design to JPM-MM but operates independently, maintaining its own adverse selection tracking and quote size parameters. Two independent market makers provide more consistent two-sided liquidity and create competition that keeps spreads tighter under normal conditions.',
+    rules: [
+      ['Quote width',  'Same adaptive spread logic as MM1. Both MMs may widen simultaneously during manipulation episodes — compounding the liquidity withdrawal.'],
+      ['Independence', 'MM1 and MM2 do not coordinate. Both quote the same levels but with independently randomised quantities, creating heterogeneous book depth.'],
+      ['Quote size',   'Independently randomised baseline range — slightly different from MM1 to create realistic depth variation at each price level.'],
+    ],
+    edge: 'Same as MM1. Two independent market makers make the book harder for manipulators to clear on one side alone.',
+    ref: 'Glosten & Milgrom (1985). Bid, Ask and Transaction Prices in a Specialist Market. Journal of Financial Economics 14(1).',
+  },
+  NT1: {
+    fullName: 'Retail-A',
+    role: 'Noise / Retail Trader — signal-driven small directional trader',
+    tags: ['grey:Directional','amber:Weak Signal','red:Stop-Loss 4 ticks','grey:Position Limit 20'],
+    overview: 'Retail-A is a small retail trader with a weak directional signal. Like most retail participants, they have a slight bull or bear bias, update their view with price momentum, limit their position size, and cut losses. They are susceptible to being on the wrong side of manufactured price moves.',
+    rules: [
+      ['Signal',         'Private bias (bull/bear) blended with recent 5-bar momentum. Refreshes every 30-90 sim-seconds with noise. Only acts if |signal| > 0.1.'],
+      ['Entry',          'Passive limit order 0-1 ticks from best bid or ask in signal direction. Never crosses spread aggressively.'],
+      ['Position limit', 'Maximum 20 contracts net. Will not increase position beyond this regardless of signal.'],
+      ['Stop-loss',      'If entry price has moved 4 ticks against position, places a limit order to close. Hard rule.'],
+      ['No adding to losers', '70% probability of skipping a new order in the direction of an existing losing position.'],
+      ['Frequency',      'Approximately 10% chance of acting per sim-second. Realistic retail participation rate.'],
+    ],
+    edge: 'Slightly positive in trending markets. Negatively impacted by spoofing and marking-the-close: fake price signals trigger entries that are immediately reversed.',
+    ref: 'Kyle (1985). Continuous Auctions and Insider Trading. Econometrica 53(6). Noise traders provide cover for informed trading.',
+  },
+  NT2: {
+    fullName: 'Retail-B',
+    role: 'Noise / Retail Trader — more risk-averse retail participant',
+    tags: ['grey:Directional','amber:Weak Signal','red:Stop-Loss 3 ticks','grey:Position Limit 15'],
+    overview: 'Retail-B is more risk-averse than Retail-A. Tighter stop-loss (3 ticks), smaller position limit (15 contracts). The diversity of parameters across NT1/NT2/NT3 creates realistic heterogeneous order flow — a key property of real markets.',
+    rules: [
+      ['Stop-loss',      'Tighter at 3 ticks. Exits losing positions more quickly than NT1/NT3.'],
+      ['Position limit', '15 contracts maximum. Smaller risk appetite than other retail agents.'],
+      ['Signal',         'Same momentum-blend architecture as NT1 with independently randomised bias direction.'],
+    ],
+    edge: 'Smaller losses per bad trade, but exits winning trades faster than NT1/NT3.',
+    ref: 'Kaniel, Saar & Titman (2008). Individual Investor Trading and Stock Returns. Journal of Finance 63(1).',
+  },
+  NT3: {
+    fullName: 'Retail-C',
+    role: 'Noise / Retail Trader — most aggressive retail participant',
+    tags: ['grey:Directional','amber:Weak Signal','red:Stop-Loss 5 ticks','grey:Position Limit 25'],
+    overview: 'Retail-C has the widest stop-loss (5 ticks) and largest position limit (25 contracts). Represents a more experienced retail participant willing to give trades more room to develop. Most exposed to large adverse moves including manipulation.',
+    rules: [
+      ['Stop-loss',      'Widest at 5 ticks. Rides through short-term volatility but takes larger losses on genuine adverse moves.'],
+      ['Position limit', '25 contracts — largest retail exposure in the simulation.'],
+      ['Signal',         'Same architecture as NT1/NT2, independently randomised.'],
+    ],
+    edge: 'Captures more of a genuine trend. Most exposed to marking-the-close and front-running due to larger positions.',
+    ref: 'Grinblatt & Keloharju (2001). What Makes Investors Trade? Journal of Finance 56(2).',
+  },
+  FD1: {
+    fullName: 'Vanguard (Buy-Side Fund)',
+    role: 'Institutional Fund — TWAP mandate executor',
+    tags: ['blue:Institutional','green:TWAP Execution','amber:VWAP Discipline','grey:Fixed Mandate'],
+    overview: 'Vanguard executes a pre-determined buy or sell mandate using a TWAP algorithm. The mandate is set at session start and represents realistic institutional flow: large, predictable, and price-disciplined. This is the type of order that front-running agents exploit.',
+    rules: [
+      ['Mandate',         'Fixed direction and target quantity (200-600 lots) set at session open. Does not reverse direction intra-session.'],
+      ['TWAP slicing',    'Slices into 10-30 lot passive limit orders placed at approximately 2.5% frequency per step. Spread over the session.'],
+      ['VWAP discipline', 'Will not execute if current mid is more than 3 ticks from session VWAP in the adverse direction. Waits for price to come to it.'],
+      ['Completion',      'Stops entirely once target quantity is filled. P&L reflects execution quality vs VWAP.'],
+      ['Passive only',    'All orders are limit orders. Never crosses spread. Avoids taker fees at the cost of slower execution.'],
+    ],
+    edge: 'Close to VWAP execution in calm markets. Adversely impacted by front-running and marking the close.',
+    ref: 'Almgren & Chriss (2001). Optimal Execution of Portfolio Transactions. Journal of Risk 3(2).',
+  },
+  FD2: {
+    fullName: 'Blackrock (Buy-Side Fund)',
+    role: 'Institutional Fund — TWAP executor and front-running target',
+    tags: ['blue:Institutional','green:TWAP Execution','red:Front-Run Target','amber:VWAP Discipline'],
+    overview: 'Blackrock operates identically to Vanguard but is specifically identified as the front-running target in that simulation mode. Its large predictable order flow creates an exploitable information advantage for any agent that knows the mandate direction ahead of time.',
+    rules: [
+      ['Mandate',           'Independently randomised direction and target (150-500 lots). Smaller slice size (10-30 lots) than FD1.'],
+      ['VWAP discipline',   'Same 3-tick tolerance as FD1. Pauses if market moves adversely.'],
+      ['Front-run exposure','In front-running mode, MN1 receives information about this mandate before execution. The resulting price impact degrades execution quality.'],
+    ],
+    edge: 'Same as FD1. The front-running scenario explicitly shows how MN1 early positioning degrades Blackrock VWAP execution.',
+    ref: 'Collin-Dufresne & Fos (2015). Do Prices Reveal the Presence of Informed Trading? Journal of Finance 70(4).',
+  },
+  AR1: {
+    fullName: 'SIG Arbitrageur',
+    role: 'Statistical Arbitrageur — VWAP mean-reversion trader',
+    tags: ['purple:Mean Reversion','green:VWAP Signal','red:Hard Stop -$300','green:Take Profit +$150'],
+    overview: 'SIG-Arb monitors deviation of current mid-price from session VWAP and takes mean-reversion positions when deviation exceeds 2 ticks. It has explicit profit targets and stop-losses — a disciplined rules-based strategy modelling a statistical arbitrage desk.',
+    rules: [
+      ['Entry signal',  'Enter when mid deviates from session VWAP by more than 2 ticks. Sell when above VWAP, buy when below.'],
+      ['Position limit','60 contracts maximum. Does not add once at limit.'],
+      ['Take profit',   'Closes entire position when unrealised P&L exceeds +$150. Locks in gain immediately.'],
+      ['Stop-loss',     'Hard exit when unrealised P&L falls below -$300. No averaging down.'],
+      ['Frequency',     'Approximately 5% chance of acting per step — infrequent but decisive.'],
+    ],
+    edge: 'Profitable when manipulation creates temporary price distortions that revert. Loses during sustained manipulation (marking the close). Acts as a natural counterweight to artificial price pressure.',
+    ref: 'Gatev, Goetzmann & Rouwenhorst (2006). Pairs Trading. Review of Financial Studies 19(3).',
+  },
+  MN1: {
+    fullName: '???-Alpha (Manipulator)',
+    role: 'Primary manipulator — executes active manipulation strategy',
+    tags: ['red:Manipulator','red:Mode-Dependent','amber:P&L Gated','red:Coordinated with MN2'],
+    overview: 'MN1 is the primary manipulation agent. Its behaviour changes entirely with the selected manipulation mode. In all modes it has a P&L gate — it pauses when losses exceed a threshold, modelling the real observation that spoofers stop when their edge disappears.',
+    rules: [
+      ['Spoofing',      'Places 200-400 lot orders 3-6 ticks deep (not intended to fill). Real passive order of 5-15 lots on opposite thin side. Cancels spoof within 2-6 sim-seconds. Only acts when spread >= 1 tick and P&L > -$2,000.'],
+      ['Layering',      'Stacks 4-7 orders at successive price levels. Genuine small order on opposite side. Removes all layers after opposite fill. Cycle: every 150 sim-steps.'],
+      ['Mark Close',    'Inactive until 15:00 close session. Builds bid support 15:00-15:45. Aggressively lifts offers (50-140 lots) in settlement window 15:45+.'],
+      ['Front-run',     'Receives information about FD2 mandate. Builds position in same direction 1 sim-second before FD2 executes. Closes into the price impact.'],
+      ['P&L gate',      'Suspends activity for 5-10 sim-minutes if cumulative P&L < -$2,000.'],
+      ['Book imbalance','In spoofing mode: chooses spoof side based on book depth — reinforces the heavier side to maximise visible impact.'],
+    ],
+    edge: 'Strategy-dependent. Spoofing: 1-2 ticks on real order minus taker fee per episode. Marking: settlement price pushed above fair value. Front-run: captures client order price impact.',
+    ref: 'Attari, Lynch, Chhabra & Fazilet (2020). CRA Insights: Finance. CRA documents spoofer decision criteria and episode structure in detail.',
+  },
+  MN2: {
+    fullName: '???-Beta (Manipulator)',
+    role: 'Secondary manipulator — supports MN1 in coordinated schemes',
+    tags: ['red:Manipulator','red:Coordinated','amber:Smaller Budget'],
+    overview: 'MN2 acts as support to MN1. In spoofing it places additional large orders adjacent to MN1 spoof to amplify depth distortion. In layering it places the genuine execution order while MN1 manages the layers. Two coordinating agents is more realistic and harder to detect than one.',
+    rules: [
+      ['Spoofing support','Places 60% of MN1 spoof quantity at adjacent price level. Cancels simultaneously with MN1.'],
+      ['Budget',          'Smaller budget limit ($300 vs MN1 $500). Independent pause threshold.'],
+      ['Coordination',    'Actions always triggered by MN1 cycle. Never acts independently. Reflects documented coordination in spoofing prosecutions.'],
+    ],
+    edge: 'No independent edge. Its presence makes the spoof appear to come from two independent participants rather than one — harder to identify as coordinated.',
+    ref: 'DOJ v. JPMorgan (2020). Criminal resolution documents multi-trader coordination in precious metals spoofing.',
+  },
+  WS1: {
+    fullName: '???-Wash (Wash Trader)',
+    role: 'Wash trader — artificial volume inflation via self-crossing',
+    tags: ['red:Manipulator','purple:Volume Inflation','amber:Fee Budgeted','grey:No P&L Intent'],
+    overview: 'WS1 places matching buy and sell orders at the same price simultaneously, crossing them with itself. This inflates reported volume with no transfer of risk or change in beneficial ownership. The only cost is fees. It stops when it hits its volume target or exhausts its fee budget.',
+    rules: [
+      ['Mechanism',     'Places matching ask and bid at the same price near mid. Orders cross in matchBook. Both sides pay FEE_WASH = $2.00/contract.'],
+      ['Volume target', 'Session volume target of 800-2000 lots set at start. Stops when reached.'],
+      ['Fee budget',    '$1,500 maximum fee spend. Stops if fees hit budget before volume target.'],
+      ['Detection',     'Invisible from price and tape data alone. Requires cross-account beneficial ownership analysis at exchange level.'],
+      ['Frequency',     'Every 90 sim-steps. Deliberate spacing to avoid volume spike detection.'],
+    ],
+    edge: 'No price P&L. Purpose is inflating reported volume to attract participants to what appears to be an active market. Fee cost is the only expense.',
+    ref: 'CFTC v. Coinbase (2021). SEC v. Lek Securities Corp (2017). Document wash trading at scale with fee-budget awareness.',
+  },
+  IN1: {
+    fullName: '???-Priv (Insider Trader)',
+    role: 'Insider trader — trades on material non-public information',
+    tags: ['purple:Insider','red:MNPI','amber:Confidence Scaled','red:Information Asymmetry'],
+    overview: 'IN1 receives a private information event (e.g. forthcoming Fed signal) invisible to all other participants. It quietly accumulates a position in the anticipated direction before public announcement. When news breaks and price moves, IN1 exits for a profit.',
+    rules: [
+      ['Trigger',       'Fires once per simulation when simTime > 18,000 (30 sim-min in). Private information event logged in event log in pink only.'],
+      ['Entry',         'Places large passive bid or ask 2-3 ticks from mid in anticipated direction. Size: 100-300 lots initially.'],
+      ['Accumulation',  'Continues adding 10-30 lots every 60 sim-steps up to position limit (200 contracts).'],
+      ['Exit',          'Removes all positions when public news event fires (10-20 sim-minutes after private signal).'],
+      ['Information',   'Information leak shown in event log in pink — represents a private channel market data systems cannot observe.'],
+    ],
+    edge: 'Pure information asymmetry. P&L = (price move at announcement x position x $50) minus fees. Typically several thousand dollars per episode.',
+    ref: 'Meulbroek (1992). An Empirical Analysis of Illegal Insider Trading. Journal of Finance 47(5). Pre-announcement price run-up of 40-50% of total move is the forensic signature.',
+  },
+};
+
+function openAgentDetail(agentId) {
+  const a    = agents.find(x => x.id === agentId);
+  const prof = AGENT_PROFILES[agentId];
+  if (!a || !prof) return;
+  const type = AGENT_TYPES[a.type];
+
+  document.getElementById('am-dot').style.background = type.color;
+  document.getElementById('am-name').textContent = prof.fullName;
+  document.getElementById('am-type').textContent = prof.role;
+
+  const tags = (prof.tags||[]).map(t => {
+    const sep = t.indexOf(':');
+    const cls = t.slice(0, sep), label = t.slice(sep+1);
+    return '<span class="am-tag ' + cls + '">' + label + '</span>';
+  }).join('');
+
+  const rows = (prof.rules||[]).map(r =>
+    '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>'
+  ).join('');
+  const rulesTable = rows
+    ? '<table class="am-rules"><thead><tr><th>Rule</th><th>Behaviour</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    : '';
+
+  // Live agent state
+  let stateHtml = '';
+  if (a.state && Object.keys(a.state).length) {
+    const st = a.state;
+    const entries = [];
+    if (st.spreadMult  !== undefined) entries.push(['Spread multiplier', st.spreadMult.toFixed(2) + 'x']);
+    if (st.fillCount   !== undefined) entries.push(['Fill count', st.fillCount]);
+    if (st.fillCount   > 0 && st.adverseFills !== undefined)
+      entries.push(['Adverse fill ratio', ((st.adverseFills/st.fillCount)*100).toFixed(0)+'%']);
+    if (st.quoteSize   !== undefined) entries.push(['Quote size', st.quoteSize + ' lots/level']);
+    if (st.bias        !== undefined) entries.push(['Bias', st.bias]);
+    if (st.signal      !== undefined) entries.push(['Current signal', st.signal.toFixed(3) + (st.signal>0.1?' (bullish)':st.signal<-0.1?' (bearish)':' (neutral)')]);
+    if (st.stopLoss    !== undefined) entries.push(['Stop-loss', (st.stopLoss/TICK).toFixed(0) + ' ticks']);
+    if (st.posLimit    !== undefined) entries.push(['Position limit', st.posLimit + ' contracts']);
+    if (st.mandate     !== undefined) entries.push(['Mandate', st.mandate.toUpperCase()]);
+    if (st.target      !== undefined) entries.push(['Target qty', st.target + ' lots']);
+    if (st.filled      !== undefined) entries.push(['Filled', st.filled + ' / ' + st.target + ' (' + (st.target?((st.filled/st.target)*100).toFixed(0):0)+'%)']);
+    if (st.volTarget   !== undefined) entries.push(['Volume target', st.volTarget + ' lots']);
+    if (st.volDone     !== undefined) entries.push(['Volume crossed', st.volDone + ' lots']);
+    if (st.feeBudget   !== undefined) entries.push(['Fee budget used', '$' + Math.min(st.feeBudget, (st.volDone||0)*4).toFixed(0) + ' / $' + st.feeBudget]);
+    if (st.pauseUntil  !== undefined) entries.push(['Strategy status', simTime > 0 && simTime < st.pauseUntil ? 'SUSPENDED until t='+st.pauseUntil : 'ACTIVE']);
+    if (st.entryThresh !== undefined) entries.push(['Entry threshold', (st.entryThresh/TICK).toFixed(0) + ' ticks from VWAP']);
+
+    if (entries.length) {
+      stateHtml = '<div class="am-section"><div class="am-section-title">Live Strategy State</div>'
+        + '<table class="am-rules"><thead><tr><th>Parameter</th><th>Current Value</th></tr></thead><tbody>'
+        + entries.map(e => '<tr><td>' + e[0] + '</td><td>' + e[1] + '</td></tr>').join('')
+        + '</tbody></table></div>';
+    }
+  }
+
+  document.getElementById('am-body').innerHTML =
+    '<div style="margin-bottom:12px;">' + tags + '</div>'
+    + '<div class="am-section"><div class="am-section-title">Overview</div>'
+    + '<div class="am-para">' + prof.overview + '</div></div>'
+    + stateHtml
+    + (rulesTable ? '<div class="am-section"><div class="am-section-title">Decision Rules</div>' + rulesTable + '</div>' : '')
+    + '<div class="am-section"><div class="am-section-title">Edge &amp; Vulnerability</div>'
+    + '<div class="am-para">' + prof.edge + '</div></div>'
+    + '<div class="am-section"><div class="am-section-title">Reference</div>'
+    + '<div class="am-para" style="font-style:italic;color:var(--text3);">' + prof.ref + '</div></div>';
+
+  updateAgentDetailStrip(agentId);
+  document.getElementById('agent-modal').classList.add('open');
+  agentDetailRefreshTimer = setInterval(() => updateAgentDetailStrip(agentId), 1500);
+}
+
+function updateAgentDetailStrip(agentId) {
+  const a = agents.find(x => x.id === agentId);
+  if (!a) return;
+  const realised   = agentRealised[agentId] || 0;
+  const pos        = agentPos[agentId] || 0;
+  const avgE       = agentAvgEntry[agentId] || midPrice;
+  const unrealised = (a.type === 'mm') ? 0 : pos * (midPrice - avgE) * 50;
+  const pnl        = realised + unrealised;
+  const fills      = forensics.agentFills[agentId] || 0;
+  const bidV       = forensics.agentBidVol[agentId] || 0;
+  const askV       = forensics.agentAskVol[agentId] || 0;
+  const posStr     = pos === 0 ? '—' : (pos > 0 ? '+' : '') + pos;
+  const pnlStr     = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
+
+  const el = id => document.getElementById(id);
+  if (el('aml-pnl')) { el('aml-pnl').textContent = pnlStr; el('aml-pnl').style.color = pnl>50?'var(--green)':pnl<-50?'var(--red2)':'var(--text2)'; }
+  if (el('aml-pos')) { el('aml-pos').textContent = posStr;  el('aml-pos').style.color = pos>0?'var(--green)':pos<0?'var(--red2)':'var(--text2)'; }
+  if (el('aml-fills')) el('aml-fills').textContent = fills;
+  if (el('aml-bid'))   el('aml-bid').textContent   = bidV + ' lots';
+  if (el('aml-ask'))   el('aml-ask').textContent   = askV + ' lots';
+}
+
+function closeAgentDetail() {
+  document.getElementById('agent-modal').classList.remove('open');
+  if (agentDetailRefreshTimer) { clearInterval(agentDetailRefreshTimer); agentDetailRefreshTimer = null; }
+}
+
 </script>
 
 <!-- RESEARCH MODAL -->
@@ -2870,6 +3510,31 @@ function closeResearch() {
       <button class="rm-close" onclick="closeResearch()">✕</button>
     </div>
     <div class="rm-body" id="rm-body"></div>
+  </div>
+</div>
+
+
+<!-- AGENT DETAIL MODAL -->
+<div class="agent-modal" id="agent-modal" onclick="if(event.target===this)closeAgentDetail()">
+  <div class="agent-modal-inner">
+    <div class="am-header">
+      <div class="am-header-top">
+        <div class="am-dot" id="am-dot"></div>
+        <div>
+          <div class="am-name" id="am-name">Agent</div>
+          <div class="am-type" id="am-type"></div>
+        </div>
+        <button class="am-close" onclick="closeAgentDetail()">✕</button>
+      </div>
+      <div class="am-live-strip" id="am-live-strip">
+        <div class="am-live-cell"><div class="am-live-label">P&L</div><div class="am-live-val" id="aml-pnl">—</div></div>
+        <div class="am-live-cell"><div class="am-live-label">Position</div><div class="am-live-val" id="aml-pos">—</div></div>
+        <div class="am-live-cell"><div class="am-live-label">Fills</div><div class="am-live-val" id="aml-fills">—</div></div>
+        <div class="am-live-cell"><div class="am-live-label">Bid Out</div><div class="am-live-val" id="aml-bid" style="color:var(--green)">—</div></div>
+        <div class="am-live-cell"><div class="am-live-label">Ask Out</div><div class="am-live-val" id="aml-ask" style="color:var(--red2)">—</div></div>
+      </div>
+    </div>
+    <div class="am-body" id="am-body"></div>
   </div>
 </div>
 
