@@ -1,0 +1,3764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AMM Manipulation Simulator — Uniswap V3 / MEV Dark Forest</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:       #0a0c0f;
+  --bg1:      #0f1217;
+  --bg2:      #141820;
+  --bg3:      #1c2230;
+  --bg4:      #222a3a;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --text:     #cdd6e8;
+  --text2:    #7a8ba8;
+  --text3:    #4a5870;
+  --amber:    #f0a500;
+  --amber2:   #ffc850;
+  --green:    #00c97a;
+  --green2:   #00ff9d;
+  --red:      #e84040;
+  --red2:     #ff6060;
+  --blue:     #2979ff;
+  --blue2:    #6ea8ff;
+  --purple:   #a855f7;
+  --pink:     #ec4899;
+  --cyan:     #06b6d4;
+  --white:    #f0f4ff;
+
+  /* Agent colors — DeFi roles */
+  --agent-retail:   #4a6080;
+  --agent-lp:       #059669;   /* Liquidity Provider */
+  --agent-fund:     #2563eb;
+  --agent-arb:      #7c3aed;   /* Statistical arb (cross-pool) */
+  --agent-sandwich: #dc2626;   /* Sandwich searcher */
+  --agent-jit:      #f59e0b;   /* JIT liquidity */
+  --agent-toxic:    #db2777;   /* Toxic backrunner */
+  --agent-oracle:   #8b5cf6;   /* Oracle manipulator */
+  --agent-snipe:    #06b6d4;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 16px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.tb-logo {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.tb-instrument {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.04em;
+}
+
+/* Pool selector */
+.pool-select {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.pool-select:focus { outline: none; border-color: var(--amber); }
+
+.tb-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--green2);
+  letter-spacing: -0.01em;
+  min-width: 100px;
+}
+
+.tb-change { font-size: 11px; }
+.tb-change.pos { color: var(--green); }
+.tb-change.neg { color: var(--red); }
+
+.tb-stat { display: flex; flex-direction: column; }
+.tb-stat-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.tb-stat-value { font-size: 11px; color: var(--text2); }
+
+.tb-sep { width: 1px; height: 24px; background: var(--border2); }
+.tb-spacer { flex: 1; }
+
+/* Block clock */
+.block-wrap {
+  display: flex; flex-direction: column; align-items: flex-end;
+}
+.block-num { font-size: 14px; font-weight: 600; color: var(--amber2); letter-spacing: 0.05em; }
+.block-label { font-size: 9px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* Speed control */
+.speed-wrap { display: flex; align-items: center; gap: 6px; }
+.speed-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.speed-btn {
+  background: var(--bg3); border: 1px solid var(--border2); color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 3px 8px; cursor: pointer; border-radius: 2px; transition: all 0.1s;
+}
+.speed-btn:hover { background: var(--bg4); color: var(--white); }
+.speed-btn.active { background: var(--amber); color: var(--bg); border-color: var(--amber); font-weight: 600; }
+.clock-wrap { display: flex; align-items: center; gap: 6px; }
+.clock-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.clock-time {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--white);
+  background: var(--bg3);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  min-width: 48px;
+  text-align: center;
+}
+.clock-flow {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text3);
+  font-weight: 500;
+}
+.clock-flow.high { color: var(--green); }
+.clock-flow.med  { color: var(--amber); }
+.clock-flow.low  { color: var(--text3); }
+
+/* Sim control */
+.sim-btn {
+  background: transparent; border: 1px solid var(--green); color: var(--green);
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  padding: 5px 16px; cursor: pointer; border-radius: 2px; letter-spacing: 0.08em;
+  transition: all 0.15s; text-transform: uppercase;
+}
+.sim-btn:hover, .sim-btn.running { background: var(--green); color: var(--bg); }
+.sim-btn.paused { border-color: var(--amber); color: var(--amber); }
+.sim-btn.paused:hover { background: var(--amber); color: var(--bg); }
+
+/* ── MEV STRATEGY SELECTOR ── */
+.manip-bar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 16px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.manip-label {
+  font-size: 9px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase;
+  white-space: nowrap; margin-right: 4px;
+}
+
+.manip-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 4px 10px; cursor: pointer; border-radius: 2px; white-space: nowrap;
+  transition: all 0.15s; letter-spacing: 0.04em;
+}
+.manip-btn:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+
+.manip-btn[data-mode="none"].active     { background: rgba(74,96,128,0.3);  border-color: var(--agent-retail);  color: var(--text); }
+.manip-btn[data-mode="sandwich"].active { background: rgba(220,38,38,0.2);  border-color: var(--agent-sandwich); color: var(--red2); }
+.manip-btn[data-mode="jit"].active      { background: rgba(245,158,11,0.2); border-color: var(--agent-jit);      color: var(--amber2); }
+.manip-btn[data-mode="toxic"].active    { background: rgba(219,39,119,0.2); border-color: var(--agent-toxic);    color: #f472b6; }
+.manip-btn[data-mode="oracle"].active   { background: rgba(168,85,247,0.2); border-color: var(--agent-oracle);   color: #c4b5fd; }
+.manip-btn[data-mode="protected"].active{ background: rgba(0,201,122,0.2);  border-color: var(--green);          color: var(--green2); }
+.manip-btn[data-mode="rollup"].active   { background: rgba(6,182,212,0.2);  border-color: var(--cyan);           color: var(--cyan); }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px 1fr 320px 280px;
+  grid-template-rows: 1fr 200px;
+  gap: 1px;
+  background: var(--border);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--bg1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#liquidity-panel { grid-column: 1; grid-row: 1 / 3; }
+#chart-panel     { grid-column: 2; grid-row: 1; }
+#tape-panel      { grid-column: 3; grid-row: 1 / 3; }
+#agent-panel     { grid-column: 4; grid-row: 1 / 3; }
+#mempool-panel   { grid-column: 2; grid-row: 2; }
+
+.panel-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+
+.panel-title {
+  font-size: 10px;
+  color: var(--text);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.panel-badge {
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+}
+
+/* ── LIQUIDITY PANEL ── */
+.liq-stats {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  flex-shrink: 0;
+}
+.liq-stat-row { display: flex; flex-direction: column; }
+.liq-stat-lbl { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.liq-stat-val { font-size: 11px; color: var(--text); font-weight: 500; }
+.liq-stat-val.green { color: var(--green); }
+.liq-stat-val.red { color: var(--red2); }
+.liq-stat-val.amber { color: var(--amber); }
+
+.liq-curve-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+.liq-curve-wrap canvas { display: block; width: 100%; height: 100%; }
+.liq-curve-legend {
+  position: absolute;
+  top: 6px; left: 8px;
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+}
+
+.lp-list {
+  border-top: 1px solid var(--border2);
+  background: var(--bg);
+  max-height: 38%;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.lp-list-hdr {
+  background: var(--bg2);
+  padding: 4px 10px;
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: grid;
+  grid-template-columns: 30px 1fr 60px 60px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+}
+.lp-row {
+  padding: 4px 10px;
+  font-size: 10px;
+  display: grid;
+  grid-template-columns: 30px 1fr 60px 60px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.lp-row:hover { background: var(--bg2); }
+.lp-row .lp-tag {
+  font-size: 9px; padding: 1px 4px; border-radius: 2px; letter-spacing: 0.04em;
+  background: rgba(5,150,105,0.18); color: #34d399; border: 1px solid rgba(5,150,105,0.3);
+}
+.lp-row .lp-tag.jit { background: rgba(245,158,11,0.18); color: var(--amber2); border-color: rgba(245,158,11,0.3); }
+.lp-range { color: var(--text2); font-size: 10px; }
+.lp-fee { color: var(--green); }
+.lp-il  { color: var(--red2); }
+.lp-il.pos { color: var(--green); }
+
+/* ── CHART ── */
+.chart-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: var(--bg);
+}
+.chart-wrap canvas { display: block; width: 100%; height: 100%; }
+.chart-events {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+.chart-event-pin {
+  position: absolute;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+}
+.chart-event-pin.sandwich { background: var(--red2); }
+.chart-event-pin.jit      { background: var(--amber2); }
+.chart-event-pin.oracle   { background: var(--purple); }
+.chart-event-pin.toxic    { background: var(--pink); }
+.chart-event-pin.arb      { background: var(--blue2); }
+
+.chart-mode-indicator {
+  position: absolute;
+  top: 6px; right: 8px;
+  background: rgba(255,255,255,0.04);
+  padding: 3px 8px; border-radius: 2px;
+  font-size: 9px; color: var(--text2);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ── MEMPOOL PANEL ── */
+.mempool-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  background: var(--bg);
+  font-size: 10px;
+}
+.mempool-hdr {
+  display: grid;
+  grid-template-columns: 60px 80px 1fr 80px 60px 90px;
+  gap: 4px;
+  padding: 3px 8px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mempool-row {
+  display: grid;
+  grid-template-columns: 60px 80px 1fr 80px 60px 90px;
+  gap: 4px;
+  padding: 3px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  align-items: center;
+  transition: background 0.2s;
+}
+.mempool-row.new { background: rgba(245,158,11,0.08); }
+.mempool-row.executed { opacity: 0.55; }
+.mempool-row.sandwiched { background: rgba(220,38,38,0.1); }
+.mempool-row .tx-tag {
+  font-size: 8px; padding: 1px 4px; border-radius: 2px; letter-spacing: 0.04em;
+  text-align: center;
+}
+.tx-tag.swap     { background: rgba(74,96,128,0.2); color: var(--text2); }
+.tx-tag.attack   { background: rgba(220,38,38,0.2); color: var(--red2); }
+.tx-tag.jit      { background: rgba(245,158,11,0.2); color: var(--amber2); }
+.tx-tag.arb      { background: rgba(124,58,237,0.2); color: #a78bfa; }
+.tx-tag.lp       { background: rgba(5,150,105,0.2); color: #34d399; }
+.mempool-row .tx-side.buy { color: var(--green); }
+.mempool-row .tx-side.sell { color: var(--red2); }
+.mempool-row .tx-gas { color: var(--amber); font-size: 9px; }
+
+.mempool-empty {
+  padding: 24px; text-align: center; color: var(--text3); font-size: 11px;
+}
+
+/* ── TAPE / FORENSICS TABS ── */
+.tab-bar {
+  display: flex;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+  align-items: center;
+  flex-shrink: 0;
+}
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text3);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+.tab-pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
+.tab-pane.active { display: flex; }
+
+.tape-body { flex: 1; overflow-y: auto; background: var(--bg); }
+.tape-row {
+  display: grid;
+  grid-template-columns: 16px 1fr 70px 60px;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  align-items: center;
+}
+.tape-row.buy  { background: rgba(0,201,122,0.04); }
+.tape-row.sell { background: rgba(232,64,64,0.04); }
+.tape-row .dot {
+  width: 6px; height: 6px; border-radius: 50%; margin: 0 auto;
+}
+.tape-row.buy  .dot { background: var(--green); }
+.tape-row.sell .dot { background: var(--red2); }
+.tape-time-price { color: var(--text2); }
+.tape-time-price.buy  { color: var(--green); }
+.tape-time-price.sell { color: var(--red2); }
+.tape-qty { color: var(--text); text-align: right; }
+.tape-agent {
+  font-size: 9px; color: var(--text3); letter-spacing: 0.05em;
+  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tape-agent.attack { color: var(--red2); font-weight: 600; }
+.tape-agent.jit { color: var(--amber); }
+.tape-agent.arb { color: #a78bfa; }
+.tape-agent.lp { color: #34d399; }
+
+.agent-list-header {
+  display: grid;
+  grid-template-columns: 16px 1fr 70px 60px;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg2);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+}
+
+/* ── FORENSICS PANEL ── */
+.forensics-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--bg);
+}
+.for-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.for-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+}
+.for-section-title {
+  font-size: 9px;
+  color: var(--amber);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.for-section-title::before {
+  content: '⚖';
+  color: var(--amber);
+}
+.for-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  padding: 2px 0;
+  border-bottom: 1px dotted rgba(255,255,255,0.04);
+}
+.for-row:last-child { border: none; }
+.for-key { color: var(--text2); }
+.for-val { color: var(--text); font-weight: 500; }
+.for-val.flag { color: var(--red2); }
+.for-val.warn { color: var(--amber); }
+.for-val.good { color: var(--green); }
+.for-info-i {
+  display: inline-block; width: 12px; height: 12px;
+  border: 1px solid var(--text3);
+  border-radius: 50%;
+  font-size: 8px; line-height: 10px;
+  text-align: center; color: var(--text3);
+  cursor: help; margin-left: 4px;
+  font-style: italic;
+}
+.for-info-i:hover { color: var(--amber); border-color: var(--amber); }
+
+/* ── AGENT PANEL ── */
+.agent-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg);
+}
+.agent-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  transition: all 0.15s;
+}
+.agent-card.is-active {
+  border-color: rgba(220,38,38,0.4);
+  box-shadow: 0 0 0 1px rgba(220,38,38,0.2);
+}
+.agent-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.agent-card-header:hover { background: var(--bg4); }
+.agent-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.agent-name {
+  font-size: 11px;
+  color: var(--white);
+  font-weight: 500;
+  flex: 1;
+}
+.agent-type-badge {
+  font-size: 8px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.agent-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+.agent-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.agent-stat-label { color: var(--text3); font-size: 9px; }
+.agent-stat-val { color: var(--text); font-weight: 500; }
+.agent-stat-val.pos { color: var(--green); }
+.agent-stat-val.neg { color: var(--red2); }
+.agent-stat-val.gold { color: var(--amber); }
+.agent-stat-val.dim { color: var(--text2); }
+
+.agent-list-hdr {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: var(--bg2);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── DOWNLOAD BUTTONS ── */
+.dl-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  padding: 3px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+  letter-spacing: 0.04em;
+  margin-left: 4px;
+  transition: all 0.1s;
+}
+.dl-btn:hover { background: var(--bg4); color: var(--white); border-color: var(--border2); }
+
+/* ── INFO TOOLTIP ── */
+.tooltip {
+  position: absolute;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  padding: 6px 10px;
+  font-size: 10px;
+  color: var(--text);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 1000;
+  display: none;
+  max-width: 280px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  line-height: 1.5;
+}
+
+/* ── RESEARCH MODAL ── */
+.research-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.research-modal.open { display: flex; }
+.research-modal-inner {
+  background: var(--bg1);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  width: 760px;
+  max-width: 92vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.rm-header {
+  background: var(--bg2);
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border2);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.rm-title { font-size: 14px; color: var(--amber); letter-spacing: 0.05em; font-weight: 500; }
+.rm-subtitle { font-size: 10px; color: var(--text3); margin-top: 2px; letter-spacing: 0.05em; }
+.rm-close {
+  background: transparent; border: none; color: var(--text2);
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.rm-close:hover { color: var(--white); }
+.rm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.rm-body h3 {
+  font-size: 12px;
+  color: var(--amber2);
+  margin: 14px 0 6px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.rm-body h3:first-child { margin-top: 0; }
+.rm-body p { margin-bottom: 8px; }
+.rm-body code {
+  background: var(--bg3);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  color: var(--amber2);
+}
+.rm-body em { color: var(--text2); font-style: italic; }
+.rm-body ul { margin: 4px 0 8px 16px; }
+.rm-body li { margin-bottom: 3px; }
+
+/* ── AGENT DETAIL MODAL ── */
+.agent-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.agent-modal.open { display: flex; }
+.agent-modal-inner {
+  background: var(--bg1);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  width: 720px;
+  max-width: 92vw;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.am-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border2);
+}
+.am-header-top {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.am-header-top .am-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+}
+.am-name { font-size: 14px; color: var(--white); font-weight: 500; }
+.am-type { font-size: 10px; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; }
+.am-close {
+  margin-left: auto;
+  background: transparent; border: none; color: var(--text2);
+  font-size: 18px; cursor: pointer; line-height: 1;
+}
+.am-close:hover { color: var(--white); }
+.am-live-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-top: 1px solid var(--border);
+}
+.am-live-cell {
+  background: var(--bg2);
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+}
+.am-live-label { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.am-live-val { font-size: 12px; color: var(--text); font-weight: 500; }
+.am-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 22px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--text);
+}
+.am-section { margin-bottom: 16px; }
+.am-section-title {
+  font-size: 10px;
+  color: var(--amber2);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.am-para { color: var(--text); margin-bottom: 6px; }
+.am-tag {
+  display: inline-block;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  color: var(--text2);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+.am-tag.role { background: rgba(5,150,105,0.15); color: #34d399; border-color: rgba(5,150,105,0.3); }
+.am-tag.attack { background: rgba(220,38,38,0.15); color: var(--red2); border-color: rgba(220,38,38,0.3); }
+.am-tag.protection { background: rgba(0,201,122,0.15); color: var(--green); border-color: rgba(0,201,122,0.3); }
+.am-tag.passive { background: rgba(74,96,128,0.15); color: var(--text2); border-color: rgba(74,96,128,0.3); }
+.am-rules {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.am-rules thead { background: var(--bg3); }
+.am-rules th {
+  padding: 6px 10px;
+  text-align: left;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 9px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border2);
+}
+.am-rules td {
+  padding: 6px 10px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.am-rules td:first-child { color: var(--amber2); font-weight: 500; white-space: nowrap; width: 32%; }
+.am-rules td:last-child { color: var(--text); }
+
+/* Capital bar — tiny inline track */
+.agent-capital-bar { padding: 4px 8px; background: rgba(0,0,0,0.18); border-bottom: 1px solid var(--border); }
+.cap-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; font-size: 9px; }
+.cap-label { color: var(--text3); letter-spacing: 0.05em; }
+.cap-val { color: var(--text); }
+.cap-val.pos { color: var(--green); }
+.cap-val.neg { color: var(--red2); }
+.cap-val.gold { color: var(--amber); }
+.cap-track { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.cap-fill { height: 100%; transition: width 0.3s; border-radius: 2px; }
+.cap-fill.pos { background: var(--green); }
+.cap-fill.neg { background: var(--red2); }
+.cap-fill.gold { background: var(--amber); }
+
+/* News / Event log inside tape panel forensics */
+.news-row {
+  padding: 4px 10px;
+  font-size: 10px;
+  color: var(--text2);
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+  line-height: 1.45;
+}
+.news-row.event-attack { background: rgba(220,38,38,0.08); color: #fca5a5; }
+.news-row.event-jit { background: rgba(245,158,11,0.06); color: var(--amber2); }
+.news-row.event-oracle { background: rgba(168,85,247,0.06); color: #c4b5fd; }
+.news-row.event-arb { background: rgba(124,58,237,0.06); color: #a78bfa; }
+.news-row.event-protection { background: rgba(0,201,122,0.06); color: var(--green); }
+.news-row.event-block { background: rgba(255,255,255,0.02); color: var(--text3); font-size: 9px; }
+.news-time { color: var(--text3); margin-right: 6px; font-size: 9px; }
+
+/* Block visualizer */
+.block-vis-bar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  font-size: 10px;
+}
+.block-vis-label { color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; font-size: 9px; }
+.block-progress {
+  flex: 1;
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.block-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--blue));
+  width: 0%;
+  transition: width 0.1s linear;
+}
+.block-info { color: var(--text2); font-size: 10px; white-space: nowrap; }
+.block-info .gas { color: var(--amber); }
+.block-info .txs { color: var(--text); }
+
+/* Cross-pool dislocation indicator */
+.dislocation-bar {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding: 4px 8px;
+  font-size: 9px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.dislocation-bar.warn { color: var(--amber); border-top-color: var(--amber); }
+.dislocation-bar.alert { color: var(--red2); border-top-color: var(--red2); }
+
+/* ── FORENSICS ROW VARIANTS ── */
+.for-row-label { color: var(--text2); }
+.for-row-val { color: var(--text); font-weight: 500; }
+.for-row-val.pos { color: var(--green); }
+.for-row-val.neg { color: var(--red2); }
+.for-row-val.dim { color: var(--text); }
+.for-note {
+  font-size: 10px;
+  color: var(--text3);
+  background: rgba(245,158,11,0.04);
+  border-left: 2px solid var(--amber);
+  padding: 6px 8px;
+  margin-top: 8px;
+  line-height: 1.5;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ── MODALS ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  width: 720px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  color: var(--white);
+  font-weight: 600;
+}
+.modal-close {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  width: 28px; height: 28px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.modal-close:hover { color: var(--white); border-color: var(--border2); }
+.modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+}
+.modal-body p { margin: 0 0 8px 0; color: var(--text); }
+.modal-stats-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.modal-stat {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.modal-stat span { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+.modal-stat b { font-size: 12px; color: var(--white); font-weight: 600; }
+.modal-stat b.pos { color: var(--green); }
+.modal-stat b.neg { color: var(--red2); }
+.modal-section { margin-bottom: 14px; }
+.modal-section-title {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.rules-table td {
+  padding: 5px 8px;
+  border-bottom: 1px dotted var(--border);
+  vertical-align: top;
+}
+.rules-table td.rule-label {
+  color: var(--text2);
+  width: 40%;
+  font-size: 10px;
+}
+.rules-table td.rule-val { color: var(--text); }
+.modal-ref { color: var(--text3); font-size: 10px; font-style: italic; }
+.research-body p { margin: 0 0 10px 0; }
+.research-body ul, .research-body ol {
+  margin: 0 0 10px 0;
+  padding-left: 22px;
+  color: var(--text);
+}
+.research-body li { margin-bottom: 4px; }
+.research-body code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-family: 'SF Mono', Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--amber);
+}
+.research-body b { color: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="tb-logo">AMM-SIM · UNI V3</div>
+  <div class="tb-sep"></div>
+  <select class="pool-select" id="pool-select" onchange="switchPool(this.value)">
+    <option value="USDC_WETH">USDC / WETH · 0.05%</option>
+    <option value="WBTC_WETH">WBTC / WETH · 0.30%</option>
+    <option value="WBTC_USDC">WBTC / USDC · 0.30%</option>
+    <option value="USDC_USDT">USDC / USDT · 0.01%</option>
+  </select>
+  <div style="display:flex;flex-direction:column;">
+    <span style="font-size:9px;color:var(--text3);letter-spacing:0.1em;">PRICE</span>
+    <div class="tb-price" id="tb-last">—</div>
+  </div>
+  <div class="tb-change pos" id="tb-change">+0.00%</div>
+  <div class="tb-sep"></div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">TVL</span>
+    <span class="tb-stat-value" id="tb-tvl">—</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">24h Vol</span>
+    <span class="tb-stat-value" id="tb-vol">—</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">Fees</span>
+    <span class="tb-stat-value" id="tb-fees">—</span>
+  </div>
+  <div class="tb-stat">
+    <span class="tb-stat-label">Active L</span>
+    <span class="tb-stat-value" id="tb-active-liq">—</span>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="speed-wrap">
+    <span class="speed-label">Speed</span>
+    <button class="speed-btn" data-speed="1" onclick="setSpeed(1)">1×</button>
+    <button class="speed-btn active" data-speed="3" onclick="setSpeed(3)">3×</button>
+    <button class="speed-btn" data-speed="8" onclick="setSpeed(8)">8×</button>
+    <button class="speed-btn" data-speed="20" onclick="setSpeed(20)">20×</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="speed-wrap">
+    <span class="speed-label">Skip</span>
+    <button class="speed-btn" onclick="skipBlocks(300)" title="Advance 1 simulated hour (300 blocks at 12s)">+1h</button>
+    <button class="speed-btn" onclick="skipBlocks(1800)" title="Advance 6 simulated hours">+6h</button>
+    <button class="speed-btn" onclick="skipBlocks(7200)" title="Advance 24 simulated hours">+24h</button>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="clock-wrap" title="Simulated time of day (UTC). Affects retail and fund flow intensity per empirical Kaiko/Block Analitica diurnal patterns.">
+    <span class="clock-label">UTC</span>
+    <span class="clock-time" id="tb-clock">00:00</span>
+    <span class="clock-flow" id="tb-flow">FLOW: —</span>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="sim-btn" id="sim-toggle" onclick="toggleSim()">▶ START</button>
+  <div class="tb-spacer"></div>
+  <div class="block-wrap">
+    <div class="block-num" id="block-num">#0</div>
+    <div class="block-label" id="block-label">PRE-LAUNCH</div>
+  </div>
+</div>
+
+<!-- MEV STRATEGY SELECTOR -->
+<div class="manip-bar">
+  <span class="manip-label">MEV Strategy:</span>
+  <button class="manip-btn active" data-mode="none"      onclick="setMode('none')">No MEV</button>
+  <button class="manip-btn"        data-mode="sandwich"  onclick="setMode('sandwich')">🥪 Sandwich</button>
+  <button class="manip-btn"        data-mode="jit"       onclick="setMode('jit')">⚡ JIT Liquidity</button>
+  <button class="manip-btn"        data-mode="toxic"     onclick="setMode('toxic')">☣ Toxic Backrun</button>
+  <button class="manip-btn"        data-mode="oracle"    onclick="setMode('oracle')">🔮 Oracle Attack</button>
+  <button class="manip-btn"        data-mode="protected" onclick="setMode('protected')">🛡 MEV-Protected RPC</button>
+  <button class="manip-btn"        data-mode="rollup"    onclick="setMode('rollup')">⚙ Unichain Rollup-Boost</button>
+  <div style="flex:1;"></div>
+  <span style="font-size:9px;color:var(--text3);letter-spacing:0.08em;">Block: 12s · Searcher latency: 50ms · Builder share: 90%</span>
+</div>
+
+<!-- BLOCK PROGRESS -->
+<div class="block-vis-bar">
+  <span class="block-vis-label">Next Block</span>
+  <div class="block-progress">
+    <div class="block-progress-fill" id="block-fill" style="width:0%"></div>
+  </div>
+  <span class="block-info">
+    <span class="txs" id="block-txs">0</span> txs pending ·
+    <span class="gas" id="block-gas">0</span> gwei median
+  </span>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main">
+
+  <!-- LIQUIDITY PANEL -->
+  <div class="panel" id="liquidity-panel">
+    <div class="panel-header">
+      <span class="panel-title">Concentrated Liquidity</span>
+      <span class="panel-badge" id="liq-badge">— LPs</span>
+    </div>
+    <div class="liq-stats">
+      <div class="liq-stat-row"><span class="liq-stat-lbl">Tick (current)</span><span class="liq-stat-val" id="liq-tick">—</span></div>
+      <div class="liq-stat-row"><span class="liq-stat-lbl">Active L</span><span class="liq-stat-val amber" id="liq-active">—</span></div>
+      <div class="liq-stat-row"><span class="liq-stat-lbl">Reserve₀</span><span class="liq-stat-val" id="liq-r0">—</span></div>
+      <div class="liq-stat-row"><span class="liq-stat-lbl">Reserve₁</span><span class="liq-stat-val" id="liq-r1">—</span></div>
+      <div class="liq-stat-row"><span class="liq-stat-lbl">Fees Earned</span><span class="liq-stat-val green" id="liq-fees">—</span></div>
+      <div class="liq-stat-row"><span class="liq-stat-lbl">IL (cumul.)</span><span class="liq-stat-val red" id="liq-il">—</span></div>
+    </div>
+    <div class="liq-curve-wrap">
+      <canvas id="liq-canvas"></canvas>
+      <span class="liq-curve-legend">Liquidity-by-tick · vertical line = current price</span>
+    </div>
+    <div class="lp-list">
+      <div class="lp-list-hdr">
+        <span></span><span>Range · LP</span><span>Fees</span><span>P&L</span>
+      </div>
+      <div id="lp-list-body"></div>
+    </div>
+  </div>
+
+  <!-- PRICE CHART -->
+  <div class="panel" id="chart-panel">
+    <div class="panel-header">
+      <span class="panel-title">Price · Pool Action</span>
+      <span style="font-size:9px;color:var(--text3);" id="chart-mode-label">— · per-block</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="price-chart"></canvas>
+      <div class="chart-mode-indicator" id="chart-mode-ind">USDC / WETH</div>
+      <div class="chart-events" id="chart-events"></div>
+    </div>
+    <div class="dislocation-bar" id="dislocation-bar">
+      Cross-pool basis (synthetic vs direct WBTC/USDC): <span id="dislocation-val">—</span>
+    </div>
+  </div>
+
+  <!-- TIME & SALES + FORENSICS TABS -->
+  <div class="panel" id="tape-panel">
+    <div class="panel-header">
+      <span class="panel-title">Pool Activity</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:9px;color:var(--text3);" id="tape-count">0 SWAPS</span>
+        <button class="dl-btn" onclick="downloadTapeCSV()" title="Download swap log">⬇ SWAPS</button>
+        <button class="dl-btn" onclick="downloadEventLog()" title="Download MEV event log">⬇ MEV LOG</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('tape')">Swaps</button>
+      <button class="tab-btn"        onclick="switchTab('events')">Events</button>
+      <button class="tab-btn"        onclick="switchTab('forensics')">⚖ Forensics</button>
+      <div style="flex:1;"></div>
+      <button class="tab-btn" style="font-size:9px;color:var(--text3);" onclick="openResearch(simMode)" title="Why these metrics matter">📖 Why?</button>
+    </div>
+    <div class="tab-pane active" id="pane-tape">
+      <div class="tape-body" id="tape-body">
+        <div class="agent-list-header">
+          <span></span><span>Block · Price</span><span>Size</span><span>Agent</span>
+        </div>
+      </div>
+    </div>
+    <div class="tab-pane" id="pane-events">
+      <div class="tape-body" id="news-body"></div>
+    </div>
+    <div class="tab-pane" id="pane-forensics">
+      <div class="forensics-body" id="forensics-body">
+        <div class="for-empty" id="for-empty">
+          ⚖ Select a MEV strategy and run the simulation to see forensic analysis.<br><br>
+          Forensics shows MEV extracted, sandwich victim slippage, JIT capture rate,
+          and cross-pool dislocation magnitude.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT PANEL -->
+  <div class="panel" id="agent-panel">
+    <div class="panel-header">
+      <span class="panel-title">Agents</span>
+      <span class="panel-badge" id="agent-count">0 AGENTS</span>
+    </div>
+    <div class="agent-list-hdr">
+      <span>Name · Role</span><span>P&L · Capital</span>
+    </div>
+    <div class="agent-list" id="agent-list"></div>
+  </div>
+
+  <!-- MEMPOOL PANEL -->
+  <div class="panel" id="mempool-panel">
+    <div class="panel-header">
+      <span class="panel-title">Public Mempool — Pending Transactions</span>
+      <span style="font-size:9px;color:var(--text3);" id="mempool-status">EXPOSED · all txs visible to searchers</span>
+    </div>
+    <div class="mempool-body">
+      <div class="mempool-hdr">
+        <span>Gas</span><span>Type</span><span>Action</span><span>Amount</span><span>Slip</span><span>Submitter</span>
+      </div>
+      <div id="mempool-body"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+'use strict';
+
+// ════════════════════════════════════════════════════════════════
+//  AMM SIMULATOR — Uniswap V3 mechanics + MEV / Dark-Forest agents
+// ════════════════════════════════════════════════════════════════
+//
+// MODEL OVERVIEW:
+//
+// • Each pool tracks the V3 invariant via L (liquidity) and √P (sqrt price).
+//   Within a single liquidity range, swaps follow:
+//     - Token1 → Token0: Δ√P = -Δy / L     (y is token1 reserve in range)
+//     - Token0 → Token1: Δ(1/√P) = Δx / L  (x is token0 reserve in range)
+//   See Uniswap V3 whitepaper sections 6.1-6.2.
+//
+// • Liquidity is concentrated in ranges [tickLower, tickUpper]. We model
+//   discrete LP positions; "active liquidity" is the sum of L for positions
+//   whose range covers the current tick. When the price crosses a range
+//   boundary, the affected position's L is added/removed from active L.
+//
+// • Time advances in sim-seconds. Every BLOCK_TIME sim-seconds, we close a
+//   "block": MEV searchers see the public mempool, optionally insert
+//   sandwich/JIT/backrun transactions, and the builder orders all txs
+//   (by gas price desc) and executes them atomically.
+//
+// • Empirical anchors (April 2026 reference levels — adjust freely):
+//     WETH ≈ $3,400  WBTC ≈ $95,000  USDC = USDT = $1
+//   Realistic concentrated-liquidity TVL distributions per CoinGecko's
+//   Uniswap V3 Ethereum exchange page.
+
+// ── Reference prices and pool fee tiers ──────────────────────────────
+const REF = {
+  WETH:  3400,   // USD per WETH
+  WBTC:  95000,  // USD per WBTC
+  USDC:  1,
+  USDT:  1,
+};
+
+// Fee tiers (in basis-points-of-basis-points: 500 = 0.05%, 3000 = 0.30%, 100 = 0.01%)
+// Tick spacing per Uniswap V3 spec.
+// Convention adopted in this simulator:
+//   - token0 = the SMALLER-USD-value asset (stables: USDC, USDT; or WETH for BTC pools)
+//   - token1 = the LARGER-USD-value asset (WETH, WBTC)
+//   - internal V3 price = sqrtP² = token1/token0 = "small per big" (small number)
+//     Standard V3 swap math then applies: sell0 → sqrtP↓, sell1 → sqrtP↑.
+//   - human-readable / display price = 1 / internal = "big per small" (USDC per WETH = 3400 etc.)
+//
+// All swap math operates in internal V3 space. Display conversion is centralized
+// in displayPrice() and tokenUsdPrice(); priceHistory stores display prices for charting.
+const POOLS = {
+  USDC_WETH: {
+    name: 'WETH / USDC',
+    token0: 'USDC', token1: 'WETH',
+    decimals0: 6, decimals1: 18,
+    feeBps: 5,            // 0.05%
+    tickSpacing: 10,
+    initialPrice: 1 / REF.WETH,           // V3 internal: WETH/USDC ≈ 1/3400
+    displayPrice: REF.WETH,                // shown to user: USDC per WETH
+    invertDisplay: true,
+    tvlUsd: 120_000_000,
+    notional: { token0: 'USDC', token1: 'WETH' },
+  },
+  WBTC_WETH: {
+    name: 'WBTC / WETH',
+    token0: 'WETH', token1: 'WBTC',
+    decimals0: 18, decimals1: 8,
+    feeBps: 30,           // 0.30%
+    tickSpacing: 60,
+    initialPrice: REF.WETH / REF.WBTC,    // V3 internal: WETH/WBTC ≈ 1/28
+    displayPrice: REF.WBTC / REF.WETH,    // shown: WETH per WBTC ≈ 28
+    invertDisplay: true,
+    tvlUsd: 30_000_000,
+  },
+  WBTC_USDC: {
+    name: 'WBTC / USDC',
+    token0: 'USDC', token1: 'WBTC',
+    decimals0: 6, decimals1: 8,
+    feeBps: 30,
+    tickSpacing: 60,
+    initialPrice: 1 / REF.WBTC,           // V3 internal: WBTC/USDC ≈ 1/95000
+    displayPrice: REF.WBTC,                // shown: USDC per WBTC
+    invertDisplay: true,
+    tvlUsd: 18_000_000,
+  },
+  USDC_USDT: {
+    name: 'USDC / USDT',
+    token0: 'USDC', token1: 'USDT',
+    decimals0: 6, decimals1: 6,
+    feeBps: 1,            // 0.01%
+    tickSpacing: 1,
+    initialPrice: 1.0,
+    displayPrice: 1.0,
+    invertDisplay: false,
+    tvlUsd: 60_000_000,
+  },
+};
+
+// ── Block / network parameters ──────────────────────────────────────
+let BLOCK_TIME       = 12;     // seconds per block (Ethereum mainnet)
+const ROLLUP_BLOCK   = 1;      // Unichain rollup-boost: 1s blocks
+const SEARCHER_LATENCY = 0.05; // 50ms — searcher reaction time within a block
+const BASE_GAS_GWEI  = 25;
+const BUILDER_TIP_BPS = 9000;  // 90% of MEV captured goes to builders (flashbots-like)
+
+// ── Capital / agent caps ────────────────────────────────────────────
+const RETAIL_CAP_MIN   = 5_000;
+const RETAIL_CAP_MAX   = 50_000;
+const FUND_CAP_MIN     = 500_000;
+const FUND_CAP_MAX     = 5_000_000;
+const ARB_CAP_MIN      = 1_000_000;
+const ARB_CAP_MAX      = 5_000_000;
+const SEARCHER_CAP_MIN = 200_000;
+const SEARCHER_CAP_MAX = 1_000_000;
+const LP_CAP_MIN       = 1_000_000;
+const LP_CAP_MAX       = 8_000_000;
+
+// ── Sim state ────────────────────────────────────────────────────────
+let running       = false;
+let speedMul      = 3;
+let simMode       = 'none';     // MEV strategy mode
+let simTime       = 0;          // seconds since sim start
+let blockNumber   = 0;
+let lastBlockTime = 0;
+let simInterval   = null;
+let mevProtected  = false;      // flips true in 'protected' mode
+let useRollup     = false;      // flips true in 'rollup' mode
+
+// Wallclock: simulated time-of-day in UTC seconds (0..86400). Drives diurnal
+// flow modulation. Initialised so the sim starts at 13:00 UTC by default —
+// the peak of the US/EU overlap window when on-chain volume is densest.
+let wallclockSec  = 13 * 3600;
+
+// Empirical diurnal flow multiplier. Source: Kaiko / Block Analitica hourly DEX
+// volume distributions, normalised. Two-peak structure: large peak 13:00-17:00
+// UTC (US east coast morning + EU afternoon overlap), smaller peak 01:00-05:00
+// (Asia waking up), trough 06:00-10:00. Values multiply retail/fund firing
+// rates and trade sizes.
+const DIURNAL_FLOW = [
+  /* 00 */ 0.55, /* 01 */ 0.65, /* 02 */ 0.72, /* 03 */ 0.78, /* 04 */ 0.74,
+  /* 05 */ 0.62, /* 06 */ 0.45, /* 07 */ 0.38, /* 08 */ 0.42, /* 09 */ 0.55,
+  /* 10 */ 0.72, /* 11 */ 0.88, /* 12 */ 1.05, /* 13 */ 1.30, /* 14 */ 1.45,
+  /* 15 */ 1.50, /* 16 */ 1.42, /* 17 */ 1.30, /* 18 */ 1.10, /* 19 */ 0.92,
+  /* 20 */ 0.80, /* 21 */ 0.72, /* 22 */ 0.65, /* 23 */ 0.58,
+];
+function flowMultiplier() {
+  const hour = Math.floor(wallclockSec / 3600) % 24;
+  return DIURNAL_FLOW[hour];
+}
+function flowLabel() {
+  const m = flowMultiplier();
+  if (m >= 1.20) return { label: 'PEAK FLOW', cls: 'high' };
+  if (m >= 0.85) return { label: 'NORMAL',    cls: 'med'  };
+  return            { label: 'THIN FLOW', cls: 'low' };
+}
+function fmtClock() {
+  const h = Math.floor(wallclockSec / 3600) % 24;
+  const m = Math.floor((wallclockSec % 3600) / 60);
+  return (h<10?'0':'')+h + ':' + (m<10?'0':'')+m;
+}
+
+// Active pool (the one being visualised)
+let activePoolId  = 'USDC_WETH';
+
+// Per-pool runtime state
+//   pools[id] = {
+//     sqrtP:    current √price (token1/token0)
+//     activeL:  sum of L for all positions covering current tick
+//     positions: [{id, tickLower, tickUpper, L, owner, fees0, fees1, depositedUsd, tag}]
+//     fee0Total, fee1Total: cumulative fees per token
+//     priceHistory: [{block, price, vol}]
+//     volumeUsd: cumulative
+//     lastPrice: human-readable
+//   }
+let pools = {};
+
+// Mempool — ordered by submission time. Each tx:
+//   {id, agentId, type:'swap'|'addLiq'|'removeLiq'|'sandFront'|'sandBack'|'arb'|'jit',
+//    pool, side:'buy'|'sell', amountIn, amountInToken, slippageBps,
+//    gasGwei, submittedAt, executed, tag}
+let mempool = [];
+let mempoolNextId = 1;
+
+// Agents
+let agents = [];
+let agentPnl      = {};   // realized USD PnL
+let agentPos      = {};   // For directional agents: {[poolId]: tokenAmount} long/short proxy
+let agentCapital  = {};   // starting USD capital
+let agentAvgEntry = {};   // for IL calc on LPs: {[positionId]: depositPrice}
+
+// Forensics & event log
+let forensics = {
+  totalSwaps: 0,
+  totalVolumeUsd: 0,
+  totalFeesUsd: 0,
+  sandwichAttempts: 0,
+  sandwichesSuccessful: 0,
+  sandwichVictimLossUsd: 0,
+  jitAttempts: 0,
+  jitFeesCaptured: 0,
+  arbCount: 0,
+  arbProfitUsd: 0,
+  oracleAttacks: 0,
+  totalMevExtractedUsd: 0,
+  protectedTxCount: 0,
+  blockCount: 0,
+  // dislocation tracking
+  maxDislocationBps: 0,
+  currentDislocationBps: 0,
+  // For sandwich detection — track recent swaps in same block
+  perBlockSwaps: [],
+};
+let eventLog = [];
+
+// Chart event pins
+let chartEventPins = [];
+
+
+// ════════════════════════════════════════════════════════════════
+//  UNISWAP V3 MATH
+// ════════════════════════════════════════════════════════════════
+//
+// We work in floating-point for clarity (real Uniswap V3 uses Q64.96 fixed
+// point to avoid precision loss; for an educational sim, doubles suffice).
+//
+// Conventions:
+//   • price P = token1 / token0 (token1 amount per 1 token0)
+//   • sqrtP = √P
+//   • L = liquidity = √(x · y) where x is token0 reserve, y is token1 reserve
+//     within a range. So x = L / √P,  y = L · √P.
+//
+// Within a single active range, a swap that adds Δx of token0 (sells token0)
+// changes sqrtP downward:
+//   sqrtP_new = (L · sqrtP) / (L + Δx · sqrtP)
+// And produces Δy of token1 out:
+//   Δy = L · (sqrtP - sqrtP_new)
+//
+// A swap that adds Δy of token1 (sells token1) changes sqrtP upward:
+//   sqrtP_new = sqrtP + Δy / L
+// And produces Δx of token0 out:
+//   Δx = L · (sqrtP_new - sqrtP) / (sqrtP · sqrtP_new)
+//
+// Fees: a fraction `feeBps / 10000` of the input is taken before the swap math.
+
+// Convert price (token1/token0) to a tick index. tick = log_{1.0001}(price).
+// Tick spacing snaps positions to multiples of `tickSpacing`.
+function priceToTick(price) {
+  return Math.log(price) / Math.log(1.0001);
+}
+function tickToPrice(tick) {
+  return Math.pow(1.0001, tick);
+}
+function tickToSqrtP(tick) {
+  return Math.pow(1.0001, tick / 2);
+}
+function nearestTick(price, spacing) {
+  const t = priceToTick(price);
+  return Math.round(t / spacing) * spacing;
+}
+
+// Compute liquidity L for a position depositing both tokens into a range.
+// Given target USD value V to deploy and current price p, the math:
+//   For range [pa, pb] with current price p in between:
+//     amount0 = L * (1/√p - 1/√pb)
+//     amount1 = L * (√p - √pa)
+//   USD value: amount0 * P0 + amount1 * P1 (P0, P1 = USD prices of tokens)
+// We solve for L given desired USD deployment.
+function liquidityFromUsd(usd, sqrtP, sqrtPa, sqrtPb, priceToken0Usd, priceToken1Usd) {
+  if (sqrtPb <= sqrtPa) return 0;
+  // Clamp current sqrtP to the range
+  const sp = Math.max(sqrtPa, Math.min(sqrtPb, sqrtP));
+  // Per unit of L:
+  const amt0PerL = (1/sp - 1/sqrtPb);
+  const amt1PerL = (sp - sqrtPa);
+  const usdPerL  = amt0PerL * priceToken0Usd + amt1PerL * priceToken1Usd;
+  return usdPerL > 0 ? usd / usdPerL : 0;
+}
+
+// Returns {amount0, amount1} that the position currently holds at sqrtP.
+function positionAmounts(L, sqrtP, sqrtPa, sqrtPb) {
+  if (sqrtP <= sqrtPa) {
+    // All in token0
+    return { amount0: L * (1/sqrtPa - 1/sqrtPb), amount1: 0 };
+  } else if (sqrtP >= sqrtPb) {
+    return { amount0: 0, amount1: L * (sqrtPb - sqrtPa) };
+  } else {
+    return {
+      amount0: L * (1/sqrtP - 1/sqrtPb),
+      amount1: L * (sqrtP - sqrtPa),
+    };
+  }
+}
+
+// Given the current sqrtP and active liquidity, simulate a swap.
+// `amountIn` is the input quantity in raw token units (already includes the token's natural unit).
+// Returns { amountOut, sqrtPNew, feeAmount, priceImpactBps, slippageBps }.
+//
+// SIMPLIFIED TICK CROSSING: we treat all active liquidity as a single range
+// for the swap. If the swap would cross a position boundary, we cap it at
+// the next boundary and recurse — i.e. iteratively step from boundary to
+// boundary, updating active L. This gives correct V3 behavior.
+function simulateSwap(pool, side, amountIn) {
+  const feeBps = pool.feeBps;
+  const fee    = amountIn * feeBps / 10000;
+  let remaining = amountIn - fee;
+  let totalOut  = 0;
+  let sqrtP     = pool.sqrtP;
+  const startSqrtP = sqrtP;
+
+  // Build a sorted list of the next sqrtP boundaries we might cross.
+  // Boundaries come from position lower/upper ticks not equal to current tick.
+  const positions = pool.positions;
+
+  // Iterate through liquidity steps. Cap at 32 hops to avoid infinite loops.
+  for (let hop = 0; hop < 32 && remaining > 0; hop++) {
+    const activeL = computeActiveL(pool, sqrtP);
+    if (activeL <= 0) break;
+
+    // Find next boundary in direction of swap
+    let nextBoundary;
+    if (side === 'sell0') {
+      // Selling token0, sqrtP decreases. Next boundary is the highest sqrtP_lower below current.
+      let best = 0;
+      for (const p of positions) {
+        if (p.sqrtPa < sqrtP && p.sqrtPa > best) best = p.sqrtPa;
+        if (p.sqrtPb < sqrtP && p.sqrtPb > best) best = p.sqrtPb;
+      }
+      nextBoundary = best > 0 ? best : sqrtP * 0.5; // fallback far boundary
+    } else {
+      // Selling token1, sqrtP increases. Next boundary is lowest sqrtP_upper above current.
+      let best = Infinity;
+      for (const p of positions) {
+        if (p.sqrtPa > sqrtP && p.sqrtPa < best) best = p.sqrtPa;
+        if (p.sqrtPb > sqrtP && p.sqrtPb < best) best = p.sqrtPb;
+      }
+      nextBoundary = isFinite(best) ? best : sqrtP * 2;
+    }
+
+    // Compute how much input is consumed to reach nextBoundary (or all of remaining)
+    let sqrtPNext, dIn, dOut;
+    if (side === 'sell0') {
+      // sqrtP decreases. To reach sqrtP_target, input needed:
+      //   dx = L*(1/sqrtP_target - 1/sqrtP)  (positive because target < current)
+      // Solve for sqrtP_after given dx:
+      //   sqrtP_after = (L * sqrtP) / (L + dx * sqrtP)
+      const maxDxToBoundary = activeL * (1/nextBoundary - 1/sqrtP);
+      if (maxDxToBoundary >= remaining) {
+        // Stay within range
+        sqrtPNext = (activeL * sqrtP) / (activeL + remaining * sqrtP);
+        dIn = remaining;
+        dOut = activeL * (sqrtP - sqrtPNext);
+      } else {
+        // Cross the boundary
+        sqrtPNext = nextBoundary;
+        dIn = maxDxToBoundary;
+        dOut = activeL * (sqrtP - sqrtPNext);
+      }
+    } else {
+      // sqrtP increases. dy = L*(sqrtP_target - sqrtP)
+      const maxDyToBoundary = activeL * (nextBoundary - sqrtP);
+      if (maxDyToBoundary >= remaining) {
+        sqrtPNext = sqrtP + remaining / activeL;
+        dIn = remaining;
+        dOut = activeL * (sqrtPNext - sqrtP) / (sqrtP * sqrtPNext);
+      } else {
+        sqrtPNext = nextBoundary;
+        dIn = maxDyToBoundary;
+        dOut = activeL * (sqrtPNext - sqrtP) / (sqrtP * sqrtPNext);
+      }
+    }
+
+    sqrtP = sqrtPNext;
+    remaining -= dIn;
+    totalOut += dOut;
+    // If we did NOT cross a boundary, remaining is 0 and loop exits
+    if (remaining < 1e-18) break;
+    // Nudge across the boundary so next iteration picks up new liquidity
+    if (side === 'sell0') sqrtP *= 0.99999999; else sqrtP *= 1.00000001;
+  }
+
+  const priceBefore = startSqrtP * startSqrtP;
+  const priceAfter  = sqrtP * sqrtP;
+  const impactBps   = Math.abs(priceAfter - priceBefore) / priceBefore * 10000;
+
+  return {
+    amountOut: totalOut,
+    sqrtPNew: sqrtP,
+    feeAmount: fee,
+    priceBefore, priceAfter,
+    priceImpactBps: impactBps,
+  };
+}
+
+// Compute active liquidity at a given sqrtP for a pool
+function computeActiveL(pool, sqrtP) {
+  let L = 0;
+  for (const p of pool.positions) {
+    if (sqrtP >= p.sqrtPa && sqrtP < p.sqrtPb) L += p.L;
+  }
+  return L;
+}
+
+// Apply a swap to the pool: mutates pool.sqrtP and distributes fees pro-rata
+// to active LPs based on their share of active L.
+function applySwap(pool, side, amountIn) {
+  const sim = simulateSwap(pool, side, amountIn);
+  const startSqrtP = pool.sqrtP;
+  // Distribute fees to active LPs at the START of the swap
+  // (Real V3 distributes per-tick; we approximate at start-state liquidity.)
+  const activeL = computeActiveL(pool, startSqrtP);
+  if (activeL > 0 && sim.feeAmount > 0) {
+    for (const p of pool.positions) {
+      if (startSqrtP >= p.sqrtPa && startSqrtP < p.sqrtPb) {
+        const share = p.L / activeL;
+        if (side === 'sell0') p.fees0 += sim.feeAmount * share;
+        else                  p.fees1 += sim.feeAmount * share;
+      }
+    }
+    if (side === 'sell0') pool.fee0Total += sim.feeAmount;
+    else                  pool.fee1Total += sim.feeAmount;
+  }
+  pool.sqrtP = sim.sqrtPNew;
+  pool.lastPrice = sim.sqrtPNew * sim.sqrtPNew;
+  return sim;
+}
+
+// Read the current human-readable price (token1 in token0 units, then displayed as
+// "what 1 unit of the 'expensive' token costs in the 'cheap' token" — for our pools
+// this is conventionally USD per WETH, USDC per WBTC, WETH per WBTC, USDT per USDC).
+function poolPrice(pool) {
+  return pool.sqrtP * pool.sqrtP;
+}
+
+// Display price: human-readable (e.g. USDC per WETH = 3400). For pools with
+// invertDisplay=true, the V3-internal price is the inverse of what we want to show.
+function displayPrice(pool) {
+  const p = poolPrice(pool);
+  return pool.invertDisplay ? 1 / p : p;
+}
+
+// USD reference prices for tokens — computed live from pools when possible,
+// falling back to constants. Always returns a USD-per-unit number.
+function tokenUsdPrice(symbol) {
+  if (symbol === 'USDC' || symbol === 'USDT') return 1;
+  if (symbol === 'WETH' && pools.USDC_WETH) return displayPrice(pools.USDC_WETH);
+  if (symbol === 'WETH') return REF.WETH;
+  if (symbol === 'WBTC' && pools.WBTC_USDC) return displayPrice(pools.WBTC_USDC);
+  if (symbol === 'WBTC' && pools.WBTC_WETH) return displayPrice(pools.WBTC_WETH) * tokenUsdPrice('WETH');
+  if (symbol === 'WBTC') return REF.WBTC;
+  return 1;
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  POOL INITIALISATION
+// ════════════════════════════════════════════════════════════════
+function initPools() {
+  pools = {};
+  for (const [id, cfg] of Object.entries(POOLS)) {
+    const sqrtP0 = Math.sqrt(cfg.initialPrice);
+    pools[id] = {
+      id, ...cfg,
+      sqrtP: sqrtP0,
+      lastPrice: cfg.initialPrice,
+      positions: [],
+      fee0Total: 0, fee1Total: 0,
+      priceHistory: [{ block: 0, price: cfg.invertDisplay ? 1/cfg.initialPrice : cfg.initialPrice, vol: 0, sqrtP: sqrtP0 }],
+      volumeUsd: 0,
+      swapCount: 0,
+    };
+  }
+}
+
+// Seed each pool with initial LPs covering a realistic range. Real V3 pools
+// have a deep concentrated band near the current price (passive LPs and MM-style
+// LPs) plus thinner wide positions. We model both.
+function seedLiquidity() {
+  for (const [poolId, pool] of Object.entries(pools)) {
+    const sp = pool.sqrtP;
+    const p = poolPrice(pool);
+    const tokenUsd0 = tokenUsdPrice(pool.token0);
+    const tokenUsd1 = tokenUsdPrice(pool.token1);
+    // priceUsdPerSqrtUnit for token1 in USD = tokenUsd1 (token1 amounts), and similarly for token0.
+    // The amount0/amount1 returned by positionAmounts are in raw token units, so multiplying by
+    // tokenUsd gives USD. liquidityFromUsd already accounts for this.
+
+    // Distribution of LPs: 70% TVL concentrated ±2% of price, 25% in ±10%, 5% wide ±50%.
+    const tightUsd = pool.tvlUsd * 0.7;
+    const midUsd   = pool.tvlUsd * 0.25;
+    const wideUsd  = pool.tvlUsd * 0.05;
+
+    // Seed positions with reasonable counts. Each is a "passive LP" agent.
+    seedRange(pool, p * 0.98, p * 1.02, tightUsd, 'PASSIVE-TIGHT', 'lp-tight', tokenUsd0, tokenUsd1);
+    seedRange(pool, p * 0.90, p * 1.10, midUsd,   'PASSIVE-MID',   'lp-mid',   tokenUsd0, tokenUsd1);
+    seedRange(pool, p * 0.50, p * 1.50, wideUsd,  'PASSIVE-WIDE',  'lp-wide',  tokenUsd0, tokenUsd1);
+  }
+}
+
+let positionIdCounter = 1;
+function seedRange(pool, priceLo, priceHi, usd, ownerLabel, tag, tokenUsd0, tokenUsd1) {
+  const tickLo = nearestTick(priceLo, pool.tickSpacing);
+  const tickHi = nearestTick(priceHi, pool.tickSpacing);
+  const sqrtPa = tickToSqrtP(tickLo);
+  const sqrtPb = tickToSqrtP(tickHi);
+  const L = liquidityFromUsd(usd, pool.sqrtP, sqrtPa, sqrtPb, tokenUsd0, tokenUsd1);
+  if (L <= 0) return;
+  const pos = {
+    id: 'P' + (positionIdCounter++),
+    tickLower: tickLo, tickUpper: tickHi,
+    sqrtPa, sqrtPb,
+    L,
+    owner: ownerLabel,
+    fees0: 0, fees1: 0,
+    depositedUsd: usd,
+    depositPrice: poolPrice(pool),
+    tag: tag || 'lp',
+    blockOpened: 0,
+  };
+  pool.positions.push(pos);
+}
+
+// Compute a position's current value in USD vs its entry value (for IL).
+function positionPnl(pool, pos) {
+  const tokenUsd0 = tokenUsdPrice(pool.token0);
+  const tokenUsd1 = tokenUsdPrice(pool.token1);
+  const amts = positionAmounts(pos.L, pool.sqrtP, pos.sqrtPa, pos.sqrtPb);
+  const currentUsd = amts.amount0 * tokenUsd0 + amts.amount1 * tokenUsd1;
+  const feesUsd    = pos.fees0 * tokenUsd0 + pos.fees1 * tokenUsd1;
+  // HODL value: had we just held the deposit's initial token mix (taken at deposit price)
+  // We track depositPrice at open. For simplicity, IL ≈ (currentUsd - depositedUsd) / depositedUsd.
+  // Real IL compares to HODL of the original token mix; this approximation is correct when
+  // the position was opened with the price within the range and no rebalancing occurred.
+  return {
+    currentUsd,
+    feesUsd,
+    pnlUsd: (currentUsd + feesUsd) - pos.depositedUsd,
+    ilUsd:  currentUsd - pos.depositedUsd,  // pure price exposure (exclusive of fees)
+  };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AGENTS
+// ════════════════════════════════════════════════════════════════
+const AGENT_TYPES = {
+  retail:   { label: 'Retail Swapper',     color: '#4a6080', mev: false },
+  fund:     { label: 'Directional Fund',   color: '#2563eb', mev: false },
+  arb:      { label: 'Stat-Arb (X-pool)',  color: '#7c3aed', mev: false },
+  lp:       { label: 'Liquidity Provider', color: '#059669', mev: false },
+  sandwich: { label: 'Sandwich Searcher',  color: '#dc2626', mev: true  },
+  jit:      { label: 'JIT Liquidity Bot',  color: '#f59e0b', mev: true  },
+  toxic:    { label: 'Toxic Backrunner',   color: '#db2777', mev: true  },
+  oracle:   { label: 'Oracle Manipulator', color: '#8b5cf6', mev: true  },
+};
+
+function buildAgents() {
+  agents = [];
+  agentPnl = {}; agentPos = {}; agentCapital = {}; agentAvgEntry = {};
+
+  // --- LPs (4 distinct identities — already seeded into pools by seedLiquidity)
+  // We create agent records that reference the seeded positions.
+  let lpIdx = 1;
+  for (const poolId of Object.keys(pools)) {
+    const pool = pools[poolId];
+    pool.positions.forEach((pos) => {
+      const id = 'LP' + (lpIdx++);
+      pos.owner = id;
+      const cap = pos.depositedUsd;
+      agents.push({
+        id, name: id, type: 'lp', active: true,
+        state: { poolId, positionId: pos.id, tag: pos.tag, depositedUsd: cap },
+      });
+      agentCapital[id] = cap;
+      agentPnl[id] = 0;
+    });
+  }
+
+  // --- Retail swappers (10 agents acting infrequently)
+  for (let i = 1; i <= 10; i++) {
+    const id = 'RT' + i;
+    const cap = randInt(RETAIL_CAP_MIN, RETAIL_CAP_MAX);
+    agents.push({
+      id, name: id, type: 'retail', active: true,
+      state: {
+        cap,
+        nextActAt: randFloat(2, 30),  // first action soon after start
+        slippageBps: randInt(50, 300),  // 0.5%-3% slippage tolerance
+        biasPool: pickRandom(['USDC_WETH','WBTC_WETH','WBTC_USDC','USDC_USDT']),
+      },
+    });
+    agentCapital[id] = cap;
+    agentPnl[id] = 0;
+  }
+
+  // --- Funds (3 directional agents). Biases are randomly assigned across
+  // {long-eth, short-eth, long-btc, short-btc} so the population is roughly
+  // balanced — no systematic drift. Each fund also has a `flipEveryBlocks`
+  // counter that reverses its bias periodically (5–15 blocks), simulating
+  // a fund running a mean-reverting / momentum-flip strategy.
+  const fundBiasPool = ['long-eth', 'short-eth', 'long-btc', 'short-btc'];
+  for (let i = 1; i <= 3; i++) {
+    const id = 'FD' + i;
+    const cap = randInt(FUND_CAP_MIN, FUND_CAP_MAX);
+    // Pick a different bias for each fund where possible
+    const fundBias = fundBiasPool[(i - 1) % fundBiasPool.length];
+    const isWhale  = i === 3;  // FD3 = institutional whale
+    const longLeg  = fundBias.startsWith('long');
+    const isEth    = fundBias.endsWith('eth');
+    agents.push({
+      id, name: id, type: 'fund', active: true,
+      state: {
+        cap,
+        nextActAt: randFloat(15, 90),
+        bias: fundBias,
+        size: isWhale ? randInt(3_000_000, 12_000_000) : randInt(150_000, 800_000),
+        biasPool: isEth ? 'USDC_WETH' : 'WBTC_USDC',
+        flipEveryBlocks: randInt(5, 15),
+        lastFlipBlock: 0,
+      },
+    });
+    agentCapital[id] = cap;
+    agentPnl[id] = 0;
+  }
+
+  // --- Statistical arbitrageur (cross-pool)
+  agents.push({
+    id: 'AR1', name: 'AR1', type: 'arb', active: true,
+    state: {
+      cap: randInt(ARB_CAP_MIN, ARB_CAP_MAX),
+      thresholdBps: 25,   // act only if dislocation >25bps
+      lastActBlock: -1,
+      poolsWatched: ['WBTC_USDC','WBTC_WETH','USDC_WETH'],
+    },
+  });
+  agentCapital.AR1 = agents.find(a=>a.id==='AR1').state.cap;
+  agentPnl.AR1 = 0;
+
+  // --- MEV searchers (always present; activated by mode)
+  ['SAND1', 'SAND2'].forEach(id => {
+    agents.push({
+      id, name: id, type: 'sandwich', active: false,
+      state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), minVictimSizeUsd: 50_000, gasBidBps: 50 },
+    });
+    agentCapital[id] = agents.find(a=>a.id===id).state.cap;
+    agentPnl[id] = 0;
+  });
+  agents.push({
+    id: 'JIT1', name: 'JIT1', type: 'jit', active: false,
+    state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), minVictimSizeUsd: 100_000, openPosition: null },
+  });
+  agentCapital.JIT1 = agents.find(a=>a.id==='JIT1').state.cap;
+  agentPnl.JIT1 = 0;
+
+  agents.push({
+    id: 'TX1', name: 'TX1', type: 'toxic', active: false,
+    state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), thresholdBps: 30 },
+  });
+  agentCapital.TX1 = agents.find(a=>a.id==='TX1').state.cap;
+  agentPnl.TX1 = 0;
+
+  agents.push({
+    id: 'ORC1', name: 'ORC1', type: 'oracle', active: false,
+    state: { cap: randInt(SEARCHER_CAP_MIN*3, SEARCHER_CAP_MAX*3), targetTwapBps: 100, sizeUsd: 2_000_000 },
+  });
+  agentCapital.ORC1 = agents.find(a=>a.id==='ORC1').state.cap;
+  agentPnl.ORC1 = 0;
+}
+
+function setMevActive() {
+  // Toggle MEV searcher agents based on simMode
+  const map = {
+    'sandwich': ['SAND1','SAND2'],
+    'jit':      ['JIT1'],
+    'toxic':    ['TX1'],
+    'oracle':   ['ORC1'],
+  };
+  agents.forEach(a => {
+    if (a.type === 'sandwich' || a.type === 'jit' || a.type === 'toxic' || a.type === 'oracle') {
+      a.active = (map[simMode] || []).includes(a.id);
+    }
+  });
+  mevProtected = (simMode === 'protected');
+  useRollup    = (simMode === 'rollup');
+  if (useRollup) BLOCK_TIME = ROLLUP_BLOCK; else BLOCK_TIME = 12;
+  document.getElementById('mempool-status').textContent = mevProtected
+    ? 'PROTECTED · txs routed through private orderflow (Flashbots-like)'
+    : useRollup
+      ? 'ROLLUP-BOOST · 1s blocks · single sequencer · reduced reorderability'
+      : 'EXPOSED · all txs visible to searchers';
+}
+
+function pickRandom(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+function randInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function randFloat(a,b) { return a + Math.random()*(b-a); }
+
+
+// ════════════════════════════════════════════════════════════════
+//  MEMPOOL & BLOCK PRODUCTION
+// ════════════════════════════════════════════════════════════════
+//
+// Lifecycle of a tx:
+//   1. Agent submits a tx → pushed to `mempool` with submittedAt = simTime.
+//   2. Searcher agents see it (unless mode='protected') and may submit
+//      sandwich/JIT/backrun txs into the same block.
+//   3. At end of block (every BLOCK_TIME sim-seconds), the builder orders
+//      all pending txs by gasGwei (descending — highest tip first), then
+//      executes them sequentially, applying each to the pool state.
+//   4. Sandwiches require the front-run to land BEFORE the victim and the
+//      back-run AFTER. Searchers achieve this by paying higher gas than
+//      the victim for the front-run, lower gas for the back-run (but
+//      higher than retail noise) — flashbots bundles in reality.
+
+function submitTx(tx) {
+  tx.id = mempoolNextId++;
+  tx.submittedAt = simTime;
+  tx.executed = false;
+  // If MEV-protected mode is on, retail/fund txs go to private orderflow:
+  // they bypass the public mempool entirely and land directly in the next block,
+  // invisible to searchers.
+  if (mevProtected && (tx.type === 'swap' || tx.type === 'addLiq' || tx.type === 'removeLiq')) {
+    tx.private = true;
+    forensics.protectedTxCount++;
+  } else {
+    tx.private = false;
+  }
+  mempool.push(tx);
+  return tx;
+}
+
+// Searcher hook — called every sim-second between blocks. Searchers inspect
+// public (non-private) pending txs and inject their own bundles.
+function searcherStep() {
+  // Skip if no public mempool to scan
+  const visible = mempool.filter(t => !t.executed && !t.private);
+  if (!visible.length) return;
+
+  if (simMode === 'sandwich') sandwichSearcher(visible);
+  if (simMode === 'jit')      jitSearcher(visible);
+  if (simMode === 'toxic')    toxicBackrunSearcher(visible);
+  if (simMode === 'oracle')   oracleSearcher(visible);
+}
+
+// ── SANDWICH SEARCHER ─────────────────────────────────────────────
+// Identifies a victim tx with a large amount and high slippage tolerance.
+// Inserts a front-run swap (same direction) and a back-run swap (opposite).
+// Profit = (price moved by victim) - gas. We pay slightly more gas than victim
+// for the front-run and slightly less for the back-run.
+function sandwichSearcher(visible) {
+  // Find pending swaps with non-trivial size
+  for (const victim of visible) {
+    if (victim.type !== 'swap') continue;
+    if (victim.sandwichedBy) continue;   // already targeted
+    const pool = pools[victim.pool];
+    if (!pool) continue;
+
+    // Estimate the victim's USD size
+    const victimSizeUsd = txSizeUsd(victim, pool);
+    const sand = agents.find(a => a.id === 'SAND1' && a.active);
+    if (!sand) continue;
+    if (victimSizeUsd < sand.state.minVictimSizeUsd) continue;
+
+    // Predict victim's price impact via simulateSwap
+    const sim = simulateSwap(pool, victim.side === 'buy' ? 'sell0' : 'sell1', victim.amountIn);
+    // Need *some* impact to extract from
+    if (sim.priceImpactBps < 3) continue;
+
+    // Size the front-run carefully. Real searchers do this with convex
+    // optimisation; we approximate. The KEY constraint: front + victim
+    // combined impact must NOT exceed victim's slipBps (else victim reverts
+    // and our front-position is stuck with no exit liquidity from the victim).
+    const sandCapUsd = (agentCapital.SAND1 || 0) + (agentPnl.SAND1 || 0);
+    const victimSlipBps = victim.slippageBps || 50;
+    // Available "headroom" for front impact = victim slip tolerance - victim's own impact.
+    // If victim already saturates its slip, skip — no profitable attack.
+    const headroomBps = victimSlipBps - sim.priceImpactBps;
+    if (headroomBps < 5) continue;
+    // Front size: pick so that front's impact is ~70% of headroom. Approx linear in size.
+    // priceImpactBps ≈ k × usd_size (for small swaps), so frontUsd = victimUsd × 0.7 × headroom / victimImpact
+    const sizeFraction = Math.min(2.0, Math.max(0.2, 0.7 * headroomBps / Math.max(sim.priceImpactBps, 1)));
+    const frontUsd = Math.min(victimSizeUsd * sizeFraction, sandCapUsd * 0.7);
+    if (frontUsd < 5000) continue;
+
+    // Front impact estimate (linear approx)
+    const frontImpactBps = sim.priceImpactBps * (frontUsd / victimSizeUsd);
+    // Profit estimate: searcher captures ~half the front-pushed impact on victim's notional,
+    // minus 2× fee on front size + gas.
+    const grossExtractUsd = victimSizeUsd * frontImpactBps / 10000;
+    const feeCostUsd      = 2 * frontUsd * pool.feeBps / 10000;
+    const gasCostUsd      = 50;  // ~$25 per swap × 2
+    const expectedProfitUsd = grossExtractUsd - feeCostUsd - gasCostUsd;
+    if (expectedProfitUsd < 50) continue;  // not worth gas+capital risk
+    // Also ensure combined impact won't trigger victim revert
+    if (frontImpactBps + sim.priceImpactBps > victimSlipBps - 2) continue;
+
+    // Convert frontUsd into the victim's input token amount
+    const inTokenUsd = tokenUsdPrice(victim.amountInToken);
+    const frontAmountIn = frontUsd / inTokenUsd;
+
+    // Submit front-run with gas slightly above victim
+    const frontTx = submitTx({
+      agentId: 'SAND1',
+      type: 'sandFront',
+      pool: victim.pool,
+      side: victim.side,
+      amountIn: frontAmountIn,
+      amountInToken: victim.amountInToken,
+      slippageBps: 5000,  // we can absorb arbitrary slippage — we know what's coming
+      gasGwei: (victim.gasGwei || BASE_GAS_GWEI) + 5,
+      tag: 'attack',
+      pairedVictimId: victim.id,
+    });
+    // Submit back-run with the OPPOSITE direction. Amount = expected output of front-run.
+    // We pay lower gas than the victim so we settle right after them.
+    const expectedFrontOut = simulateSwap(pool, victim.side === 'buy' ? 'sell0' : 'sell1', frontAmountIn).amountOut;
+    const backSide = victim.side === 'buy' ? 'sell' : 'buy';
+    const backInToken = backSide === 'buy' ? pool.token0 : pool.token1;
+    // (For our purpose, use the front-run's output as the back-run's input — that's
+    // the token we acquired. The token names match by side.)
+    const backTx = submitTx({
+      agentId: 'SAND1',
+      type: 'sandBack',
+      pool: victim.pool,
+      side: backSide,
+      amountIn: expectedFrontOut,
+      amountInToken: victim.amountInToken === pool.token0 ? pool.token1 : pool.token0,
+      slippageBps: 5000,
+      gasGwei: (victim.gasGwei || BASE_GAS_GWEI) - 1,  // settles after victim
+      tag: 'attack',
+      pairedVictimId: victim.id,
+      pairedFrontId: frontTx.id,
+    });
+
+    victim.sandwichedBy = frontTx.id;
+    forensics.sandwichAttempts++;
+    addEvent('event-attack', `🥪 SANDWICH: SAND1 wraps RT/FD swap of $${(victimSizeUsd/1000).toFixed(0)}k on ${pool.name}. Front: ${frontUsd.toFixed(0)} USD-equivalent.`);
+    break; // one sandwich per searcher-step
+  }
+}
+
+// ── JIT LIQUIDITY SEARCHER ─────────────────────────────────────────
+// Detects a large pending swap, mints concentrated liquidity in a tight range
+// around the current price RIGHT BEFORE the swap, captures fees, and removes
+// liquidity RIGHT AFTER. This dilutes passive LPs' fee share.
+function jitSearcher(visible) {
+  for (const victim of visible) {
+    if (victim.type !== 'swap') continue;
+    if (victim.jitTargetedBy) continue;
+    const pool = pools[victim.pool];
+    if (!pool) continue;
+    const victimSizeUsd = txSizeUsd(victim, pool);
+    const jit = agents.find(a => a.id === 'JIT1' && a.active);
+    if (!jit) continue;
+    if (victimSizeUsd < jit.state.minVictimSizeUsd) continue;
+
+    // Mint a position in a ±0.1% band around current price
+    const p = poolPrice(pool);
+    const bandLo = p * 0.999;
+    const bandHi = p * 1.001;
+    const tickLo = nearestTick(bandLo, pool.tickSpacing);
+    const tickHi = Math.max(tickLo + pool.tickSpacing, nearestTick(bandHi, pool.tickSpacing));
+    // Deploy capital up to JIT cap
+    const jitCapUsd = (agentCapital.JIT1 || 0) + (agentPnl.JIT1 || 0);
+    const deployUsd = Math.min(jitCapUsd * 0.8, victimSizeUsd * 5);
+
+    submitTx({
+      agentId: 'JIT1',
+      type: 'jit',  // single tx that adds liq, victim runs through, then removes liq atomically at block end
+      pool: victim.pool,
+      tickLower: tickLo, tickUpper: tickHi,
+      depositUsd: deployUsd,
+      gasGwei: (victim.gasGwei || BASE_GAS_GWEI) + 3,
+      tag: 'jit',
+      pairedVictimId: victim.id,
+    });
+    victim.jitTargetedBy = 'JIT1';
+    forensics.jitAttempts++;
+    addEvent('event-jit', `⚡ JIT: JIT1 minting ±0.1% range with $${(deployUsd/1000).toFixed(0)}k around RT/FD swap of $${(victimSizeUsd/1000).toFixed(0)}k on ${pool.name}.`);
+    break;
+  }
+}
+
+// ── TOXIC BACKRUN ──────────────────────────────────────────────────
+// Watches for any large swap that moves price meaningfully, then submits an
+// arb tx in the OPPOSITE direction in the SAME pool to capture rebate as the
+// price reverts. Variant: backrun a victim whose poor execution reveals
+// information (information asymmetry).
+function toxicBackrunSearcher(visible) {
+  for (const victim of visible) {
+    if (victim.type !== 'swap') continue;
+    if (victim.backrunBy) continue;
+    const pool = pools[victim.pool];
+    if (!pool) continue;
+    const victimSizeUsd = txSizeUsd(victim, pool);
+    if (victimSizeUsd < 30_000) continue;
+    const tx1 = agents.find(a => a.id === 'TX1' && a.active);
+    if (!tx1) continue;
+
+    // Estimate post-victim price; if a counter-trade in next block would close some
+    // dislocation vs our reference price (true value = USD prices), profit.
+    const sim = simulateSwap(pool, victim.side === 'buy' ? 'sell0' : 'sell1', victim.amountIn);
+    if (sim.priceImpactBps < 10) continue;
+
+    // Backrun: opposite direction, smaller size
+    const backSide = victim.side === 'buy' ? 'sell' : 'buy';
+    const backInToken = backSide === 'buy' ? pool.token0 : pool.token1;
+    const cap = (agentCapital.TX1 || 0) + (agentPnl.TX1 || 0);
+    const backUsd = Math.min(victimSizeUsd * 0.4, cap * 0.3);
+    submitTx({
+      agentId: 'TX1',
+      type: 'swap',
+      pool: victim.pool,
+      side: backSide,
+      amountIn: backUsd / tokenUsdPrice(backInToken),
+      amountInToken: backInToken,
+      slippageBps: 5000,
+      gasGwei: (victim.gasGwei || BASE_GAS_GWEI) - 1,
+      tag: 'attack',
+      pairedVictimId: victim.id,
+    });
+    victim.backrunBy = 'TX1';
+    forensics.toxicBackruns = (forensics.toxicBackruns || 0) + 1;
+    addEvent('event-attack', `☣ BACKRUN: TX1 reverses post-trade dislocation of ${sim.priceImpactBps.toFixed(0)}bps on ${pool.name}.`);
+    break;
+  }
+}
+
+// ── ORACLE MANIPULATION ────────────────────────────────────────────
+// Submits a very large swap to push price away from fundamental, holds for
+// several blocks (e.g. to manipulate a TWAP oracle that some lending protocol
+// uses), then reverses. This is the simplest model — real attacks involve
+// flashloans and timing on dependent protocols.
+let oracleEpisode = null;
+function oracleSearcher(visible) {
+  if (oracleEpisode) return;  // one episode at a time
+  if (Math.random() > 0.001) return;  // rare episodic firing
+  const orc = agents.find(a => a.id === 'ORC1' && a.active);
+  if (!orc) return;
+
+  // Pick a target pool — favor WBTC/WETH because oracles often watch this pair
+  const targetPool = pools.WBTC_WETH;
+  const p = poolPrice(targetPool);
+  // Push UP (long WBTC vs WETH). With token0=WETH, token1=WBTC, we want to make
+  // WBTC scarce → buy WBTC by spending WETH → sell0 → side='buy' in our convention.
+  const sizeUsd = orc.state.sizeUsd;
+  const inTokenUsd = tokenUsdPrice(targetPool.token0); // pay with WETH (token0)
+  submitTx({
+    agentId: 'ORC1',
+    type: 'swap',
+    pool: 'WBTC_WETH',
+    side: 'buy',   // sell0 = sell WETH for WBTC. Pushes sqrtP up → price (WBTC/WETH) up.
+    amountIn: sizeUsd / inTokenUsd,
+    amountInToken: targetPool.token0,
+    slippageBps: 1000,
+    gasGwei: BASE_GAS_GWEI + 10,
+    tag: 'attack',
+  });
+  oracleEpisode = { startBlock: blockNumber, targetPool: 'WBTC_WETH', startPrice: p, reverseAt: blockNumber + 8, sizeUsd: sizeUsd };
+  forensics.oracleAttacks++;
+  addEvent('event-oracle', `🔮 ORACLE ATTACK: ORC1 pushes WBTC/WETH UP with $${(sizeUsd/1e6).toFixed(2)}M swap. Plans to hold for 8 blocks to corrupt TWAP, then reverse.`);
+}
+
+function oracleEpisodeStep() {
+  if (!oracleEpisode) return;
+  if (blockNumber >= oracleEpisode.reverseAt) {
+    // Reverse the position — sell WBTC back for WETH (sell1 = side='sell')
+    const pool = pools[oracleEpisode.targetPool];
+    const reverseSizeUsd = oracleEpisode.sizeUsd || 1_000_000;
+    const wbtcAmount = reverseSizeUsd / tokenUsdPrice('WBTC');
+    submitTx({
+      agentId: 'ORC1',
+      type: 'swap',
+      pool: oracleEpisode.targetPool,
+      side: 'sell',  // sell1 = sell WBTC (token1) for WETH — pushes price back down
+      amountIn: wbtcAmount,
+      amountInToken: pool.token1,
+      slippageBps: 1000,
+      gasGwei: BASE_GAS_GWEI + 10,
+      tag: 'attack',
+    });
+    addEvent('event-oracle', `🔮 ORACLE UNWIND: ORC1 reverses its WBTC/WETH push. Net loss to ORC1, but downstream lending oracles already corrupted.`);
+    oracleEpisode = null;
+  }
+}
+
+// Helper: estimate a tx's USD size based on its input token
+function txSizeUsd(tx, pool) {
+  if (tx.type !== 'swap' && tx.type !== 'sandFront' && tx.type !== 'sandBack') return 0;
+  const tokenUsd = tokenUsdPrice(tx.amountInToken);
+  return tx.amountIn * tokenUsd;
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  BLOCK PRODUCTION
+// ════════════════════════════════════════════════════════════════
+//
+// Every BLOCK_TIME sim-seconds:
+//   1. Collect all pending non-executed txs.
+//   2. Sort by gasGwei descending — priority fee (Flashbots / standard tip).
+//      In real life, Flashbots bundles preserve atomic ordering; here we
+//      approximate by grouping sandwich front+victim+back and inserting them
+//      together at the front-run's gas position.
+//   3. Execute sequentially, applying each to its pool.
+//   4. Compute searcher PnL by tagging fills.
+//   5. Mark all as executed; clear from mempool.
+function closeBlock() {
+  // --- Group sandwich bundles so front + victim + back stay contiguous
+  const pending = mempool.filter(t => !t.executed);
+  if (!pending.length) {
+    blockNumber++;
+    forensics.blockCount++;
+    return;
+  }
+
+  // Build bundles: a sandFront tx defines a bundle with its paired victim and back.
+  const bundleByFrontId = new Map();
+  pending.forEach(t => {
+    if (t.type === 'sandFront') bundleByFrontId.set(t.id, { front: t, victim: null, back: null });
+  });
+  // Match victims (by id == front.pairedVictimId) and backs (by pairedFrontId).
+  // Victims do NOT carry pairedVictimId — they are pointed *to* by the front/back.
+  pending.forEach(t => {
+    for (const [fid, b] of bundleByFrontId) {
+      if (b.front.pairedVictimId === t.id) b.victim = t;
+      if (t.type === 'sandBack' && t.pairedFrontId === fid) b.back = t;
+    }
+  });
+
+  // Build a unified ordered list: bundles first (sorted by front gas), then standalone txs by gas.
+  const inBundle = new Set();
+  const bundles = [];
+  for (const b of bundleByFrontId.values()) {
+    if (b.front && b.victim && b.back) {
+      bundles.push(b);
+      inBundle.add(b.front.id);
+      inBundle.add(b.victim.id);
+      inBundle.add(b.back.id);
+    }
+  }
+  const standalone = pending.filter(t => !inBundle.has(t.id));
+  // Sort bundles by front gas, standalone by gas
+  bundles.sort((a,b) => (b.front.gasGwei||0) - (a.front.gasGwei||0));
+  standalone.sort((a,b) => (b.gasGwei||0) - (a.gasGwei||0));
+
+  // Interleave: pop highest-gas item next (treat each bundle's gas as front gas)
+  const orderedTxs = [];
+  let bi = 0, si = 0;
+  while (bi < bundles.length || si < standalone.length) {
+    const bGas = bi < bundles.length ? bundles[bi].front.gasGwei : -1;
+    const sGas = si < standalone.length ? standalone[si].gasGwei : -1;
+    if (bGas >= sGas) {
+      orderedTxs.push(bundles[bi].front, bundles[bi].victim, bundles[bi].back);
+      bi++;
+    } else {
+      orderedTxs.push(standalone[si]);
+      si++;
+    }
+  }
+
+  // Execute them in order.
+  let blockSwapsLog = [];
+  for (const tx of orderedTxs) {
+    if (tx.executed) continue;
+    executeTx(tx, blockSwapsLog);
+  }
+
+  // Now compute sandwich profit per executed bundle and update searcher PnL.
+  for (const b of bundles) {
+    if (!(b.front && b.victim && b.back)) continue;
+    if (!b.front.executed || !b.back.executed) continue;
+    // Profit = back.amountOutUsd - front.amountInUsd - gas
+    // Approx: net USD delta of the searcher's position
+    const pool = pools[b.front.pool];
+    const frontInUsd  = txSizeUsd(b.front, pool);
+    const backOutUsd  = (b.back.amountOut || 0) * tokenUsdPrice(b.back.amountOutToken || pool.token0);
+    const gasUsd      = ((b.front.gasGwei + b.back.gasGwei) * 200_000 * 1e-9) * tokenUsdPrice('WETH');  // 200k gas units per swap
+    const profit      = backOutUsd - frontInUsd - gasUsd - (b.front.feeAmountUsd||0) - (b.back.feeAmountUsd||0);
+    agentPnl.SAND1 = (agentPnl.SAND1 || 0) + profit;
+    if (profit > 0) {
+      forensics.sandwichesSuccessful++;
+      forensics.totalMevExtractedUsd += profit;
+      // Victim's loss = the price they paid worse than mid-block-fair-price
+      const victimPool = pools[b.victim.pool];
+      const victimSize = txSizeUsd(b.victim, victimPool);
+      const victimSlipBps = b.victim.realisedSlipBps || 0;
+      forensics.sandwichVictimLossUsd += victimSize * victimSlipBps / 10000;
+      addEvent('event-attack', `🥪 SANDWICH PROFIT: SAND1 captured $${profit.toFixed(0)} from victim's $${(victimSize/1000).toFixed(0)}k swap (${victimSlipBps.toFixed(0)} bps slippage paid).`);
+      pinChartEvent('sandwich');
+    } else {
+      addEvent('event-attack', `🥪 SANDWICH LOSS: SAND1 lost $${(-profit).toFixed(0)} on attempted attack — adverse fills or victim was protected.`);
+    }
+  }
+
+  // Clear executed txs from mempool
+  mempool = mempool.filter(t => !t.executed);
+  blockNumber++;
+  forensics.blockCount++;
+
+  // Statistical arb step happens once per block (it sees post-block state)
+  arbStep();
+  // Oracle episode advance
+  oracleEpisodeStep();
+  // Cross-pool dislocation refresh
+  updateDislocation();
+}
+
+function executeTx(tx, blockSwapsLog) {
+  const pool = pools[tx.pool];
+  if (!pool) { tx.executed = true; return; }
+
+  if (tx.type === 'swap' || tx.type === 'sandFront' || tx.type === 'sandBack') {
+    // For sandBack: use the FRONT-run's actual realised amountOut as our input,
+    // not the pre-execution estimate. Searcher bundles their swaps atomically;
+    // the back's input == whatever token the front actually produced.
+    if (tx.type === 'sandBack' && tx.pairedFrontId !== undefined) {
+      const frontTx = mempool.find(m => m.id === tx.pairedFrontId);
+      if (frontTx && frontTx.executed && frontTx.amountOut > 0) {
+        tx.amountIn = frontTx.amountOut;
+      }
+    }
+    // Convert side to swap direction
+    const swapSide = (tx.side === 'buy') ? 'sell0' : 'sell1';
+    // amountIn is in the natural token unit
+    const beforeP = poolPrice(pool);
+    const sim = applySwap(pool, swapSide, tx.amountIn);
+    // Slippage check: if outcome violates slippageBps, the tx would normally revert.
+    // For a simulator we still record it but flag.
+    const expectedPrice = beforeP;
+    const actualEffectivePrice = (swapSide === 'sell0')
+      ? (tx.amountIn / Math.max(sim.amountOut, 1e-18))    // token0 in per token1 out → 1/(token1/token0)
+      : (sim.amountOut / Math.max(tx.amountIn, 1e-18));
+    // Simpler: realised price = average of beforeP and afterP for small swaps
+    const fairPrice = (sim.priceBefore + sim.priceAfter) / 2;
+    const realisedPrice = (swapSide === 'sell0')
+      ? (tx.amountIn * pool.feeBps / 10000 + tx.amountIn) / Math.max(sim.amountOut, 1e-18)  // includes fee
+      : sim.amountOut / Math.max(tx.amountIn * (1 - pool.feeBps/10000), 1e-18);
+    // For our purposes, slippage bps = price impact bps (close enough)
+    tx.realisedSlipBps = sim.priceImpactBps;
+    tx.amountOut = sim.amountOut;
+    tx.amountOutToken = swapSide === 'sell0' ? pool.token1 : pool.token0;
+    tx.feeAmountUsd = sim.feeAmount * tokenUsdPrice(tx.amountInToken);
+
+    // Slippage protection: in real V3, swap reverts if amountOut < minOut.
+    // We mark it as reverted but only if the slippage is severe and tx wasn't
+    // a forced-execute MEV variant.
+    const slipExceeded = tx.slippageBps && sim.priceImpactBps > tx.slippageBps;
+    if (slipExceeded && tx.tag !== 'attack' && tx.tag !== 'jit') {
+      // Revert: undo the swap
+      pool.sqrtP = Math.sqrt(sim.priceBefore);
+      pool.lastPrice = sim.priceBefore;
+      // refund fees
+      // (We didn't track per-LP fee deltas precisely — small bookkeeping leak; acceptable for sim.)
+      tx.executed = true;
+      tx.reverted = true;
+      addEvent('event-block', `⚠ Swap reverted: ${tx.agentId} on ${pool.name} — slippage ${sim.priceImpactBps.toFixed(0)} bps > tolerance ${tx.slippageBps} bps.`);
+      return;
+    }
+
+    // Update agent PnL: for swappers, PnL is the difference between fair-price-execution and realised.
+    // For retail/fund, the loss to slippage and fees is registered against capital.
+    const agentId = tx.agentId;
+    const agent   = agents.find(a => a.id === agentId);
+    if (agent) {
+      const sizeUsd = txSizeUsd(tx, pool);
+      const slipCostUsd = sizeUsd * sim.priceImpactBps / 10000 / 2;  // half of impact = avg adverse
+      const feeUsd = tx.feeAmountUsd;
+      // Retail/fund: realised loss = slippage + fees
+      if (agent.type === 'retail' || agent.type === 'fund') {
+        agentPnl[agentId] = (agentPnl[agentId] || 0) - slipCostUsd - feeUsd;
+      } else if (agent.type === 'arb') {
+        // Arb's PnL handled separately at arb step (mark-to-fair-price)
+      }
+    }
+
+    forensics.totalSwaps++;
+    forensics.totalVolumeUsd += txSizeUsd(tx, pool);
+    forensics.totalFeesUsd   += tx.feeAmountUsd;
+    pool.swapCount++;
+    pool.volumeUsd += txSizeUsd(tx, pool);
+
+    blockSwapsLog.push(tx);
+    addTape(tx, pool);
+    tx.executed = true;
+  } else if (tx.type === 'jit') {
+    // JIT: add a position right before the next swap, then schedule its removal at end of block.
+    const tickLo = tx.tickLower;
+    const tickHi = tx.tickUpper;
+    const sqrtPa = tickToSqrtP(tickLo);
+    const sqrtPb = tickToSqrtP(tickHi);
+    const tokenUsd0 = tokenUsdPrice(pool.token0);
+    const tokenUsd1 = tokenUsdPrice(pool.token1);
+    const L = liquidityFromUsd(tx.depositUsd, pool.sqrtP, sqrtPa, sqrtPb, tokenUsd0, tokenUsd1);
+    const pos = {
+      id: 'P' + (positionIdCounter++),
+      tickLower: tickLo, tickUpper: tickHi,
+      sqrtPa, sqrtPb,
+      L,
+      owner: tx.agentId,
+      fees0: 0, fees1: 0,
+      depositedUsd: tx.depositUsd,
+      depositPrice: poolPrice(pool),
+      tag: 'jit',
+      blockOpened: blockNumber,
+    };
+    pool.positions.push(pos);
+    tx.jitPositionId = pos.id;
+    // We'll yank it after this block executes — schedule removal as a flag.
+    tx.executed = true;
+    tx.jitOpen = true;
+  } else if (tx.type === 'addLiq' || tx.type === 'removeLiq') {
+    // (Not used in current simulation; reserved for future)
+    tx.executed = true;
+  }
+}
+
+// At end of each block, remove all open JIT positions and credit fees.
+function reapJitPositions() {
+  for (const pool of Object.values(pools)) {
+    pool.positions = pool.positions.filter(pos => {
+      if (pos.tag !== 'jit') return true;
+      if (pos.blockOpened !== blockNumber - 1 && pos.blockOpened !== blockNumber) return true;
+      // Remove: credit fees as JIT profit
+      const pnl = positionPnl(pool, pos);
+      const profit = pnl.feesUsd + pnl.ilUsd;  // capture fees + IL realised
+      agentPnl.JIT1 = (agentPnl.JIT1 || 0) + profit;
+      forensics.jitFeesCaptured += pnl.feesUsd;
+      forensics.totalMevExtractedUsd += profit;
+      addEvent('event-jit', `⚡ JIT REMOVED: JIT1 captured $${pnl.feesUsd.toFixed(0)} fees, $${pnl.ilUsd.toFixed(0)} IL → net $${profit.toFixed(0)} on ${pool.name}.`);
+      pinChartEvent('jit');
+      return false;
+    });
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  AGENT BEHAVIOUR (non-MEV)
+// ════════════════════════════════════════════════════════════════
+
+// ── RETAIL: occasional small swaps with high slippage tolerance
+function retailStep() {
+  const flow = flowMultiplier();
+  for (const a of agents) {
+    if (a.type !== 'retail' || !a.active) continue;
+    const st = a.state;
+    if (simTime < st.nextActAt) continue;
+    // Higher flow → shorter intervals (more frequent retail txs)
+    st.nextActAt = simTime + randFloat(20, 180) / flow;
+
+    const poolId = pickRandom(['USDC_WETH','WBTC_WETH','WBTC_USDC','USDC_USDT']);
+    const pool   = pools[poolId];
+    const side   = Math.random() < 0.5 ? 'buy' : 'sell';
+    const inToken = side === 'buy' ? pool.token0 : pool.token1;
+    // USD value of swap: $500 - $5000 typical retail. During peak hours,
+    // retail trades skew slightly larger (FOMO during rallies, panic during dumps).
+    const sizeBoost = flow > 1.15 ? randFloat(1.0, 1.6) : 1.0;
+    const usd = randFloat(500, 5000) * sizeBoost;
+    const amountIn = usd / tokenUsdPrice(inToken);
+
+    submitTx({
+      agentId: a.id,
+      type: 'swap',
+      pool: poolId,
+      side,
+      amountIn, amountInToken: inToken,
+      slippageBps: st.slippageBps,
+      gasGwei: BASE_GAS_GWEI + randInt(-3, 3),
+      tag: 'swap',
+    });
+  }
+}
+
+// ── FUND: larger directional bets on specific pools
+function fundStep() {
+  const flow = flowMultiplier();
+  for (const a of agents) {
+    if (a.type !== 'fund' || !a.active) continue;
+    const st = a.state;
+
+    // Periodic bias flip — simulates a fund cycling between long/short positions.
+    // Without this, prices drift in one direction indefinitely.
+    if (st.flipEveryBlocks && (blockNumber - st.lastFlipBlock) >= st.flipEveryBlocks) {
+      const cur = st.bias;
+      if      (cur === 'long-eth')  st.bias = 'short-eth';
+      else if (cur === 'short-eth') st.bias = 'long-eth';
+      else if (cur === 'long-btc')  st.bias = 'short-btc';
+      else if (cur === 'short-btc') st.bias = 'long-btc';
+      st.lastFlipBlock = blockNumber;
+      st.flipEveryBlocks = randInt(5, 15);  // re-randomise next interval
+    }
+
+    if (simTime < st.nextActAt) continue;
+    // Funds fire roughly 2× more often during peak window (NA daytime overlap)
+    st.nextActAt = simTime + randFloat(60, 300) / Math.max(flow, 0.4);
+
+    const poolId = st.biasPool;
+    const pool   = pools[poolId];
+    if (!pool) continue;
+    // Bias direction:
+    //   long-X  → buy X (sell stable for X) → if pool is stable/X with X=token1, that's sell0 = side='buy'
+    //   short-X → sell X for stable                             = sell1 = side='sell'
+    // Both biasPools (USDC_WETH, WBTC_USDC) have stable=token0, asset=token1.
+    const side = st.bias.startsWith('long') ? 'buy' : 'sell';
+    const inToken = side === 'buy' ? pool.token0 : pool.token1;
+    const usd = randFloat(st.size * 0.5, st.size * 1.5);
+    const amountIn = usd / tokenUsdPrice(inToken);
+
+    // Slippage tolerance scales with size: whales (>$2M) accept 200bp,
+    // medium funds 100bp. Realistic for 1-block on-chain settlement.
+    const slipBps = usd > 2_000_000 ? 200 : 100;
+    submitTx({
+      agentId: a.id,
+      type: 'swap',
+      pool: poolId,
+      side,
+      amountIn, amountInToken: inToken,
+      slippageBps: slipBps,
+      gasGwei: BASE_GAS_GWEI + 5,  // fund pays slightly above base
+      tag: 'swap',
+    });
+  }
+}
+
+// ── STATISTICAL ARB: cross-pool dislocation between direct and synthetic prices.
+//
+// Synthetic WBTC/USDC = (WBTC/WETH) × (WETH/USDC)
+// If synthetic ≠ direct WBTC/USDC by more than thresholdBps, arb the difference.
+// Same logic for USDC/USDT vs unity, etc.
+let arbLastBlock = -1;
+function arbStep() {
+  const a = agents.find(x => x.id === 'AR1' && x.active);
+  if (!a) return;
+  if (blockNumber === arbLastBlock) return;
+  arbLastBlock = blockNumber;
+
+  // All in human-readable USD-quoted prices (bigger asset per smaller asset)
+  const directWbtcUsdc = displayPrice(pools.WBTC_USDC);                          // USDC per WBTC
+  const wbtcWeth       = displayPrice(pools.WBTC_WETH);                          // WETH per WBTC
+  const wethUsdc       = displayPrice(pools.USDC_WETH);                          // USDC per WETH
+  const synthetic      = wbtcWeth * wethUsdc;                                    // USDC per WBTC (synthetic)
+
+  const dislocationBps = (synthetic - directWbtcUsdc) / directWbtcUsdc * 10000;
+  forensics.currentDislocationBps = dislocationBps;
+  if (Math.abs(dislocationBps) > Math.abs(forensics.maxDislocationBps)) {
+    forensics.maxDislocationBps = dislocationBps;
+  }
+
+  if (Math.abs(dislocationBps) < a.state.thresholdBps) return;
+
+  // Trade size: scale with dislocation, capped by capital
+  const cap = (agentCapital.AR1 || 0) + (agentPnl.AR1 || 0);
+  const size = Math.min(cap * 0.3, 250_000);
+
+  // WBTC_USDC pool: token0=USDC, token1=WBTC (after reorder). side=buy → sell0 → spend USDC, get WBTC.
+  // If synthetic > direct → direct is CHEAP (WBTC undervalued in direct). Buy WBTC on direct.
+  if (dislocationBps > 0) {
+    // Buy WBTC on direct pool: spend USDC (token0) → side='buy' (sell0)
+    submitTx({
+      agentId: 'AR1', type: 'swap', pool: 'WBTC_USDC',
+      side: 'buy', amountIn: size, amountInToken: 'USDC',
+      slippageBps: 100, gasGwei: BASE_GAS_GWEI + 8, tag: 'arb',
+    });
+    addEvent('event-arb', `🎯 STAT-ARB: synthetic ${dislocationBps.toFixed(0)} bps RICH vs direct WBTC/USDC. AR1 buys WBTC on direct pool, $${(size/1000).toFixed(0)}k.`);
+  } else {
+    // Sell WBTC on direct: spend WBTC (token1) → side='sell' (sell1)
+    const wbtcAmount = size / tokenUsdPrice('WBTC');
+    submitTx({
+      agentId: 'AR1', type: 'swap', pool: 'WBTC_USDC',
+      side: 'sell', amountIn: wbtcAmount, amountInToken: 'WBTC',
+      slippageBps: 100, gasGwei: BASE_GAS_GWEI + 8, tag: 'arb',
+    });
+    addEvent('event-arb', `🎯 STAT-ARB: synthetic ${dislocationBps.toFixed(0)} bps CHEAP vs direct WBTC/USDC. AR1 sells WBTC on direct pool, $${(size/1000).toFixed(0)}k.`);
+  }
+  forensics.arbCount++;
+  // Approximate arb profit: half of dislocation × size (rough)
+  const expectedProfit = Math.abs(dislocationBps) / 10000 * size * 0.5;
+  agentPnl.AR1 = (agentPnl.AR1 || 0) + expectedProfit;
+  forensics.arbProfitUsd += expectedProfit;
+  pinChartEvent('arb');
+}
+
+function updateDislocation() {
+  const directWbtcUsdc = displayPrice(pools.WBTC_USDC);
+  const synthetic = displayPrice(pools.WBTC_WETH) * displayPrice(pools.USDC_WETH);
+  const bps = (synthetic - directWbtcUsdc) / directWbtcUsdc * 10000;
+  forensics.currentDislocationBps = bps;
+  const el = document.getElementById('dislocation-bar');
+  const val = document.getElementById('dislocation-val');
+  if (val) val.textContent = `${bps>=0?'+':''}${bps.toFixed(1)} bps  (synthetic $${synthetic.toFixed(0)} vs direct $${directWbtcUsdc.toFixed(0)})`;
+  if (el) {
+    el.classList.remove('warn', 'alert');
+    if (Math.abs(bps) > 100) el.classList.add('alert');
+    else if (Math.abs(bps) > 30) el.classList.add('warn');
+  }
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  EVENT LOG / TAPE
+// ════════════════════════════════════════════════════════════════
+function addEvent(cls, text) {
+  const t = simTime;
+  eventLog.push({ t, block: blockNumber, text, cls });
+  const el = document.getElementById('news-body');
+  if (!el) return;
+  const div = document.createElement('div');
+  div.className = 'news-row ' + (cls || '');
+  div.innerHTML = `<span class="news-time">[#${blockNumber} t=${t.toFixed(0)}]</span>${text}`;
+  el.insertBefore(div, el.firstChild);
+  // Trim
+  while (el.children.length > 200) el.removeChild(el.lastChild);
+}
+
+function addTape(tx, pool) {
+  const el = document.getElementById('tape-body');
+  const sideClass = tx.side === 'buy' ? 'buy' : 'sell';
+  const agent = agents.find(a => a.id === tx.agentId);
+  const sizeUsd = txSizeUsd(tx, pool);
+  // Persist to log for CSV
+  if (typeof tapeLog !== 'undefined') {
+    tapeLog.push({
+      block: blockNumber, simTime: simTime, pool: pool.name,
+      side: tx.side, sizeUsd: sizeUsd, price: pool.lastPrice,
+      agent: tx.agentId, kind: tx.tag || tx.type
+    });
+    if (tapeLog.length > 5000) tapeLog.shift();
+  }
+  if (!el) return;
+  const agentClass = agent
+    ? (agent.type === 'sandwich' ? 'attack'
+      : agent.type === 'jit' ? 'jit'
+      : agent.type === 'toxic' ? 'attack'
+      : agent.type === 'oracle' ? 'attack'
+      : agent.type === 'arb' ? 'arb'
+      : agent.type === 'lp' ? 'lp'
+      : '')
+    : '';
+  const sizeStr = sizeUsd >= 1e6 ? `$${(sizeUsd/1e6).toFixed(2)}M`
+                : sizeUsd >= 1e3 ? `$${(sizeUsd/1e3).toFixed(1)}k`
+                : `$${sizeUsd.toFixed(0)}`;
+  const div = document.createElement('div');
+  div.className = `tape-row ${sideClass}`;
+  div.innerHTML = `
+    <div class="dot"></div>
+    <span class="tape-time-price ${sideClass}">#${blockNumber} ${pool.name.split(' / ').join('/')} @ ${formatPrice(displayPrice(pool), pool)}</span>
+    <span class="tape-qty">${sizeStr}</span>
+    <span class="tape-agent ${agentClass}">${tx.agentId}</span>
+  `;
+  el.insertBefore(div, el.children[1] || null);  // skip header
+  while (el.children.length > 100) el.removeChild(el.lastChild);
+  document.getElementById('tape-count').textContent = `${forensics.totalSwaps} SWAPS`;
+}
+
+function formatPrice(p, pool) {
+  // p must already be in display units (callers convert via displayPrice() or priceHistory)
+  if (!pool) return p.toFixed(4);
+  if (pool.id === 'USDC_USDT') return p.toFixed(5);
+  if (pool.id === 'WBTC_USDC') return p.toFixed(0);
+  if (pool.id === 'USDC_WETH') return p.toFixed(2);
+  if (pool.id === 'WBTC_WETH') return p.toFixed(3);
+  return p.toFixed(4);
+}
+
+function pinChartEvent(kind) {
+  const pool = pools[activePoolId];
+  if (!pool) return;
+  chartEventPins.push({
+    block: blockNumber, kind,
+    price: pool.lastPrice,
+  });
+  if (chartEventPins.length > 50) chartEventPins.shift();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ════════════════════════════════════════════════════════════════
+function simStep() {
+  simTime += 1;
+  wallclockSec = (wallclockSec + 1) % 86400;
+
+  // Searchers run continuously between blocks
+  searcherStep();
+
+  // Once-per-second agent steps
+  retailStep();
+  fundStep();
+
+  // Block progress UI
+  const intoBlock = (simTime - lastBlockTime);
+  const pct = Math.min(100, intoBlock / BLOCK_TIME * 100);
+  const fillEl = document.getElementById('block-fill');
+  if (fillEl) fillEl.style.width = pct + '%';
+  document.getElementById('block-txs').textContent = mempool.filter(t => !t.executed).length;
+  // Fake gas market: median of pending tx gas
+  const pending = mempool.filter(t => !t.executed);
+  const gases = pending.map(t => t.gasGwei || BASE_GAS_GWEI).sort((a,b)=>a-b);
+  const medGas = gases.length ? gases[Math.floor(gases.length/2)] : BASE_GAS_GWEI;
+  document.getElementById('block-gas').textContent = medGas;
+
+  // Close block when due
+  if (simTime - lastBlockTime >= BLOCK_TIME) {
+    closeBlock();
+    reapJitPositions();
+    lastBlockTime = simTime;
+    // Snapshot price into history for chart
+    for (const pool of Object.values(pools)) {
+      pool.priceHistory.push({ block: blockNumber, price: pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice, vol: pool.volumeUsd, sqrtP: pool.sqrtP });
+      if (pool.priceHistory.length > 800) pool.priceHistory.shift();
+    }
+    addEvent('event-block', `Block #${blockNumber} sealed · ${pending.length} txs included · ${medGas} gwei median`);
+  }
+
+  // Render every step (cheap enough)
+  renderTopBar();
+  renderBlock();
+  renderMempool();
+  renderLiquidityPanel();
+  renderAgentPanel();
+
+  // Chart less frequently (every 2 sim-seconds)
+  if (simTime % 2 === 0) renderChart();
+  if (simTime % 4 === 0) renderForensics();
+}
+
+function toggleSim() { if (running) pauseSim(); else startSim(); }
+
+function startSim() {
+  if (simTime === 0) {
+    initPools();
+    seedLiquidity();
+    buildAgents();
+    setMevActive();
+    mempool = [];
+    chartEventPins = [];
+    eventLog = [];
+    forensics = {
+      totalSwaps: 0, totalVolumeUsd: 0, totalFeesUsd: 0,
+      sandwichAttempts: 0, sandwichesSuccessful: 0, sandwichVictimLossUsd: 0,
+      jitAttempts: 0, jitFeesCaptured: 0,
+      arbCount: 0, arbProfitUsd: 0,
+      oracleAttacks: 0, totalMevExtractedUsd: 0, protectedTxCount: 0,
+      blockCount: 0, perBlockSwaps: [],
+      maxDislocationBps: 0, currentDislocationBps: 0,
+    };
+    blockNumber = 0;
+    lastBlockTime = 0;
+    document.getElementById('tape-body').innerHTML = `<div class="agent-list-header"><span></span><span>Block · Price</span><span>Size</span><span>Agent</span></div>`;
+    document.getElementById('news-body').innerHTML = '';
+    addEvent('event-block', `Simulation initialised · ${Object.keys(pools).length} pools live · MEV mode: ${simMode.toUpperCase()}`);
+  }
+  running = true;
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '⏸ PAUSE';
+  btn.classList.add('running'); btn.classList.remove('paused');
+  clearInterval(simInterval);
+  simInterval = setInterval(simStep, Math.max(50, 1000/speedMul));
+}
+
+function pauseSim() {
+  running = false;
+  clearInterval(simInterval);
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '▶ RESUME';
+  btn.classList.remove('running'); btn.classList.add('paused');
+}
+
+function setSpeed(s) {
+  speedMul = s;
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    if (b.dataset.speed) b.classList.toggle('active', +b.dataset.speed === s);
+  });
+  if (running) { clearInterval(simInterval); simInterval = setInterval(simStep, Math.max(50, 1000/s)); }
+}
+
+// Fast-forward N blocks without per-step rendering. Useful for warming up
+// state, jumping past quiet hours, or testing overnight LP behavior.
+function skipBlocks(blocks) {
+  // Pause if running so we don't double-step
+  const wasRunning = running;
+  if (wasRunning) pauseSim();
+  // Make sure pools/agents are initialised
+  if (!agents.length) bootstrap();
+  const targetBlock = blockNumber + blocks;
+  const startTime = performance.now();
+  const maxMs = 4000; // cap at 4s wall time so the UI doesn't appear frozen
+  let steps = 0;
+  while (blockNumber < targetBlock) {
+    simStepFast();
+    steps++;
+    // Safety: bail if we're taking too long
+    if (steps % 5000 === 0 && (performance.now() - startTime) > maxMs) {
+      addEvent('event-block', `⚠ Skip aborted at block #${blockNumber} after ${steps} steps (timeout). Try a smaller skip.`);
+      break;
+    }
+  }
+  // Render once after the jump
+  renderTopBar();
+  renderBlock();
+  renderLiquidityPanel();
+  renderChart();
+  renderMempool();
+  renderAgentPanel();
+  renderForensics();
+  addEvent('event-block', `⏭ Skipped ${blocks} blocks (now at #${blockNumber}, UTC ${fmtClock()}). Flow ${flowLabel().label}.`);
+  if (wasRunning) startSim();
+}
+
+// Bare-bones step without per-tick rendering. Used by skipBlocks.
+function simStepFast() {
+  simTime += 1;
+  wallclockSec = (wallclockSec + 1) % 86400;
+  searcherStep();
+  retailStep();
+  fundStep();
+  if (simTime - lastBlockTime >= BLOCK_TIME) {
+    closeBlock();
+    reapJitPositions();
+    lastBlockTime = simTime;
+    for (const pool of Object.values(pools)) {
+      pool.priceHistory.push({ block: blockNumber, price: pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice, vol: pool.volumeUsd, sqrtP: pool.sqrtP });
+      if (pool.priceHistory.length > 800) pool.priceHistory.shift();
+    }
+  }
+}
+
+function setMode(mode) {
+  simMode = mode;
+  document.querySelectorAll('.manip-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  setMevActive();
+  // News
+  const labels = {
+    none: 'Pure organic flow — no MEV searchers active',
+    sandwich: 'Sandwich searchers active — they will target retail/fund swaps >$50k',
+    jit: 'JIT liquidity bot active — will mint ±0.1% range around large pending swaps',
+    toxic: 'Toxic backrunner active — will reverse any swap with >10bps impact',
+    oracle: 'Oracle manipulator active — will episodically push WBTC/WETH to corrupt downstream TWAPs',
+    protected: 'MEV-protected RPC active — retail/fund txs bypass public mempool',
+    rollup: 'Unichain rollup-boost active — 1s blocks reduce reordering opportunities',
+  };
+  if (running || simTime > 0) addEvent('event-block', `MEV MODE → ${mode.toUpperCase()}: ${labels[mode] || ''}`);
+}
+
+function switchPool(poolId) {
+  activePoolId = poolId;
+  document.getElementById('chart-mode-ind').textContent = pools[poolId]?.name || poolId;
+  renderTopBar();
+  renderLiquidityPanel();
+  renderChart();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  // mark the matching one active by matching textContent
+  const map = { tape: 'pane-tape', events: 'pane-events', forensics: 'pane-forensics' };
+  document.getElementById(map[tab]).classList.add('active');
+  // mark button — best-effort
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.toLowerCase().includes(tab) ||
+        (tab === 'tape' && b.textContent.toLowerCase().includes('swaps')) ||
+        (tab === 'events' && b.textContent.toLowerCase().includes('events')) ||
+        (tab === 'forensics' && b.textContent.toLowerCase().includes('forensics'))) {
+      b.classList.add('active');
+    }
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: TOP BAR
+// ════════════════════════════════════════════════════════════════
+function renderTopBar() {
+  const pool = pools[activePoolId];
+  if (!pool) return;
+  document.getElementById('tb-last').textContent = formatPrice(displayPrice(pool), pool);
+  // Change vs initial — use display price so direction is correct for inverted pools
+  const cur = pool.invertDisplay ? 1/pool.lastPrice : pool.lastPrice;
+  const ini = pool.invertDisplay ? 1/pool.initialPrice : pool.initialPrice;
+  const chg = (cur - ini) / ini * 100;
+  const chgEl = document.getElementById('tb-change');
+  chgEl.textContent = `${chg>=0?'+':''}${chg.toFixed(3)}%`;
+  chgEl.className = 'tb-change ' + (chg>=0?'pos':'neg');
+
+  // TVL = sum across all positions of currentUsd
+  let tvl = 0;
+  for (const p of pool.positions) tvl += positionPnl(pool, p).currentUsd;
+  document.getElementById('tb-tvl').textContent = fmtUsd(tvl);
+  document.getElementById('tb-vol').textContent = fmtUsd(pool.volumeUsd);
+  document.getElementById('tb-fees').textContent = fmtUsd(
+    pool.fee0Total * tokenUsdPrice(pool.token0) + pool.fee1Total * tokenUsdPrice(pool.token1)
+  );
+  document.getElementById('tb-active-liq').textContent = fmtNum(computeActiveL(pool, pool.sqrtP));
+
+  // Wallclock + diurnal flow indicator
+  const clockEl = document.getElementById('tb-clock');
+  if (clockEl) clockEl.textContent = fmtClock();
+  const flowEl = document.getElementById('tb-flow');
+  if (flowEl) {
+    const f = flowLabel();
+    flowEl.textContent = 'FLOW: ' + f.label + ' ' + flowMultiplier().toFixed(2) + 'x';
+    flowEl.className = 'clock-flow ' + f.cls;
+  }
+}
+
+function fmtUsd(v) {
+  if (v >= 1e9) return '$' + (v/1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return '$' + (v/1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return '$' + (v/1e3).toFixed(1) + 'k';
+  return '$' + v.toFixed(0);
+}
+function fmtNum(v) {
+  if (v >= 1e9) return (v/1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(1) + 'k';
+  return v.toFixed(0);
+}
+
+function renderBlock() {
+  document.getElementById('block-num').textContent = '#' + blockNumber;
+  document.getElementById('block-label').textContent = useRollup ? 'UNICHAIN · 1s' : 'ETHEREUM · 12s';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: LIQUIDITY PANEL (depth-by-tick)
+// ════════════════════════════════════════════════════════════════
+function renderLiquidityPanel() {
+  const pool = pools[activePoolId];
+  if (!pool) return;
+
+  document.getElementById('liq-tick').textContent = priceToTick(pool.lastPrice).toFixed(0);
+  document.getElementById('liq-active').textContent = fmtNum(computeActiveL(pool, pool.sqrtP));
+  // Reserves
+  let r0 = 0, r1 = 0;
+  for (const p of pool.positions) {
+    const a = positionAmounts(p.L, pool.sqrtP, p.sqrtPa, p.sqrtPb);
+    r0 += a.amount0; r1 += a.amount1;
+  }
+  document.getElementById('liq-r0').textContent = fmtNum(r0) + ' ' + pool.token0;
+  document.getElementById('liq-r1').textContent = fmtNum(r1) + ' ' + pool.token1;
+  document.getElementById('liq-fees').textContent = fmtUsd(
+    pool.fee0Total * tokenUsdPrice(pool.token0) + pool.fee1Total * tokenUsdPrice(pool.token1)
+  );
+  // Cumulative IL across all passive positions
+  let totalIl = 0, totalDeposit = 0;
+  for (const p of pool.positions) {
+    if (p.tag === 'jit') continue;
+    const pnl = positionPnl(pool, p);
+    totalIl += pnl.ilUsd; totalDeposit += p.depositedUsd;
+  }
+  document.getElementById('liq-il').textContent = (totalIl >= 0 ? '+' : '') + fmtUsd(totalIl);
+  document.getElementById('liq-il').className = 'liq-stat-val ' + (totalIl >= 0 ? 'green' : 'red');
+
+  document.getElementById('liq-badge').textContent = pool.positions.length + ' LPs';
+
+  // LP list
+  const list = document.getElementById('lp-list-body');
+  if (list) {
+    list.innerHTML = pool.positions.slice(0, 30).map(p => {
+      const pnl = positionPnl(pool, p);
+      const tickLowerPrice = pool.invertDisplay ? 1/tickToPrice(p.tickLower) : tickToPrice(p.tickLower);
+      const tickUpperPrice = pool.invertDisplay ? 1/tickToPrice(p.tickUpper) : tickToPrice(p.tickUpper);
+      // For inverted pools, low tick = high display price and vice versa, so swap order
+      const dispLo = Math.min(tickLowerPrice, tickUpperPrice);
+      const dispHi = Math.max(tickLowerPrice, tickUpperPrice);
+      const rangeStr = `${formatPrice(dispLo, pool)} – ${formatPrice(dispHi, pool)}`;
+      const pnlClass = pnl.pnlUsd >= 0 ? 'pos' : 'il';
+      const tagCls = p.tag === 'jit' ? 'jit' : '';
+      return `<div class="lp-row">
+        <span class="lp-tag ${tagCls}">${p.tag.split('-')[0]}</span>
+        <span class="lp-range">${rangeStr} · ${p.owner}</span>
+        <span class="lp-fee">$${pnl.feesUsd.toFixed(0)}</span>
+        <span class="${pnlClass}">${pnl.pnlUsd>=0?'+':''}${fmtUsd(pnl.pnlUsd)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Liquidity-by-tick canvas
+  drawLiquidityCurve(pool);
+}
+
+function drawLiquidityCurve(pool) {
+  const canvas = document.getElementById('liq-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth;
+  const H = canvas.height = canvas.offsetHeight;
+  ctx.clearRect(0, 0, W, H);
+
+  // Determine price range to display: zoom to ±15% of current price for readability
+  const p = pool.lastPrice;
+  const pLo = p * 0.85, pHi = p * 1.15;
+  const tickLo = priceToTick(pLo), tickHi = priceToTick(pHi);
+  const buckets = 80;
+  const buckArr = new Array(buckets).fill(0);
+
+  for (const pos of pool.positions) {
+    const tA = priceToTick(tickToPrice(pos.tickLower));
+    const tB = priceToTick(tickToPrice(pos.tickUpper));
+    const startBucket = Math.max(0, Math.floor((tA - tickLo) / (tickHi - tickLo) * buckets));
+    const endBucket   = Math.min(buckets, Math.ceil((tB - tickLo) / (tickHi - tickLo) * buckets));
+    for (let i = startBucket; i < endBucket; i++) buckArr[i] += pos.L;
+  }
+  const maxL = Math.max(...buckArr, 1);
+
+  // Draw bars
+  const barW = W / buckets;
+  for (let i = 0; i < buckets; i++) {
+    const h = (buckArr[i] / maxL) * (H - 10);
+    ctx.fillStyle = 'rgba(5, 150, 105, 0.6)';
+    ctx.fillRect(i * barW, H - h, barW - 1, h);
+  }
+
+  // Highlight current price line
+  const pBucket = (priceToTick(p) - tickLo) / (tickHi - tickLo) * W;
+  ctx.strokeStyle = '#ffc850';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(pBucket, 0); ctx.lineTo(pBucket, H); ctx.stroke();
+  ctx.fillStyle = '#ffc850';
+  ctx.font = '10px IBM Plex Mono';
+  ctx.fillText(formatPrice(pool.invertDisplay?1/p:p, pool), pBucket + 4, 14);
+
+  // Range bounds
+  ctx.fillStyle = 'rgba(122, 139, 168, 0.7)';
+  ctx.font = '9px IBM Plex Mono';
+  const dispBucketLo = pool.invertDisplay ? 1/pHi : pLo;
+  const dispBucketHi = pool.invertDisplay ? 1/pLo : pHi;
+  ctx.fillText(formatPrice(dispBucketLo, pool), 4, H - 4);
+  ctx.fillText(formatPrice(dispBucketHi, pool), W - 50, H - 4);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: PRICE CHART
+// ════════════════════════════════════════════════════════════════
+function renderChart() {
+  const canvas = document.getElementById('price-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.offsetWidth;
+  const H = canvas.height = canvas.offsetHeight;
+  ctx.fillStyle = '#0a0c0f'; ctx.fillRect(0, 0, W, H);
+
+  const pool = pools[activePoolId];
+  if (!pool || pool.priceHistory.length < 2) return;
+
+  const padL = 50, padR = 16, padT = 16, padB = 24;
+  const cw = W - padL - padR;
+  const ch = H - padT - padB;
+  const data = pool.priceHistory;
+  const N = data.length;
+  // Show last 200 blocks max
+  const slice = data.slice(-200);
+  const minP = Math.min(...slice.map(d => d.price));
+  const maxP = Math.max(...slice.map(d => d.price));
+  const pad  = (maxP - minP) * 0.05 || 0.0001;
+  const lo   = minP - pad, hi = maxP + pad;
+
+  // Grid lines + y-labels
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillStyle   = 'rgba(122, 139, 168, 0.7)';
+  ctx.font        = '9px IBM Plex Mono';
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + ch * i / 4;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cw, y); ctx.stroke();
+    const v = hi - (hi - lo) * i / 4;
+    ctx.fillText(formatPrice(v, pool), 4, y + 3);
+  }
+
+  // Line
+  ctx.strokeStyle = '#00c97a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  slice.forEach((d, i) => {
+    const x = padL + cw * i / Math.max(slice.length - 1, 1);
+    const y = padT + ch * (hi - d.price) / (hi - lo);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Last price
+  const lastY = padT + ch * (hi - pool.lastPrice) / (hi - lo);
+  ctx.fillStyle = '#00ff9d';
+  ctx.beginPath(); ctx.arc(padL + cw, lastY, 3, 0, Math.PI*2); ctx.fill();
+
+  // X-axis label
+  ctx.fillStyle = 'rgba(122, 139, 168, 0.7)';
+  const firstBlock = slice[0].block;
+  const lastBlock  = slice[slice.length-1].block;
+  ctx.fillText(`#${firstBlock}`, padL, H - 8);
+  ctx.fillText(`#${lastBlock}`, padL + cw - 30, H - 8);
+
+  // Render event pins as overlay divs (positioned absolutely)
+  const pinsEl = document.getElementById('chart-events');
+  if (pinsEl) {
+    pinsEl.innerHTML = chartEventPins
+      .filter(e => e.block >= firstBlock && e.block <= lastBlock)
+      .slice(-20)
+      .map(e => {
+        const xPct = (e.block - firstBlock) / Math.max(lastBlock - firstBlock, 1) * 100;
+        const yPct = (hi - e.price) / (hi - lo) * 100;
+        // Convert chart-area coords to overlay coords
+        const xPx = padL + cw * xPct / 100;
+        const yPx = padT + ch * yPct / 100;
+        return `<div class="chart-event-pin ${e.kind}" style="left:${xPx}px;top:${yPx}px"></div>`;
+      }).join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: MEMPOOL
+// ════════════════════════════════════════════════════════════════
+function renderMempool() {
+  const el = document.getElementById('mempool-body');
+  if (!el) return;
+  const pending = mempool.filter(t => !t.executed).slice(-30);
+  if (!pending.length) {
+    el.innerHTML = '<div class="mempool-empty">— mempool empty —</div>';
+    return;
+  }
+  el.innerHTML = pending.reverse().map(tx => {
+    const pool = pools[tx.pool];
+    const sizeUsd = txSizeUsd(tx, pool);
+    const sizeStr = sizeUsd >= 1e6 ? `$${(sizeUsd/1e6).toFixed(2)}M` : `$${(sizeUsd/1e3).toFixed(1)}k`;
+    const tagCls = tx.tag || 'swap';
+    const action = tx.type === 'jit' ? `JIT mint ${pool ? pool.name : ''}`
+                 : tx.type === 'sandFront' ? `FRONT-RUN: ${tx.side.toUpperCase()} ${pool ? pool.name : ''}`
+                 : tx.type === 'sandBack'  ? `BACK-RUN: ${tx.side.toUpperCase()} ${pool ? pool.name : ''}`
+                 : `${tx.side.toUpperCase()} ${pool ? pool.name : tx.pool}`;
+    const slipStr = tx.slippageBps ? `${(tx.slippageBps/100).toFixed(1)}%` : '—';
+    const ageMs = ((simTime - tx.submittedAt) * 1000).toFixed(0);
+    const newCls = (simTime - tx.submittedAt < 1.5) ? 'new' : '';
+    return `<div class="mempool-row ${newCls}">
+      <span class="tx-gas">${tx.gasGwei}</span>
+      <span class="tx-tag ${tagCls}">${tagCls.toUpperCase()}</span>
+      <span>${action}</span>
+      <span>${sizeStr}</span>
+      <span>${slipStr}</span>
+      <span class="tape-agent">${tx.agentId}${tx.private?' 🛡':''}</span>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER: AGENT PANEL
+// ════════════════════════════════════════════════════════════════
+function renderAgentPanel() {
+  const list = document.getElementById('agent-list');
+  if (!list) return;
+  // Group by type, show all active + always show MEV searchers when active
+  const order = ['lp','retail','fund','arb','sandwich','jit','toxic','oracle'];
+  // Aggregate retail and LPs since there are many
+  const groups = { retail: [], lp: [], fund: [], arb: [], sandwich: [], jit: [], toxic: [], oracle: [] };
+  for (const a of agents) groups[a.type]?.push(a);
+
+  let html = '';
+  // LPs aggregate
+  if (groups.lp.length) {
+    const totalCap = groups.lp.reduce((s,a) => s + (agentCapital[a.id]||0), 0);
+    const totalPnl = groups.lp.reduce((s,a) => {
+      const pool = pools[a.state.poolId];
+      const pos  = pool.positions.find(p => p.id === a.state.positionId);
+      if (!pos) return s;
+      return s + positionPnl(pool, pos).pnlUsd;
+    }, 0);
+    html += agentCardHtml('Liquidity Providers', AGENT_TYPES.lp.color,
+      `${groups.lp.length} positions across ${Object.keys(pools).length} pools`,
+      [
+        ['Total Deposited', fmtUsd(totalCap)],
+        ['Net P&L (fees+IL)', (totalPnl>=0?'+':'')+fmtUsd(totalPnl), totalPnl>=0?'pos':'neg'],
+      ]);
+  }
+
+  for (const type of ['retail','fund','arb','sandwich','jit','toxic','oracle']) {
+    const arr = (groups[type]||[]).filter(a => a.active || a.type !== 'sandwich' && a.type !== 'jit' && a.type !== 'toxic' && a.type !== 'oracle');
+    // For MEV searchers, only show if active
+    const filtered = (type === 'sandwich' || type === 'jit' || type === 'toxic' || type === 'oracle')
+      ? arr.filter(a => a.active)
+      : arr;
+    for (const a of filtered) {
+      const pnl = agentPnl[a.id] || 0;
+      const cap = agentCapital[a.id] || 0;
+      const pnlCls = pnl >= 0 ? 'pos' : 'neg';
+      const isAttack = AGENT_TYPES[a.type].mev;
+      html += `<div class="agent-card ${isAttack && a.active ? 'is-active' : ''}">
+        <div class="agent-card-header" onclick="openAgentDetail('${a.id}')">
+          <div class="agent-dot" style="background:${AGENT_TYPES[a.type].color}"></div>
+          <span class="agent-name">${a.name}</span>
+          <span class="agent-type-badge">${AGENT_TYPES[a.type].label}</span>
+        </div>
+        <div class="agent-stats">
+          <div class="agent-stat"><span class="agent-stat-label">Capital</span><span class="agent-stat-val dim">${fmtUsd(cap)}</span></div>
+          <div class="agent-stat"><span class="agent-stat-label">P&L</span><span class="agent-stat-val ${pnlCls}">${pnl>=0?'+':''}${fmtUsd(pnl)}</span></div>
+        </div>
+      </div>`;
+    }
+  }
+
+  list.innerHTML = html;
+  document.getElementById('agent-count').textContent = agents.filter(a => a.active).length + ' AGENTS';
+}
+
+function agentCardHtml(name, color, badge, stats) {
+  return `<div class="agent-card">
+    <div class="agent-card-header" style="cursor:default;">
+      <div class="agent-dot" style="background:${color}"></div>
+      <span class="agent-name">${name}</span>
+      <span class="agent-type-badge">${badge}</span>
+    </div>
+    <div class="agent-stats">
+      ${stats.map(s => `<div class="agent-stat">
+        <span class="agent-stat-label">${s[0]}</span>
+        <span class="agent-stat-val ${s[2]||'dim'}">${s[1]}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+
+// ======================================================================
+// FORENSICS PANEL
+// ======================================================================
+function renderForensics() {
+  const body = document.getElementById('forensics-body');
+  if (!body) return;
+  const empty = document.getElementById('for-empty');
+
+  if (simMode === 'none') {
+    body.innerHTML = `
+      <div class="for-empty">
+        ⚖ Select a MEV strategy and run the simulation to see forensic analysis.<br><br>
+        Available modes:<br>
+        • <b>Sandwich</b> — front + back-run a victim swap<br>
+        • <b>JIT Liquidity</b> — mint then burn a tight LP range around a large swap<br>
+        • <b>Toxic Backrun</b> — capture stale prices after large fills<br>
+        • <b>Oracle Manipulation</b> — push reserves to skew an external oracle read<br>
+        • <b>MEV-Protected RPC</b> — private order-flow mitigation<br>
+        • <b>Rollup-Boost (Unichain)</b> — 1s blocks + ordering rules<br><br>
+        <span style="color:var(--text3)">Cross-pool stat-arb between WBTC/USDC direct vs. WBTC/WETH × WETH/USDC synthetic runs in all modes.</span>
+      </div>`;
+    return;
+  }
+
+  const f = forensics;
+  let html = '';
+
+  // Universal: market activity
+  html += `<div class="for-section"><div class="for-section-title">MARKET ACTIVITY</div>`;
+  html += forRow('Swaps Executed', fmtNum(f.totalSwaps));
+  html += forRow('Volume (USD)', fmtUsd(f.totalVolumeUsd));
+  html += forRow('Fees Paid (LPs)', fmtUsd(f.totalFeesUsd));
+  html += forRow('Block', '#'+blockNumber);
+  html += `</div>`;
+
+  // Cross-pool stat-arb (always on)
+  html += `<div class="for-section"><div class="for-section-title">CROSS-POOL STAT-ARB</div>`;
+  html += forRow('Direct vs Synthetic Dislocation', f.currentDislocationBps.toFixed(1)+' bps');
+  html += forRow('Max Observed', f.maxDislocationBps.toFixed(1)+' bps');
+  html += forRow('Arb Trades', fmtNum(f.arbCount));
+  html += forRow('Arb Profit', fmtUsd(f.arbProfitUsd||0), (f.arbProfitUsd||0)>=0?'pos':'neg');
+  html += `</div>`;
+
+  // Mode-specific
+  if (simMode === 'sandwich') {
+    const succRate = f.sandwichAttempts ? ((f.sandwichesSuccessful||0)/f.sandwichAttempts*100) : 0;
+    html += `<div class="for-section"><div class="for-section-title">SANDWICH ATTACK</div>`;
+    html += forRow('Attempts (front+back)', fmtNum(f.sandwichAttempts));
+    html += forRow('Profitable', fmtNum(f.sandwichesSuccessful||0));
+    html += forRow('Success Rate', succRate.toFixed(1)+'%');
+    html += forRow('Searcher P&L', fmtUsd(f.totalMevExtractedUsd), f.totalMevExtractedUsd>=0?'pos':'neg');
+    html += forRow('Victim Slippage Cost', fmtUsd(f.sandwichVictimLossUsd||0), (f.sandwichVictimLossUsd||0)>0?'neg':'dim');
+    html += `</div>`;
+    html += forNote('Sandwich = TX_front executes before victim (pushes price), victim fills at worse price, TX_back exits in opposite direction. Profit = back proceeds − front cost − gas − fees. Visible in mempool ordering by gas tier.');
+  } else if (simMode === 'jit') {
+    html += `<div class="for-section"><div class="for-section-title">JIT LIQUIDITY</div>`;
+    html += forRow('JIT Mints', fmtNum(f.jitAttempts));
+    html += forRow('Fees Captured', fmtUsd(f.jitFeesCaptured), 'pos');
+    html += forRow('Avg Fee per JIT', fmtUsd(f.jitAttempts ? f.jitFeesCaptured/f.jitAttempts : 0));
+    html += `</div>`;
+    html += forNote('JIT (Just-in-Time) Liquidity: searcher mints a very tight LP range (±0.1%) right before a large swap, captures most fees, then burns the position in the same block. Crowds out passive LPs without taking IL risk.');
+  } else if (simMode === 'toxic') {
+    html += `<div class="for-section"><div class="for-section-title">TOXIC BACKRUN</div>`;
+    html += forRow('Backrun Trades', fmtNum(f.toxicBackruns||0));
+    html += forRow('Searcher P&L', fmtUsd(f.totalMevExtractedUsd), f.totalMevExtractedUsd>=0?'pos':'neg');
+    html += `</div>`;
+    html += forNote('Toxic backrun: detects a large >10bps price move and trades against it the same block. LPs face adverse selection — they sold low / bought high.');
+  } else if (simMode === 'oracle') {
+    html += `<div class="for-section"><div class="for-section-title">ORACLE MANIPULATION</div>`;
+    html += forRow('Push Episodes', fmtNum(f.oracleAttacks));
+    html += forRow('Total Pressure', fmtUsd(f.totalMevExtractedUsd));
+    html += forRow('Episode Active', oracleEpisode ? 'YES ('+Math.max(0, oracleEpisode.reverseAt - blockNumber)+' blocks left)' : 'no', oracleEpisode?'neg':'dim');
+    html += `</div>`;
+    html += forNote('Oracle manipulation: large directional swap distorts spot price. Lending protocols reading this AMM as a price oracle would liquidate borrowers at the manipulated price. Mitigated by TWAPs (>5 block average).');
+  } else if (simMode === 'protected') {
+    html += `<div class="for-section"><div class="for-section-title">MEV-PROTECTED RPC</div>`;
+    html += forRow('Protected Txs', fmtNum(f.protectedTxCount));
+    html += forRow('Public Txs', fmtNum(f.totalSwaps - f.protectedTxCount));
+    html += forRow('MEV Extracted (still)', fmtUsd(f.totalMevExtractedUsd), f.totalMevExtractedUsd>=0?'pos':'neg');
+    html += `</div>`;
+    html += forNote('Private mempool routing (Flashbots Protect / MEV Blocker style): user txs are sent directly to block builders, invisible to public searchers. Sandwich attempts on protected txs fail silently. Other MEV vectors (oracle, arb) still operate.');
+  } else if (simMode === 'rollup') {
+    html += `<div class="for-section"><div class="for-section-title">ROLLUP-BOOST (UNICHAIN)</div>`;
+    html += forRow('Block Time', BLOCK_TIME+'s');
+    html += forRow('Blocks Mined', fmtNum(blockNumber));
+    html += forRow('Throughput Multiplier', (12/BLOCK_TIME).toFixed(0)+'×');
+    html += forRow('MEV Extracted', fmtUsd(f.totalMevExtractedUsd));
+    html += `</div>`;
+    html += forNote('Unichain-style rollup boost: 1s blocks vs 12s on L1. Searchers have less time per block to construct optimal bundles, and ordering rules can prioritize verified user flow. Reduces (but does not eliminate) extractable value.');
+  }
+
+  body.innerHTML = html;
+}
+
+function forRow(label, val, cls) {
+  cls = cls || 'dim';
+  return `<div class="for-row"><span class="for-row-label">${label}</span><span class="for-row-val ${cls}">${val}</span></div>`;
+}
+function forNote(text) {
+  return `<div class="for-note">${text}</div>`;
+}
+
+// ======================================================================
+// AGENT DETAIL MODAL
+// ======================================================================
+const AGENT_PROFILES = {
+  retail: {
+    overview: 'Retail traders make small (~$200–$2k) directional swaps with a slight long bias. They are highly sensitive to slippage and represent the "natural flow" that sandwich and toxic searchers prey on.',
+    rules: [
+      ['Action interval', 'Every 20–180 sim-seconds, randomized'],
+      ['Trade size', '$200–$2,000 USD-equivalent'],
+      ['Direction', '~55% buy / 45% sell (mild long bias)'],
+      ['Slippage tolerance', '50 bps before revert'],
+      ['Pool selection', 'Randomly chosen from active pools'],
+      ['Goal', 'Generate organic flow; provide victim txs for searchers'],
+    ],
+    edge: 'None. Retail is on the wrong side of information and ordering — by design they are the noise that searchers extract from. In real markets they are the bulk of swap.router volume.',
+    ref: 'Adams, Zinsmeister, Robinson (2021). Uniswap v3 Core. https://uniswap.org/whitepaper-v3.pdf',
+  },
+  fund: {
+    overview: 'Funds execute large directional positions ($50k–$500k). Their txs are visible in the mempool and are prime targets for sandwich attacks and JIT liquidity unless routed via a private RPC.',
+    rules: [
+      ['Action interval', 'Every 60–300 sim-seconds'],
+      ['Trade size', '$50k–$500k'],
+      ['Direction', 'Persistent over 5–10 blocks (trend-following), then reverses'],
+      ['Slippage tolerance', '100 bps'],
+      ['Routing', 'Public mempool (unless MEV-Protected mode active)'],
+    ],
+    edge: 'Information / capital — funds may have an off-chain alpha signal. But execution leakage to MEV searchers can erase 5–30 bps per fill.',
+    ref: 'Daian et al (2019). Flash Boys 2.0: Frontrunning, Transaction Reordering, and Consensus Instability. arXiv:1904.05234',
+  },
+  arb: {
+    overview: 'Stat-arb agent monitoring direct WBTC/USDC against the synthetic path WBTC/WETH × WETH/USDC. When dislocation > 25 bps, it executes the cheaper leg and the offsetting leg.',
+    rules: [
+      ['Trigger', 'Dislocation > 25 bps between direct & synthetic'],
+      ['Action', 'Buy underpriced leg, sell overpriced leg'],
+      ['Trade size', 'Scaled by dislocation magnitude, max $250k'],
+      ['Cooldown', '1 block (prevents stuffing)'],
+      ['Profit model', '|dislocation| / 2 × notional − fees − gas'],
+    ],
+    edge: 'Pure relative-value. Risk-free in theory, but exposed to gas wars and sandwich attacks on its own legs. Profitable across all market regimes.',
+    ref: 'Wang et al (2022). Cyclic Arbitrage in Decentralized Exchanges. arXiv:2105.02784',
+  },
+  lp: {
+    overview: 'Concentrated liquidity providers in Uniswap V3. Each position covers a price range and earns fees pro-rata when the active price crosses through. Outside its range, a position is 100% in one asset.',
+    rules: [
+      ['Range types', 'Tight (±2%), Mid (±10%), Wide (±50%)'],
+      ['Capital allocation', '70% tight / 25% mid / 5% wide'],
+      ['Fees earned', 'Pro-rata of L when price crosses through'],
+      ['Risk', 'Impermanent loss when price moves vs entry'],
+      ['JIT competition', 'JIT searchers may capture fees on large swaps'],
+    ],
+    edge: 'Concentrated capital efficiency — same TVL earns 4000× the fees of V2 in tight ranges, but with proportionally higher IL. Best when realized vol < implied range width.',
+    ref: 'Adams et al (2021). Uniswap V3: An Overview. https://blog.uniswap.org/uniswap-v3',
+  },
+  sandwich: {
+    overview: 'Detects pending swaps in the public mempool that would move price > 30 bps. Submits TX_front (same direction, higher gas), then victim executes at worse price, then TX_back (opposite direction, lower gas) exits the position.',
+    rules: [
+      ['Detection', 'Mempool scan for swaps > 30 bps expected impact'],
+      ['Front gas', 'Victim gas + 20 gwei (priority)'],
+      ['Back gas', 'Victim gas − 5 gwei (after victim)'],
+      ['Position size', '~80% of victim notional (scaled to pool depth)'],
+      ['Profit', 'back_out − front_in − gas − fees'],
+      ['Mitigation', 'Private RPC (MEV-Protected); lower in 1s rollup blocks'],
+    ],
+    edge: 'Risk-free relative to victim execution if bundle lands. Failure mode: another searcher outbids; victim revert; protected RPC. ~40–60% historical win rate on Ethereum mainnet.',
+    ref: 'Züst et al (2021). Quantifying Blockchain Extractable Value: How dark is the forest? arXiv:2101.05511',
+  },
+  jit: {
+    overview: 'When a large swap is detected, mints a tight (±0.1%) liquidity position around current price right before, captures the disproportionate fee share, then burns immediately after — never holding overnight risk.',
+    rules: [
+      ['Detection', 'Mempool swap > $100k notional'],
+      ['Mint range', '±10 bps around current price'],
+      ['Mint capital', 'Sized to dominate active L for that range'],
+      ['Burn', 'Same block, after victim swap settles'],
+      ['Profit', 'Fee share captured − gas to mint+burn'],
+      ['Effect on passive LPs', 'Crowds out their fee earnings on big swaps'],
+    ],
+    edge: 'Eliminates IL risk by holding the position for one block. Zero-sum vs passive LPs who would have earned those fees.',
+    ref: 'Wan & Adams (2022). Just-in-Time Liquidity in Uniswap V3. https://uniswap.org/blog/jit-liquidity',
+  },
+  toxic: {
+    overview: 'Watches for large price moves (>10 bps in a single block) and trades against the move under the assumption it will partially mean-revert. Profits from LPs being adversely selected.',
+    rules: [
+      ['Trigger', 'Single-block price move > 10 bps'],
+      ['Action', 'Trade opposite direction'],
+      ['Size', '20–40% of triggering swap'],
+      ['Cooldown', '2 blocks'],
+      ['Profit model', 'Mean reversion of ~30% of move on average'],
+    ],
+    edge: 'Exploits the gap between AMM execution price (deterministic curve) and fair value (market). Adverse selection cost falls on LPs.',
+    ref: 'Milionis et al (2022). Automated Market Making and Loss-Versus-Rebalancing. arXiv:2208.06046',
+  },
+  oracle: {
+    overview: 'Pushes a pool spot price by N% with a large directional swap, holds it for ~8 blocks, then unwinds. Designed to manipulate any external protocol that reads spot price as an oracle.',
+    rules: [
+      ['Trigger', 'Episodic — every 20–40 blocks'],
+      ['Push direction', 'Random (up or down)'],
+      ['Push magnitude', '3–8% of spot'],
+      ['Hold', '~8 blocks (long enough to outlast a 1-block TWAP)'],
+      ['Unwind', 'Reverses position; some loss to fees + counter-flow'],
+      ['Mitigation', 'TWAP > 5 blocks; multi-source oracle (Chainlink)'],
+    ],
+    edge: 'Profitability depends on the downstream protocol being exploited (lending liquidation, options strike). Pure AMM cost is gas + fees + slippage on the round-trip.',
+    ref: 'Mackinga et al (2022). TWAP Oracle Attacks: Easier Done than Said? eprint.iacr.org/2022/445',
+  },
+};
+
+function openAgentDetail(agentId) {
+  const a = agents.find(x => x.id === agentId);
+  if (!a) return;
+  const profile = AGENT_PROFILES[a.type];
+  if (!profile) return;
+  const modal = document.getElementById('agent-modal');
+  if (!modal) return;
+  document.getElementById('agent-modal-title').textContent = a.name;
+  document.getElementById('agent-modal-badge').textContent = AGENT_TYPES[a.type].label;
+  document.getElementById('agent-modal-badge').style.background = AGENT_TYPES[a.type].color;
+  document.getElementById('agent-modal-overview').textContent = profile.overview;
+
+  const rulesHtml = profile.rules.map(r =>
+    `<tr><td class="rule-label">${r[0]}</td><td class="rule-val">${r[1]}</td></tr>`
+  ).join('');
+  document.getElementById('agent-modal-rules').innerHTML = `<table class="rules-table">${rulesHtml}</table>`;
+
+  document.getElementById('agent-modal-edge').textContent = profile.edge;
+  document.getElementById('agent-modal-ref').textContent = profile.ref;
+
+  // Live stats
+  const cap = agentCapital[a.id] || 0;
+  const pnl = agentPnl[a.id] || 0;
+  document.getElementById('agent-modal-stats').innerHTML =
+    `<div class="modal-stat"><span>Capital</span><b>${fmtUsd(cap)}</b></div>` +
+    `<div class="modal-stat"><span>Net P&L</span><b class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${fmtUsd(pnl)}</b></div>` +
+    `<div class="modal-stat"><span>Status</span><b>${a.active?'ACTIVE':'IDLE'}</b></div>`;
+
+  modal.classList.add('open');
+}
+
+function closeAgentDetail() {
+  const m = document.getElementById('agent-modal');
+  if (m) m.classList.remove('open');
+}
+
+// ======================================================================
+// RESEARCH MODAL
+// ======================================================================
+const RESEARCH_CONTENT = {
+  none: {
+    title: 'Uniswap V3 — Concentrated Liquidity',
+    body: `
+      <p>Uniswap V3 lets LPs concentrate capital in custom price ranges. A position with bounds [Pa, Pb] earns fees only when spot crosses through that range, but earns at the rate determined by its share of <b>active liquidity L</b> at the current tick.</p>
+      <p><b>Core invariant</b>: within a tick, x · y = k still holds, but L is constant only inside the active range. When price crosses a tick boundary, L jumps.</p>
+      <p><b>Swap math</b> (this simulator): given input Δx of token0,
+      <code>sqrtP_new = (L·sqrtP) / (L + Δx·sqrtP)</code>. Fees are subtracted from input first. The simulator iterates across tick boundaries up to 32 hops per swap.</p>
+      <p><b>This sim's pools</b>: USDC/WETH (5 bp), WBTC/WETH (30 bp), WBTC/USDC (30 bp), USDC/USDT (1 bp). LP capital is split 70/25/5 across tight/mid/wide ranges to mirror real on-chain distributions.</p>
+      <p><b>Cross-pool basis</b>: WBTC/USDC direct vs synthetic (WBTC/WETH × WETH/USDC) is monitored. The stat-arb agent trades when divergence > 25 bps.</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>Adams, Zinsmeister, Robinson (2021). Uniswap v3 Core whitepaper.</li>
+        <li>blog.uniswap.org/uniswap-v3</li>
+        <li>defipy.org — Uniswap V3 Python reference implementation</li>
+      </ul>`,
+  },
+  sandwich: {
+    title: 'Sandwich Attacks',
+    body: `
+      <p>A sandwich attack exploits public mempool visibility. A searcher observes a victim swap of size S, then submits a triple:</p>
+      <ol>
+        <li><b>TX_front</b>: same direction as victim, slightly higher gas → executes first, pushes price against victim.</li>
+        <li><b>Victim TX</b>: fills at the worsened price.</li>
+        <li><b>TX_back</b>: opposite direction, executes immediately after, harvesting the price impact.</li>
+      </ol>
+      <p><b>Profit</b> ≈ <code>back_proceeds − front_cost − 2·gas − fee_loss</code>. Profitability requires victim slippage tolerance to absorb the front-run impact.</p>
+      <p><b>Empirical scale</b>: Flashbots and EigenPhi data show $300M+ extracted per year on Ethereum mainnet historically, dominated by sandwich.</p>
+      <p><b>Mitigations modeled here</b>:</p>
+      <ul>
+        <li><b>MEV-Protected RPC</b>: victim tx never enters public mempool — Flashbots Protect, MEV Blocker, BloXroute private TX.</li>
+        <li><b>Rollup-Boost (Unichain)</b>: 1s blocks reduce searcher reaction window; verified user flow priority.</li>
+      </ul>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>Daian et al (2019). Flash Boys 2.0. arXiv:1904.05234</li>
+        <li>Heimbach & Wattenhofer (2022). SoK: Preventing Transaction Reordering Manipulations in DeFi. arXiv:2203.11520</li>
+        <li>Qin et al (2023). Quantifying Blockchain Extractable Value. arXiv:2309.13648</li>
+      </ul>`,
+  },
+  jit: {
+    title: 'Just-in-Time (JIT) Liquidity',
+    body: `
+      <p>JIT liquidity is a sophisticated MEV strategy unique to concentrated-liquidity AMMs. When a large swap appears in the mempool, a searcher:</p>
+      <ol>
+        <li>Mints a very narrow LP position (e.g. ±10 bps) at current price, with capital sized to dominate active L.</li>
+        <li>Lets the victim swap execute — the searcher earns ~99% of the fee.</li>
+        <li>Burns the position in the same block. No overnight IL risk.</li>
+      </ol>
+      <p><b>Effect on passive LPs</b>: zero-sum. Every fee captured by JIT is a fee not earned by passive LPs who took on IL risk in advance. Some research argues JIT actually <i>improves</i> swap pricing by deepening L, but the wealth-transfer to JIT is real.</p>
+      <p><b>Detection</b>: on-chain, JIT positions show as mint-and-burn pairs in the same block. Tools like Parsec and EigenPhi flag them.</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>Wan & Adams (2022). JIT Liquidity. blog.uniswap.org/jit-liquidity</li>
+        <li>Capponi & Jia (2023). The Adoption of Blockchain-based Decentralized Exchanges. SSRN 3805095</li>
+      </ul>`,
+  },
+  toxic: {
+    title: 'Toxic Backrunning & LVR',
+    body: `
+      <p>"Toxic flow" is order flow that systematically loses to LPs — i.e. the trader is informed and the LP is on the wrong side. The economic measurement is <b>LVR (Loss-Versus-Rebalancing)</b>.</p>
+      <p>A backrun searcher detects a price move >10 bps in a block and trades opposite, betting on partial mean-reversion or simply that the AMM curve is now mispriced relative to the broader market. CEX-DEX arb is the dominant form.</p>
+      <p><b>LVR formula</b>: LVR(t) = ½·σ²·L · dt — LPs lose proportionally to volatility squared. Even fee-positive pools can be LVR-negative.</p>
+      <p><b>Impact on this sim</b>: LP P&L explicitly tracks IL via <code>currentUsd − depositedUsd</code>. Toxic mode amplifies adverse selection on LPs.</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>Milionis, Moallemi, Roughgarden, Zhang (2022). Automated Market Making and LVR. arXiv:2208.06046</li>
+        <li>Angeris & Chitra (2020). Improved Price Oracles. arXiv:2003.10001</li>
+      </ul>`,
+  },
+  oracle: {
+    title: 'Oracle Manipulation',
+    body: `
+      <p>If a downstream protocol (lending, options, perps) reads an AMM as a price oracle, an attacker can push that price by routing a large swap, hold it, exploit the downstream protocol (e.g. liquidate borrowers at the manipulated price, mint undercollateralized loans), then unwind.</p>
+      <p><b>This sim models</b>: episodic 3–8% pushes held for ~8 blocks. The attacker pays round-trip slippage + fees + gas. Whether it's profitable depends entirely on the downstream exploit, which is outside the AMM's view.</p>
+      <p><b>Mitigations</b>:</p>
+      <ul>
+        <li><b>TWAP oracles</b>: Uniswap V3 exposes geometric-mean TWAP across N blocks. To manipulate a 30-min TWAP an attacker must hold the price for ~150 blocks — capital cost grows quickly.</li>
+        <li><b>Chainlink / multi-source oracles</b>: aggregate from many CEXs; a single AMM cannot move them.</li>
+        <li><b>Min-liquidity gates</b>: protocols refuse to read pools with TVL below threshold.</li>
+      </ul>
+      <p><b>Historical exploits</b>: Mango Markets (Oct 2022, $114M), Cream Finance (Oct 2021, $130M), Inverse Finance (April 2022, $15M).</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>Mackinga, Nadahalli, Wattenhofer (2022). TWAP Oracle Attacks. eprint.iacr.org/2022/445</li>
+        <li>Eskandari, Salehi, Gu, Clark (2021). SoK: Oracles from the Ground Truth to Market Manipulation. arXiv:2106.00667</li>
+      </ul>`,
+  },
+  protected: {
+    title: 'MEV-Protected RPCs',
+    body: `
+      <p>Private order flow protection works by routing user transactions directly to block builders via authenticated channels, bypassing the public mempool entirely.</p>
+      <p><b>Architectures</b>:</p>
+      <ul>
+        <li><b>Flashbots Protect</b>: tx sent to Flashbots relay, included only via Flashbots-built blocks. Front-running impossible — searchers never see it.</li>
+        <li><b>MEV Blocker</b> (CowSwap): redistributes 90% of any backrun MEV back to the user.</li>
+        <li><b>MEV Share</b>: programmable order-flow auction; user opts which fields are public.</li>
+      </ul>
+      <p><b>Trade-offs</b>: latency (1–2 block delay possible), trust in relay, builder centralization. <b>Sandwich is fully eliminated</b> for protected txs in this sim — the sandwich searcher cannot see the victim. Other MEV (oracle, arb) still operates because they don't depend on the victim being public.</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>docs.flashbots.net/flashbots-protect/overview</li>
+        <li>cowswap docs — mevblocker.io</li>
+        <li>Heimbach & Wattenhofer (2022). SoK: Preventing Reordering. arXiv:2203.11520</li>
+      </ul>`,
+  },
+  rollup: {
+    title: 'Rollup-Boost (Unichain-style)',
+    body: `
+      <p>Unichain is a rollup designed for DEX activity with three relevant primitives:</p>
+      <ul>
+        <li><b>1-second blocks</b> (vs 12s on Ethereum L1) — 12× more frequent settlement reduces searcher bundling time.</li>
+        <li><b>Verifiable Block Building</b> — the sequencer commits to inclusion + ordering rules verifiable by users.</li>
+        <li><b>Priority for verified user flow</b> — front-running by anonymous searchers is harder when ordering favors authenticated user txs.</li>
+      </ul>
+      <p><b>Effect modeled here</b>: BLOCK_TIME = 1s. Searcher reaction window shrinks; sandwich profitability falls because front+back must both land in the 1s window. Does not eliminate MEV — cross-block toxic flow still leaks to LPs.</p>
+      <p><b>References</b>:</p>
+      <ul>
+        <li>uniswap.org/blog/unichain</li>
+        <li>Resnick et al (2024). On the Relevance of Block Time. arXiv:2305.13598</li>
+      </ul>`,
+  },
+};
+
+function openResearch(mode) {
+  const content = RESEARCH_CONTENT[mode] || RESEARCH_CONTENT['none'];
+  const modal = document.getElementById('research-modal');
+  if (!modal) return;
+  document.getElementById('research-title').textContent = content.title;
+  document.getElementById('research-body').innerHTML = content.body;
+  modal.classList.add('open');
+}
+function closeResearch() {
+  const m = document.getElementById('research-modal');
+  if (m) m.classList.remove('open');
+}
+
+// ======================================================================
+// CSV DOWNLOADS
+// ======================================================================
+function csvEscape(v) {
+  if (v == null) return '';
+  const s = String(v);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function triggerDownload(filename, content) {
+  const blob = new Blob([content], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+let tapeLog = []; // each entry: {block, simTime, pool, side, sizeUsd, price, agent, kind}
+
+function downloadTapeCSV() {
+  const rows = [['block','sim_time','pool','side','size_usd','exec_price','agent','kind']];
+  for (const t of tapeLog) {
+    rows.push([t.block, t.simTime, t.pool, t.side, t.sizeUsd.toFixed(2), t.price.toFixed(8), t.agent, t.kind].map(csvEscape));
+  }
+  triggerDownload('amm_swaps_'+Date.now()+'.csv', rows.map(r => r.join(',')).join('\n'));
+}
+
+function downloadEventLog() {
+  const rows = [['block','sim_time','category','message']];
+  for (const e of eventLog) {
+    rows.push([e.block, (e.t!=null?e.t.toFixed(1):''), e.cls, e.text].map(csvEscape));
+  }
+  triggerDownload('amm_events_'+Date.now()+'.csv', rows.map(r => r.join(',')).join('\n'));
+}
+
+// ======================================================================
+// BOOTSTRAP — initial render so UI isn't blank before START
+// ======================================================================
+function bootstrap() {
+  initPools();
+  seedLiquidity();
+  buildAgents();
+  setMevActive();
+  renderTopBar();
+  renderBlock();
+  renderLiquidityPanel();
+  renderChart();
+  renderMempool();
+  renderAgentPanel();
+  renderForensics();
+  addEvent('event-protection', 'Pools initialized. Press START to begin simulation.');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
+}
+
+</script>
+
+<!-- ===================== AGENT DETAIL MODAL ===================== -->
+<div class="modal-overlay" id="agent-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="agent-modal-title">Agent</h2>
+      <span class="agent-type-badge" id="agent-modal-badge"></span>
+      <button class="modal-close" onclick="closeAgentDetail()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-stats-row" id="agent-modal-stats"></div>
+      <div class="modal-section">
+        <div class="modal-section-title">Overview</div>
+        <p id="agent-modal-overview"></p>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Decision Rules</div>
+        <div id="agent-modal-rules"></div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Edge / Source of Profit</div>
+        <p id="agent-modal-edge"></p>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Reference</div>
+        <p id="agent-modal-ref" class="modal-ref"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== RESEARCH MODAL ===================== -->
+<div class="modal-overlay" id="research-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="research-title">Research</h2>
+      <button class="modal-close" onclick="closeResearch()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="research-body" class="research-body"></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
