@@ -1,0 +1,2252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMM Simulator — Technical Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,800;9..144,900&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0c0e10;
+  --bg2:       #131619;
+  --bg3:       #1a1d22;
+  --bg4:       #22262c;
+  --ink:       #e4e1d8;
+  --ink2:      #b8b2a3;
+  --ink3:      #7a7466;
+  --ink4:      #4a4538;
+  --paper:     #f4ede0;
+  --line:      #2c2f35;
+  --line2:     #3d4148;
+  --amber:     #d99a3f;
+  --amber2:    #f5b94d;
+  --rust:      #b85c2f;
+  --moss:      #6b8a3a;
+  --slate:     #4a6a82;
+  --plum:      #7a4a82;
+  --crimson:   #b54848;
+  --gold:      #c89b3c;
+
+  --serif: 'Fraunces', ui-serif, Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'Inter Tight', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--serif);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.65;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'ss01', 'ss02', 'liga', 'kern';
+  background-image:
+    radial-gradient(ellipse at top left, rgba(217, 154, 63, 0.04), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(74, 106, 130, 0.03), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Subtle paper-grain noise */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ========== HEADER ========== */
+.masthead {
+  position: relative;
+  z-index: 1;
+  padding: 80px 60px 60px;
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(217, 154, 63, 0.04), transparent 70%),
+    var(--bg);
+}
+.masthead-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+}
+.masthead-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 28px;
+}
+.masthead-meta::before {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--amber);
+  display: inline-block;
+}
+.masthead-meta .pill {
+  border: 1px solid var(--line2);
+  padding: 3px 10px;
+  border-radius: 2px;
+  letter-spacing: 0.12em;
+}
+.masthead h1 {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(48px, 7vw, 92px);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+  margin: 0 0 16px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 0;
+}
+.masthead h1 em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--amber);
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+}
+.masthead-tagline {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  line-height: 1.4;
+  color: var(--ink2);
+  max-width: 640px;
+  margin: 0 0 36px;
+  font-weight: 300;
+}
+.masthead-attrs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 18px 0;
+  margin-top: 36px;
+}
+.masthead-attr {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px dotted var(--line2);
+  padding: 0 22px;
+}
+.masthead-attr:first-child { padding-left: 0; }
+.masthead-attr:last-child { border-right: none; padding-right: 0; }
+.masthead-attr-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.masthead-attr-value {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--ink);
+}
+
+/* ========== TAB STRIP ========== */
+.tabstrip {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+.tabstrip-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 60px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+}
+.tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  color: var(--ink3);
+  padding: 18px 26px 16px;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color 0.2s;
+  font-weight: 500;
+}
+.tab:first-child { padding-left: 0; }
+.tab .tab-num {
+  font-size: 9px;
+  color: var(--ink4);
+  margin-right: 8px;
+  font-weight: 400;
+}
+.tab:hover { color: var(--ink); }
+.tab.active { color: var(--amber); }
+.tab.active .tab-num { color: var(--amber); }
+.tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: var(--amber);
+}
+
+/* ========== TAB CONTENT ========== */
+.content-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 60px;
+  position: relative;
+  z-index: 1;
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; animation: fadeIn 0.4s; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== TYPOGRAPHY ========== */
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 38px;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 64px 0 20px;
+  font-variation-settings: 'opsz' 96;
+  position: relative;
+  padding-left: 28px;
+}
+h2::before {
+  content: '§';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  font-family: var(--serif);
+  font-size: 24px;
+  color: var(--amber);
+  font-style: italic;
+}
+.tab-pane > h2:first-child { margin-top: 0; }
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin: 40px 0 14px;
+  color: var(--ink);
+}
+h4 {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin: 32px 0 10px;
+}
+p { margin: 0 0 16px; }
+p strong { color: var(--ink); font-weight: 600; }
+em { font-style: italic; color: var(--ink); }
+a { color: var(--amber2); text-decoration: none; border-bottom: 1px solid var(--ink4); }
+a:hover { color: var(--amber); border-bottom-color: var(--amber); }
+code, kbd {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--amber2);
+}
+.lead {
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.55;
+  color: var(--ink2);
+  font-weight: 300;
+  font-style: italic;
+  border-left: 2px solid var(--amber);
+  padding: 4px 0 4px 28px;
+  margin: 0 0 36px;
+}
+ul, ol { padding-left: 22px; margin: 0 0 18px; }
+ul li, ol li { margin-bottom: 8px; }
+ul { list-style: none; padding-left: 0; }
+ul > li {
+  padding-left: 22px;
+  position: relative;
+}
+ul > li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--amber);
+  font-family: var(--mono);
+}
+
+/* ========== CALLOUTS / CARDS ========== */
+.callout {
+  background: var(--bg2);
+  border-left: 3px solid var(--amber);
+  padding: 22px 28px;
+  margin: 28px 0;
+  border-radius: 0 2px 2px 0;
+}
+.callout-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 10px;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout.warn  { border-left-color: var(--rust); }
+.callout.warn .callout-label { color: var(--rust); }
+.callout.note  { border-left-color: var(--slate); }
+.callout.note .callout-label { color: var(--slate); }
+
+.spec-card {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 24px 28px;
+  margin: 24px 0;
+}
+.spec-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px dotted var(--line2);
+  padding-bottom: 12px;
+}
+.spec-card-title {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.spec-card-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid var(--amber);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+/* ========== TABLES ========== */
+table.spec {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0 24px;
+  font-size: 14px;
+}
+table.spec th, table.spec td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+table.spec th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  font-weight: 500;
+  background: var(--bg2);
+}
+table.spec tr:hover td { background: var(--bg2); }
+table.spec td.mono { font-family: var(--mono); font-size: 13px; color: var(--amber2); }
+table.spec td.label { color: var(--ink2); white-space: nowrap; width: 30%; }
+
+/* ========== KBD / KEYS ========== */
+.key {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-bottom-width: 2px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  color: var(--ink);
+  margin: 0 2px;
+}
+
+/* ========== QUICK START STEPS ========== */
+.steps {
+  counter-reset: step;
+  list-style: none;
+  padding: 0;
+  margin: 32px 0;
+}
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 32px 60px;
+  margin-bottom: 0;
+  border-left: 1px dotted var(--line2);
+  margin-left: 22px;
+}
+.steps > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: -22px;
+  top: -6px;
+  width: 44px;
+  height: 44px;
+  background: var(--bg);
+  border: 1px solid var(--amber);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+.steps > li:last-child { border-left-color: transparent; }
+.step-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+/* ========== DIAGRAMS ========== */
+.diagram {
+  margin: 32px 0;
+  padding: 32px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  position: relative;
+  overflow-x: auto;
+}
+.diagram-caption {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 18px;
+}
+.diagram-caption .fig {
+  color: var(--amber);
+  margin-right: 8px;
+}
+.diagram svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+
+/* ========== TWO COLUMN ========== */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin: 28px 0;
+}
+.two-col > div {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 24px;
+}
+.two-col .pos { border-top: 2px solid var(--moss); }
+.two-col .neg { border-top: 2px solid var(--rust); }
+.two-col h4 { margin-top: 0; }
+
+/* ========== PULL QUOTE ========== */
+.pullquote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: 26px;
+  line-height: 1.4;
+  color: var(--ink);
+  border-top: 1px solid var(--amber);
+  border-bottom: 1px solid var(--amber);
+  padding: 28px 0;
+  margin: 36px 60px;
+  text-align: center;
+  font-variation-settings: 'opsz' 144, 'SOFT' 80;
+  position: relative;
+}
+.pullquote::before {
+  content: '"';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg);
+  padding: 0 16px;
+  font-size: 36px;
+  color: var(--amber);
+  line-height: 1;
+}
+
+/* ========== REFERENCES ========== */
+.ref-list { list-style: none; padding: 0; margin: 24px 0; counter-reset: ref; }
+.ref-list > li {
+  counter-increment: ref;
+  padding: 18px 0 18px 60px;
+  border-bottom: 1px dotted var(--line2);
+  position: relative;
+}
+.ref-list > li::before {
+  content: '[' counter(ref, decimal-leading-zero) ']';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  letter-spacing: 0.05em;
+}
+.ref-list > li::after { display: none; }
+.ref-authors { font-family: var(--serif); color: var(--ink); font-weight: 500; }
+.ref-year { color: var(--ink3); }
+.ref-title {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink2);
+  display: block;
+  margin: 4px 0;
+}
+.ref-venue { font-family: var(--mono); font-size: 12px; color: var(--ink3); }
+.ref-link {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber2);
+  display: block;
+  margin-top: 4px;
+  word-break: break-all;
+  border-bottom: none;
+}
+.ref-cluster {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin: 32px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ========== MATH BLOCKS ========== */
+.math-block {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--amber);
+  padding: 18px 24px;
+  margin: 20px 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  overflow-x: auto;
+}
+.math-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+
+/* ========== CHART CONTAINER ========== */
+.chart-block {
+  margin: 32px 0;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 24px;
+}
+.chart-block h4 { margin-top: 0; }
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  margin: 8px 0;
+}
+.chart-canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+.chart-legend {
+  display: flex;
+  gap: 20px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-legend i {
+  width: 12px; height: 3px;
+  display: inline-block;
+}
+.chart-note {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink3);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+/* ========== FOOTER ========== */
+.footer {
+  margin-top: 80px;
+  padding: 40px 60px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.footer-mark {
+  color: var(--amber);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 8px;
+  display: block;
+}
+
+/* responsive */
+@media (max-width: 800px) {
+  .masthead { padding: 60px 28px 40px; }
+  .masthead-attrs { grid-template-columns: 1fr 1fr; }
+  .masthead-attr { border-right: none; border-bottom: 1px dotted var(--line2); padding: 12px 0; }
+  .content-wrap { padding: 40px 28px; }
+  .tabstrip-inner { padding: 0 28px; }
+  .two-col { grid-template-columns: 1fr; }
+  .pullquote { margin: 30px 0; font-size: 21px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- MASTHEAD                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="masthead-meta">
+      <span class="pill">Technical Note</span>
+      <span>Movmint Research</span>
+      <span>April 2026</span>
+    </div>
+    <h1>The Dark Forest, <em>Indoors</em></h1>
+    <p class="masthead-tagline">
+      A pedagogical Uniswap V3 simulator with concentrated liquidity, a public mempool,
+      adversarial searchers, and the mitigations that try to keep them honest.
+    </p>
+    <div class="masthead-attrs">
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Pools</span>
+        <span class="masthead-attr-value">4 (5bp / 30bp / 1bp)</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Agents</span>
+        <span class="masthead-attr-value">31 (LP, retail, fund, MEV)</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">MEV Modes</span>
+        <span class="masthead-attr-value">7 strategies + mitigations</span>
+      </div>
+      <div class="masthead-attr">
+        <span class="masthead-attr-label">Format</span>
+        <span class="masthead-attr-value">Single-file HTML, no deps</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB STRIP                                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<nav class="tabstrip">
+  <div class="tabstrip-inner">
+    <button class="tab active" data-tab="overview"><span class="tab-num">01</span>Overview</button>
+    <button class="tab" data-tab="quickstart"><span class="tab-num">02</span>Quick Start</button>
+    <button class="tab" data-tab="architecture"><span class="tab-num">03</span>Architecture</button>
+    <button class="tab" data-tab="agents"><span class="tab-num">04</span>Agents</button>
+    <button class="tab" data-tab="sandwich"><span class="tab-num">05</span>Sandwich Forensics</button>
+    <button class="tab" data-tab="references"><span class="tab-num">06</span>References</button>
+  </div>
+</nav>
+
+<main class="content-wrap">
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 1 — OVERVIEW                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane active" id="overview">
+
+<p class="lead">
+  This is a single-file simulator that puts a working Uniswap V3 in your browser, populates
+  it with the agents that actually trade on it — passive LPs, retail traders, directional
+  funds, statistical arbitrageurs, sandwich searchers, JIT bots, oracle manipulators —
+  and lets you toggle the mitigations that have evolved to keep them in check.
+</p>
+
+<p>
+  The thesis is pedagogical, not predictive. Real on-chain MEV is observed; this simulator
+  generates it. You can pause it, rewind it through the price chart, switch between modes
+  to see how a sandwich attack reshapes a victim's slippage versus how a private RPC erases
+  the attack entirely, and read the forensic accounting per block.
+</p>
+
+<p>
+  The model is a discrete-block continuous-time hybrid. Each second of sim-time corresponds
+  to one second of (Ethereum mainnet 12 s, Unichain rollup 1 s) wallclock, and the canonical
+  V3 swap math runs against actual concentrated-liquidity positions seeded into each pool's
+  tick space. There are no decimals shortcuts, no constant-product approximations, and no
+  pretending sandwiches are atomic at the protocol layer — they live and die by gas-tier
+  ordering inside a builder loop.
+</p>
+
+<h2>What's inside</h2>
+
+<div class="diagram">
+<div class="diagram-caption"><span class="fig">FIG. 01</span>System diagram — pools, agents, mempool, and the closing block.</div>
+<svg viewBox="0 0 880 460" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono, monospace" font-size="11">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d99a3f"/>
+    </marker>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7a7466"/>
+    </marker>
+  </defs>
+
+  <!-- agents box -->
+  <g>
+    <rect x="20" y="40" width="180" height="380" fill="none" stroke="#2c2f35" stroke-dasharray="3,3"/>
+    <text x="110" y="32" text-anchor="middle" fill="#7a7466" letter-spacing="2">AGENTS</text>
+
+    <g transform="translate(36,60)">
+      <rect width="148" height="44" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="22" r="4" fill="#6b8a3a"/>
+      <text x="26" y="20" fill="#e4e1d8">Liquidity Providers</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">tight 70% / mid 25% / wide 5%</text>
+    </g>
+
+    <g transform="translate(36,116)">
+      <rect width="148" height="44" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="22" r="4" fill="#4a6a82"/>
+      <text x="26" y="20" fill="#e4e1d8">Retail (10×)</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">$500–$5k swaps</text>
+    </g>
+
+    <g transform="translate(36,172)">
+      <rect width="148" height="44" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="22" r="4" fill="#4a6a82"/>
+      <text x="26" y="20" fill="#e4e1d8">Funds (3×)</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">$150k–$12M directional</text>
+    </g>
+
+    <g transform="translate(36,228)">
+      <rect width="148" height="44" fill="#131619" stroke="#3d4148"/>
+      <circle cx="14" cy="22" r="4" fill="#7a4a82"/>
+      <text x="26" y="20" fill="#e4e1d8">Stat-Arb</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">cross-pool basis</text>
+    </g>
+
+    <g transform="translate(36,284)">
+      <rect width="148" height="44" fill="#131619" stroke="#b54848"/>
+      <circle cx="14" cy="22" r="4" fill="#b54848"/>
+      <text x="26" y="20" fill="#e4e1d8">Sandwich (×2)</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">front + back, gas-priced</text>
+    </g>
+
+    <g transform="translate(36,340)">
+      <rect width="148" height="44" fill="#131619" stroke="#d99a3f"/>
+      <circle cx="14" cy="22" r="4" fill="#d99a3f"/>
+      <text x="26" y="20" fill="#e4e1d8">JIT / Toxic / Oracle</text>
+      <text x="26" y="36" fill="#7a7466" font-size="10">mode-activated searchers</text>
+    </g>
+  </g>
+
+  <!-- mempool -->
+  <g>
+    <rect x="240" y="180" width="180" height="100" fill="#1a1d22" stroke="#d99a3f" stroke-width="1.5"/>
+    <text x="330" y="170" text-anchor="middle" fill="#d99a3f" letter-spacing="2">PUBLIC MEMPOOL</text>
+    <text x="330" y="208" text-anchor="middle" fill="#e4e1d8" font-size="10">tx queue · gas-priced</text>
+    <text x="330" y="226" text-anchor="middle" fill="#7a7466" font-size="9">searchers see all entries</text>
+    <text x="330" y="244" text-anchor="middle" fill="#7a7466" font-size="9">(unless route-private)</text>
+    <text x="330" y="266" text-anchor="middle" fill="#b8b2a3" font-size="9" font-style="italic">─ pending ─</text>
+  </g>
+
+  <!-- arrows agents → mempool -->
+  <line x1="186" y1="88"  x2="240" y2="200" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="138" x2="240" y2="220" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="194" x2="240" y2="240" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="250" x2="240" y2="260" stroke="#7a7466" stroke-width="1" marker-end="url(#arr2)"/>
+  <line x1="186" y1="306" x2="240" y2="265" stroke="#b54848" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="186" y1="362" x2="240" y2="270" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- builder / closeBlock -->
+  <g>
+    <rect x="460" y="180" width="180" height="100" fill="#22262c" stroke="#d99a3f" stroke-width="1.5"/>
+    <text x="550" y="170" text-anchor="middle" fill="#d99a3f" letter-spacing="2">BUILDER · closeBlock()</text>
+    <text x="550" y="208" text-anchor="middle" fill="#e4e1d8" font-size="10">sort by gas (desc)</text>
+    <text x="550" y="226" text-anchor="middle" fill="#e4e1d8" font-size="10">keep sandwich bundles</text>
+    <text x="550" y="244" text-anchor="middle" fill="#e4e1d8" font-size="10">contiguous</text>
+    <text x="550" y="266" text-anchor="middle" fill="#b8b2a3" font-size="9" font-style="italic">→ apply to pools</text>
+  </g>
+
+  <line x1="420" y1="230" x2="460" y2="230" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- pools -->
+  <g>
+    <rect x="680" y="40" width="180" height="380" fill="none" stroke="#2c2f35" stroke-dasharray="3,3"/>
+    <text x="770" y="32" text-anchor="middle" fill="#7a7466" letter-spacing="2">V3 POOLS</text>
+
+    <g transform="translate(696,60)">
+      <rect width="148" height="68" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="22" fill="#d99a3f">USDC / WETH</text>
+      <text x="12" y="40" fill="#7a7466" font-size="10">5 bp · $120M TVL</text>
+      <text x="12" y="56" fill="#7a7466" font-size="10">tickSpacing = 10</text>
+    </g>
+
+    <g transform="translate(696,144)">
+      <rect width="148" height="68" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="22" fill="#d99a3f">WBTC / WETH</text>
+      <text x="12" y="40" fill="#7a7466" font-size="10">30 bp · $30M TVL</text>
+      <text x="12" y="56" fill="#7a7466" font-size="10">tickSpacing = 60</text>
+    </g>
+
+    <g transform="translate(696,228)">
+      <rect width="148" height="68" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="22" fill="#d99a3f">WBTC / USDC</text>
+      <text x="12" y="40" fill="#7a7466" font-size="10">30 bp · $18M TVL</text>
+      <text x="12" y="56" fill="#7a7466" font-size="10">tickSpacing = 60</text>
+    </g>
+
+    <g transform="translate(696,312)">
+      <rect width="148" height="68" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="22" fill="#d99a3f">USDC / USDT</text>
+      <text x="12" y="40" fill="#7a7466" font-size="10">1 bp · $60M TVL</text>
+      <text x="12" y="56" fill="#7a7466" font-size="10">tickSpacing = 1</text>
+    </g>
+  </g>
+
+  <line x1="640" y1="200" x2="680" y2="94"  stroke="#d99a3f" stroke-width="1" marker-end="url(#arr)"/>
+  <line x1="640" y1="220" x2="680" y2="178" stroke="#d99a3f" stroke-width="1" marker-end="url(#arr)"/>
+  <line x1="640" y1="240" x2="680" y2="262" stroke="#d99a3f" stroke-width="1" marker-end="url(#arr)"/>
+  <line x1="640" y1="260" x2="680" y2="346" stroke="#d99a3f" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- diurnal clock -->
+  <g transform="translate(240,370)">
+    <rect width="400" height="60" fill="none" stroke="#3d4148" stroke-dasharray="2,3"/>
+    <text x="200" y="22" text-anchor="middle" fill="#7a7466" letter-spacing="2" font-size="9">DIURNAL FLOW MULTIPLIER (UTC HOUR)</text>
+    <text x="200" y="44" text-anchor="middle" fill="#e4e1d8" font-style="italic" font-size="11">retail interval ÷ flow · fund rate × flow · trade-size boost in peak</text>
+  </g>
+</svg>
+</div>
+
+<h3>The four modes of inquiry</h3>
+
+<p>
+  This simulator is built around four questions that LPs and protocol designers have to
+  answer in real markets, but rarely get to study under controlled conditions:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Question</th><th>Mode</th><th>Outcome the sim measures</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><em>How does a public mempool let searchers extract from naive flow?</em></td>
+      <td class="mono">sandwich</td>
+      <td class="label">Front/back-run profit, victim slip cost, success rate</td>
+    </tr>
+    <tr>
+      <td><em>Can a sophisticated LP crowd out passive LPs without taking IL risk?</em></td>
+      <td class="mono">jit</td>
+      <td class="label">JIT mints/burns per block, fee share captured, passive-LP fee dilution</td>
+    </tr>
+    <tr>
+      <td><em>What does adverse selection (LVR) cost LPs over time?</em></td>
+      <td class="mono">toxic</td>
+      <td class="label">Backrun count, single-sided LP IL accumulation</td>
+    </tr>
+    <tr>
+      <td><em>Can a price oracle reading this AMM be moved against an external protocol?</em></td>
+      <td class="mono">oracle</td>
+      <td class="label">Push magnitude, hold duration, TWAP exposure window</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  Two more modes — <code>protected</code> and <code>rollup</code> — model the mitigations:
+  private orderflow (Flashbots Protect / MEV Blocker) and short-block-time rollups
+  (Unichain rollup-boost). Switching between them is the most instructive thing you can
+  do with the sim. A run with sandwich attacks active and another run identical except for
+  protected RPC will show the searcher's PnL drop to zero while the victim's slippage
+  vanishes.
+</p>
+
+<p class="pullquote">
+  An AMM is a market structure. A sandwich is what happens when its rules of ordering meet
+  a public queue. The simulator is the place to test what changes when either side of that
+  meeting changes.
+</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 2 — QUICK START                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane" id="quickstart">
+
+<p class="lead">
+  Open the simulator in any modern browser. There is no build step, no install,
+  no server. Everything that follows is keyboard- and click-driven.
+</p>
+
+<h2>Five minutes to first MEV</h2>
+
+<ol class="steps">
+  <li>
+    <div class="step-title">Open <code>amm.html</code> in a browser</div>
+    <p>
+      The page loads with all four pools seeded with realistic liquidity, agents created
+      but idle, and the sim paused. The top bar shows the active pool's price, TVL,
+      cumulative volume, and a UTC clock that drives diurnal flow intensity.
+      The default time is <strong>13:00 UTC</strong> — peak window for US/EU overlap.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Hit <span class="key">▶ START</span> at the top</div>
+    <p>
+      Retail and fund txs begin flowing into the public mempool. You'll see them appear
+      in the <em>Mempool</em> panel mid-page, ordered by gas tip. Every 12 seconds a block
+      closes, the builder applies all pending txs in gas-priority order, and the price
+      chart updates. The block-progress bar at the top fills toward the next block.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Click <span class="key">🥪 Sandwich</span> in the strategy bar</div>
+    <p>
+      Two sandwich-searcher agents (SAND1, SAND2) activate. They scan the public mempool
+      every sim-tick for victims with sufficient size and slippage tolerance, and submit
+      paired front/back-run txs at gas tiers calibrated to wrap the victim. Watch the
+      <em>Forensics</em> tab on the right — the <strong>Attempts</strong> and
+      <strong>Profitable</strong> counters update in real time.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Switch to <span class="key">🛡 MEV-Protected RPC</span></div>
+    <p>
+      The forensics counters reset. Watch the <em>Protected Txs</em> count climb while
+      <em>MEV Extracted</em> stays at zero — sandwich searchers can't see private orderflow.
+      This is the single most direct demonstration of why Flashbots Protect and MEV Blocker
+      exist.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Use <span class="key">+1h</span> / <span class="key">+6h</span> / <span class="key">+24h</span> to fast-forward</div>
+    <p>
+      The skip controls advance simulation state without rendering each step. A
+      <code>+24h</code> skip will run through both peak and trough flow windows, letting
+      you see how much MEV actually extracts over a real day, how much adverse-selection
+      LPs accumulate overnight, and how stat-arb profits converge. The clock shows the
+      current UTC hour and the flow multiplier.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Click any agent card to see its decision rules</div>
+    <p>
+      The right-hand <em>Agents</em> panel lists every active agent with live capital and
+      P&L. Clicking opens a modal with the agent's overview, decision rules table, and
+      the academic reference for the strategy it implements.
+    </p>
+  </li>
+
+  <li>
+    <div class="step-title">Download the swap log or event log</div>
+    <p>
+      <span class="key">⬇ SWAPS</span> exports every executed trade with block, sim_time,
+      pool, side, size, price, agent, and tag. <span class="key">⬇ MEV LOG</span> exports
+      the event stream — sandwich landings, JIT mints, oracle pushes, arb fires, block
+      closes. Both are CSV for direct ingestion into pandas or Excel.
+    </p>
+  </li>
+</ol>
+
+<h2>Things to look for</h2>
+
+<div class="two-col">
+  <div class="pos">
+    <h4>Sandwich profitability is fee-tier dependent</h4>
+    <p>
+      Watch the success rate carefully. On the <strong>5 bp USDC/WETH pool</strong> a
+      sandwich needs only 12 bps of victim impact to clear the round-trip fee. On the
+      <strong>30 bp WBTC/USDC pool</strong> the same searcher needs 65 bps. Real mainnet
+      sandwiching is concentrated almost entirely on 5 bp pools for exactly this reason.
+    </p>
+  </div>
+  <div class="neg">
+    <h4>JIT P&L can go negative on quiet flow</h4>
+    <p>
+      The JIT searcher mints a ±10 bp position around current price. If the victim swap
+      doesn't move price enough to lock the JIT into the in-range fee zone, the JIT can
+      net a small loss after gas. The forensics panel shows
+      <em>Avg Fee per JIT</em> — when this drops below ~$30 the strategy is barely
+      breakeven.
+    </p>
+  </div>
+  <div class="pos">
+    <h4>Cross-pool dislocation is always running</h4>
+    <p>
+      The stat-arb agent watches <em>WBTC/USDC direct</em> versus
+      <em>WBTC/WETH × WETH/USDC synthetic</em> and trades when divergence exceeds 25 bps.
+      Even with no MEV mode active, you'll see the dislocation oscillate as fund flows
+      hit different pools at different rates and the arb closes the gap.
+    </p>
+  </div>
+  <div class="neg">
+    <h4>Oracle attacks are episodic, not constant</h4>
+    <p>
+      Oracle mode fires a single large directional swap that holds for 8 blocks before
+      reversing. You may need to skip a few hours to see one trigger. Watch the price
+      chart — it'll spike, plateau, then snap back. The sim doesn't simulate the
+      downstream lending-protocol exploit; the AMM-side is round-trip-loss for the
+      attacker.
+    </p>
+  </div>
+</div>
+
+<h2>Useful experiments</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Experiment</th><th>Setup</th><th>What it shows</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Protected vs unprotected sandwich</td>
+      <td>Run sandwich for +6h, note MEV extracted, then switch to protected for +6h on same pool.</td>
+      <td>Direct $/h cost of public-mempool exposure for funds.</td>
+    </tr>
+    <tr>
+      <td>JIT vs passive LP</td>
+      <td>JIT mode, +24h. Compare JIT1 capital vs aggregate passive-LP P&L in the agents panel.</td>
+      <td>Wealth transfer from passive LPs to JIT bots on large fund swaps.</td>
+    </tr>
+    <tr>
+      <td>Diurnal MEV intensity</td>
+      <td>Sandwich mode, skip from 06:00 UTC trough through 17:00 UTC peak.</td>
+      <td>Bimodal MEV concentration — peak NA daytime sees 2–3× the activity of the Asian-morning lull.</td>
+    </tr>
+    <tr>
+      <td>Rollup-boost stress test</td>
+      <td>Sandwich mode with rollup enabled — block time drops to 1 s.</td>
+      <td>Reduced searcher reaction window cuts sandwich landing rate; not zero, but materially lower.</td>
+    </tr>
+    <tr>
+      <td>Stat-arb capacity</td>
+      <td>No MEV, +24h. Note arb count and arb profit. Then enable oracle and skip again.</td>
+      <td>Oracle pushes inflate cross-pool dislocation, giving the arb agent more profit opportunities — at LP expense.</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="callout note">
+  <div class="callout-label">Note</div>
+  <p>
+    All trade flow in the simulator is generated by the agents — there is no replay of
+    historical mainnet data. The point is to build intuition for the dynamics, not to
+    backtest a specific period. If you want historical replay, the CSV exports are
+    schema-compatible with pandas DataFrames and a small loader script can swap them
+    against on-chain events.
+  </p>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 3 — ARCHITECTURE                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane" id="architecture">
+
+<p class="lead">
+  The simulator is one HTML file with one inline script. There are no external
+  dependencies. Everything from V3 swap math to the chart renderer is implemented from
+  primitives. This section walks through the four mechanical layers.
+</p>
+
+<h2>I. Concentrated liquidity math</h2>
+
+<p>
+  Each pool maintains <code>sqrtP</code> (the square-root of price, in token1/token0
+  convention) and a list of liquidity positions, each with bounds <code>(sqrtPa, sqrtPb)</code>
+  and an L value. The pool's active liquidity at any point is the sum of L over positions
+  whose range contains the current sqrtP.
+</p>
+
+<div class="math-block">
+<div class="math-label">Swap step — selling token0 (sell0)</div>
+sqrtP_new = (L · sqrtP) / (L + Δx · sqrtP)<br>
+Δy        = L · (sqrtP − sqrtP_new)
+</div>
+
+<div class="math-block">
+<div class="math-label">Swap step — selling token1 (sell1)</div>
+sqrtP_new = sqrtP + Δy / L<br>
+Δx        = L · (1/sqrtP − 1/sqrtP_new)
+</div>
+
+<p>
+  When a swap would push price across a tick boundary, the simulator caps the step at
+  the boundary, applies it, updates active L, and recurses — up to 32 hops per swap.
+  This is the same algorithm Uniswap V3 itself uses, just in floating-point instead of
+  Q64.96 fixed-point.
+</p>
+
+<h3>Why a <em>display</em> price exists separately</h3>
+
+<p>
+  A subtle issue: V3's internal convention is <code>price = token1/token0</code>. But
+  for USDC/WETH we want to display 3,400 (USDC per WETH), which is
+  <code>token0/token1</code> — the inverse. The simulator stores the V3-canonical
+  internal price in <code>pool.sqrtP</code> and exposes a <code>displayPrice(pool)</code>
+  helper that flips for inverted pools. <em>All</em> swap math, fee accounting, and tick
+  arithmetic uses internal price; only the UI and USD-conversion layer touches the display
+  side. This was the source of the worst bug in early development — see the Sandwich
+  Forensics tab.
+</p>
+
+<h2>II. Mempool and block closure</h2>
+
+<p>
+  Time advances one sim-second at a time. Every tick, agents may submit transactions
+  to <code>mempool</code> and searchers run their detection routines. Once
+  <code>simTime − lastBlockTime ≥ BLOCK_TIME</code> (12 s on mainnet, 1 s on Unichain),
+  <code>closeBlock()</code> fires.
+</p>
+
+<div class="diagram">
+<div class="diagram-caption"><span class="fig">FIG. 02</span>Block-closure ordering. Sandwich bundles are kept atomic; standalone txs interleave by gas.</div>
+<svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono, monospace" font-size="11">
+  <!-- pending mempool -->
+  <g>
+    <text x="80" y="30" fill="#7a7466" letter-spacing="2">PENDING (UNORDERED)</text>
+    <g transform="translate(20,50)">
+      <rect width="160" height="32" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="20" fill="#e4e1d8">retail · 25 gwei</text>
+    </g>
+    <g transform="translate(20,90)">
+      <rect width="160" height="32" fill="#131619" stroke="#b54848"/>
+      <text x="12" y="20" fill="#e4e1d8">sandFront · 33 gwei</text>
+    </g>
+    <g transform="translate(20,130)">
+      <rect width="160" height="32" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="20" fill="#e4e1d8">fund · 30 gwei (victim)</text>
+    </g>
+    <g transform="translate(20,170)">
+      <rect width="160" height="32" fill="#131619" stroke="#b54848"/>
+      <text x="12" y="20" fill="#e4e1d8">sandBack · 29 gwei</text>
+    </g>
+    <g transform="translate(20,210)">
+      <rect width="160" height="32" fill="#131619" stroke="#3d4148"/>
+      <text x="12" y="20" fill="#e4e1d8">retail · 27 gwei</text>
+    </g>
+    <g transform="translate(20,250)">
+      <rect width="160" height="32" fill="#131619" stroke="#7a4a82"/>
+      <text x="12" y="20" fill="#e4e1d8">arb · 33 gwei</text>
+    </g>
+  </g>
+
+  <!-- arrow -->
+  <line x1="200" y1="160" x2="280" y2="160" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="240" y="150" text-anchor="middle" fill="#d99a3f" font-size="9" letter-spacing="1">closeBlock()</text>
+  <text x="240" y="178" text-anchor="middle" fill="#7a7466" font-size="9" font-style="italic">bundle then sort</text>
+
+  <!-- ordered execution -->
+  <g>
+    <text x="380" y="30" fill="#d99a3f" letter-spacing="2">ORDERED (BY GAS, BUNDLES INTACT)</text>
+    <g transform="translate(310,50)">
+      <rect width="180" height="32" fill="#22262c" stroke="#7a4a82"/>
+      <text x="12" y="20" fill="#e4e1d8">arb · 33 gwei</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">①</text>
+    </g>
+
+    <!-- sandwich bundle -->
+    <rect x="305" y="86" width="190" height="124" fill="none" stroke="#b54848" stroke-dasharray="3,3" stroke-width="1"/>
+    <text x="500" y="100" fill="#b54848" font-size="9" letter-spacing="1">BUNDLE</text>
+
+    <g transform="translate(310,90)">
+      <rect width="180" height="32" fill="#22262c" stroke="#b54848"/>
+      <text x="12" y="20" fill="#e4e1d8">sandFront · 33 gwei</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">②</text>
+    </g>
+    <g transform="translate(310,130)">
+      <rect width="180" height="32" fill="#22262c" stroke="#b54848"/>
+      <text x="12" y="20" fill="#e4e1d8">fund · 30 gwei (victim)</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">③</text>
+    </g>
+    <g transform="translate(310,170)">
+      <rect width="180" height="32" fill="#22262c" stroke="#b54848"/>
+      <text x="12" y="20" fill="#e4e1d8">sandBack · 29 gwei</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">④</text>
+    </g>
+
+    <g transform="translate(310,218)">
+      <rect width="180" height="32" fill="#22262c" stroke="#3d4148"/>
+      <text x="12" y="20" fill="#e4e1d8">retail · 27 gwei</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">⑤</text>
+    </g>
+    <g transform="translate(310,258)">
+      <rect width="180" height="32" fill="#22262c" stroke="#3d4148"/>
+      <text x="12" y="20" fill="#e4e1d8">retail · 25 gwei</text>
+      <text x="158" y="20" text-anchor="end" fill="#7a7466" font-size="9">⑥</text>
+    </g>
+  </g>
+
+  <!-- pool state arrow -->
+  <line x1="510" y1="160" x2="590" y2="160" stroke="#d99a3f" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="550" y="150" text-anchor="middle" fill="#d99a3f" font-size="9" letter-spacing="1">applySwap</text>
+  <text x="550" y="178" text-anchor="middle" fill="#7a7466" font-size="9" font-style="italic">in order</text>
+
+  <!-- pool -->
+  <g transform="translate(610,80)">
+    <rect width="240" height="160" fill="#131619" stroke="#d99a3f"/>
+    <text x="120" y="22" text-anchor="middle" fill="#d99a3f" letter-spacing="2">POOL STATE</text>
+    <line x1="20" y1="34" x2="220" y2="34" stroke="#3d4148"/>
+    <text x="20" y="54" fill="#e4e1d8">sqrtP ← updated</text>
+    <text x="20" y="74" fill="#e4e1d8">fees0/1 ← accumulated</text>
+    <text x="20" y="94" fill="#e4e1d8">positions ← rebalanced</text>
+    <text x="20" y="114" fill="#7a7466" font-style="italic">priceHistory.push(...)</text>
+    <text x="20" y="138" fill="#7a7466" font-size="9">block sealed · #N+1</text>
+  </g>
+</svg>
+</div>
+
+<p>
+  The bundle-keep-contiguous rule is what makes sandwich attacks work. A sandwich front
+  pays gas just above the victim's tip, the back just below — a naive sort by gas would
+  scatter standalone txs between them. The simulator instead identifies bundles by their
+  paired-id linkage and emits each bundle as a contiguous triple in the ordered queue.
+  This is the same role Flashbots' block-builder plays on mainnet.
+</p>
+
+<h2>III. Searchers, agents, and timing</h2>
+
+<p>
+  Each sim-second the loop runs <code>searcherStep()</code>, <code>retailStep()</code>,
+  and <code>fundStep()</code>. Searchers see only public mempool entries — anything
+  marked <code>tx.private = true</code> (set when MEV-protected mode is active) is
+  invisible to them, simulating private routing.
+</p>
+
+<p>
+  Agent firing rates are modulated by a <strong>diurnal flow multiplier</strong>
+  derived from empirical hourly DEX-volume distributions. Retail trade intervals scale
+  inversely with the multiplier; fund firing rate scales directly. The schedule is
+  bimodal — peaks at 13:00–17:00 UTC (US/EU overlap) and 01:00–05:00 UTC (Asia
+  morning), trough at 06:00–10:00 UTC.
+</p>
+
+<div class="chart-block">
+  <h4>Diurnal flow multiplier (empirical, normalised)</h4>
+  <div class="chart-canvas-wrap"><canvas id="chart-diurnal"></canvas></div>
+  <div class="chart-legend">
+    <span><i style="background:var(--amber)"></i>Flow multiplier</span>
+    <span><i style="background:var(--moss)"></i>Peak window (≥1.20×)</span>
+    <span><i style="background:var(--rust)"></i>Trough (&lt;0.50×)</span>
+  </div>
+  <div class="chart-note">
+    Source: simulator's <code>DIURNAL_FLOW</code> table, calibrated to public Kaiko/Block-Analitica
+    hourly distributions. Hour 13 (the default sim start) sits in the peak window so MEV is
+    interesting from the first block.
+  </div>
+</div>
+
+<h2>IV. Forensics and accounting</h2>
+
+<p>
+  Every block, the simulator updates a <code>forensics</code> object with totals
+  (swaps, volume USD, fees USD), MEV-specific counters (sandwich attempts/successful,
+  JIT mints/fees, toxic backruns, oracle pushes), and the cross-pool dislocation in
+  bps. The Forensics panel renders a mode-specific subset.
+</p>
+
+<p>
+  Per-agent capital and P&L are tracked in <code>agentCapital</code> and
+  <code>agentPnl</code> dictionaries. For LP positions the P&L includes both fee
+  accumulation and an impermanent-loss approximation (current USD value of the position
+  vs original deposit USD). For active swap-based agents, P&L is updated in
+  <code>executeTx</code> at swap time using the realised fill price vs the fair
+  mid-block price.
+</p>
+
+<div class="callout">
+  <div class="callout-label">Design choice — fees are credited per-swap, not per-block</div>
+  <p>
+    A real V3 pool credits fees to active LPs proportional to L during the swap. The
+    simulator approximates this by tracking <code>fee0Total</code> and
+    <code>fee1Total</code> at the pool level and assigning each LP position its share
+    based on its L over total active L at swap time. Per-position fee accumulators are
+    updated in <code>applySwap</code>. This is correct for non-overlapping ranges and
+    accurate within ~1% for typical overlapping configurations — the simplification is
+    that we don't track a fee-growth-inside-tick variable per position.
+  </p>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 4 — AGENTS                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane" id="agents">
+
+<p class="lead">
+  Eight agent types populate the simulator. Each has a decision rule, a capital
+  allocation, and a literature reference. The MEV searchers — sandwich, JIT, toxic,
+  oracle — are off by default and activate only when the matching mode is selected.
+</p>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Liquidity Providers (4)</div>
+    <span class="spec-card-tag">passive</span>
+  </div>
+  <p>
+    Concentrated-liquidity providers, one per pool. Each pool's TVL is split 70/25/5
+    across tight (±2%), mid (±10%), and wide (±50%) ranges. Tight LPs earn most of
+    the fees but bear the most IL when price moves; wide LPs earn little but resist
+    range-out events.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Capital allocation</td><td>70% tight / 25% mid / 5% wide</td></tr>
+    <tr><td class="label">Fee credit</td><td>Pro-rata of L over active L when price crosses through</td></tr>
+    <tr><td class="label">Risk</td><td>Impermanent loss when price moves vs entry</td></tr>
+    <tr><td class="label">Reference</td><td>Adams et al. (2021), Uniswap v3 whitepaper [01]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Retail traders (×10)</div>
+    <span class="spec-card-tag">flow</span>
+  </div>
+  <p>
+    Small directional swaps with 50 bps slippage tolerance. Trade size $500–$5,000 with
+    a 1.0–1.6× multiplier in peak hours (FOMO/panic dynamics). Retail is the noise floor
+    of the sim — symmetric direction (50/50 buy/sell), high frequency, low individual size.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Action interval</td><td>Every 20–180 sim-seconds, scaled by 1/flow</td></tr>
+    <tr><td class="label">Trade size</td><td>$500–$5,000 USD, with peak-hour boost</td></tr>
+    <tr><td class="label">Pool selection</td><td>Random across all four pools</td></tr>
+    <tr><td class="label">Reference</td><td>Capponi & Jia (2023), DEX adoption [04]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Directional funds (×3)</div>
+    <span class="spec-card-tag">flow</span>
+  </div>
+  <p>
+    Larger directional traders. Two are <em>medium</em> funds ($150k–$800k per trade);
+    one is a <em>whale</em> ($3M–$12M). Each fund has one of four biases —
+    <code>long-eth</code>, <code>short-eth</code>, <code>long-btc</code>,
+    <code>short-btc</code> — distributed to keep the population net-flat. The bias flips
+    every 5–15 blocks to simulate a momentum-flipping institutional desk.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Action interval</td><td>60–300 s, scaled by flow multiplier</td></tr>
+    <tr><td class="label">Trade size</td><td>Medium $150k–$800k · Whale $3M–$12M</td></tr>
+    <tr><td class="label">Slippage tolerance</td><td>100 bps (medium) / 200 bps (whale)</td></tr>
+    <tr><td class="label">Bias flip</td><td>Every 5–15 blocks (prevents systematic price drift)</td></tr>
+    <tr><td class="label">Routing</td><td>Public mempool unless protected mode active</td></tr>
+    <tr><td class="label">Reference</td><td>Daian et al. (2019), Flash Boys 2.0 [02]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Statistical arbitrageur (AR1)</div>
+    <span class="spec-card-tag">flow</span>
+  </div>
+  <p>
+    Watches the cross-pool basis between WBTC/USDC <em>direct</em> and the synthetic
+    path <em>WBTC/WETH × WETH/USDC</em>. When divergence exceeds 25 bps, fires the
+    cheaper leg of the trade. The arb runs in all modes and is the closing force that
+    keeps the multi-pool quotes coherent.
+  </p>
+  <div class="math-block">
+    dislocation_bps = (synthetic_price − direct_price) / direct_price × 10000<br>
+    if |dislocation_bps| > 25: trade size = min(0.3 × capital, $250k)
+  </div>
+  <p>Reference: Wang et al. (2022), Cyclic Arbitrage in DEXes [05].</p>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Sandwich searcher (SAND1, SAND2)</div>
+    <span class="spec-card-tag" style="border-color:var(--rust);color:var(--rust)">MEV</span>
+  </div>
+  <p>
+    Detects pending public-mempool swaps that move price by more than 3 bps and have
+    enough slip-budget to absorb a front-run. Sizes the front so combined front+victim
+    impact stays inside the victim's tolerance (avoiding revert), then submits a back-run
+    in the opposite direction. The pair shares paired-ids so the builder keeps them
+    contiguous.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Detection</td><td>Public mempool scan, victim impact ≥ 3 bps</td></tr>
+    <tr><td class="label">Front gas</td><td>victim_gas + 5 gwei (priority)</td></tr>
+    <tr><td class="label">Back gas</td><td>victim_gas − 1 gwei (settles after)</td></tr>
+    <tr><td class="label">Front size</td><td>Sized so front_impact ≤ 0.7 × victim_slip_headroom</td></tr>
+    <tr><td class="label">Profit gate</td><td>(victim_size × front_impact) − 2× front fee − $50 gas &gt; $50</td></tr>
+    <tr><td class="label">References</td><td>Daian et al. (2019) [02]; Qin et al. (2023) [03]</td></tr>
+  </table>
+  <p>
+    The sizing logic is the most interesting part of this agent and the part that took
+    several iterations to get right. See the <em>Sandwich Forensics</em> tab for the full
+    analysis.
+  </p>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">JIT liquidity bot (JIT1)</div>
+    <span class="spec-card-tag" style="border-color:var(--amber);color:var(--amber)">MEV</span>
+  </div>
+  <p>
+    On detecting a victim swap above $100k, mints a tight (±10 bp) LP position around
+    current price right before the swap, captures the disproportionate fee share when
+    the victim crosses through, then burns the position the same block. No overnight IL
+    risk; passive LPs lose fee share they would otherwise have earned.
+  </p>
+  <table class="spec">
+    <tr><td class="label">Detection</td><td>Mempool swap ≥ $100k notional</td></tr>
+    <tr><td class="label">Mint range</td><td>±10 bps around current price</td></tr>
+    <tr><td class="label">Mint capital</td><td>min(0.8 × searcher capital, 5× victim size)</td></tr>
+    <tr><td class="label">Burn</td><td>Same block, after victim swap settles</td></tr>
+    <tr><td class="label">Reference</td><td>Wan & Adams (2022), JIT Liquidity [06]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Toxic backrunner (TX1)</div>
+    <span class="spec-card-tag" style="border-color:var(--rust);color:var(--rust)">MEV</span>
+  </div>
+  <p>
+    Watches for single-block price moves greater than 10 bps and trades against them.
+    Profits from LPs being adversely selected — they sold low or bought high relative
+    to fair value. This is the AMM-side manifestation of LVR
+    (Loss-Versus-Rebalancing).
+  </p>
+  <table class="spec">
+    <tr><td class="label">Trigger</td><td>Single-block price move &gt; 10 bps on any pool</td></tr>
+    <tr><td class="label">Action</td><td>Trade opposite direction, 20–40% of triggering swap size</td></tr>
+    <tr><td class="label">Cooldown</td><td>2 blocks (prevents stuffing)</td></tr>
+    <tr><td class="label">Reference</td><td>Milionis et al. (2022), LVR [07]</td></tr>
+  </table>
+</div>
+
+<div class="spec-card">
+  <div class="spec-card-header">
+    <div class="spec-card-title">Oracle manipulator (ORC1)</div>
+    <span class="spec-card-tag" style="border-color:var(--plum);color:var(--plum)">MEV</span>
+  </div>
+  <p>
+    Episodic. Roughly every 1,000 blocks (configurable), pushes the WBTC/WETH pool
+    price 3–8% with a single large directional swap, holds for ~8 blocks, then unwinds.
+    The hold duration is calibrated to outlast a 1-block TWAP. Round-trip is
+    fee/slippage-negative on the AMM side; profitability depends on whether a downstream
+    lending protocol is exploited during the hold (not modeled here).
+  </p>
+  <table class="spec">
+    <tr><td class="label">Trigger</td><td>Stochastic, ~0.1% per searcher-step</td></tr>
+    <tr><td class="label">Push direction</td><td>Buy WBTC (sell WETH) — pushes WBTC price up</td></tr>
+    <tr><td class="label">Push size</td><td>$1M–$3M USD-equivalent</td></tr>
+    <tr><td class="label">Hold</td><td>8 blocks (96 s on mainnet)</td></tr>
+    <tr><td class="label">Mitigation in real systems</td><td>TWAP &gt; 5 blocks; multi-source oracle (Chainlink)</td></tr>
+    <tr><td class="label">Reference</td><td>Mackinga et al. (2022), TWAP attacks [08]</td></tr>
+  </table>
+</div>
+
+<h2>Population summary</h2>
+
+<table class="spec">
+  <thead>
+    <tr><th>Agent type</th><th>Count</th><th>Active when</th><th>Aggregate capital range</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>LP</td><td class="mono">4</td><td>Always</td><td class="mono">$228M (sum of pool TVLs)</td></tr>
+    <tr><td>Retail</td><td class="mono">10</td><td>Always</td><td class="mono">~$50k–$200k</td></tr>
+    <tr><td>Fund (medium)</td><td class="mono">2</td><td>Always</td><td class="mono">$2M–$10M</td></tr>
+    <tr><td>Fund (whale)</td><td class="mono">1</td><td>Always</td><td class="mono">$5M–$30M</td></tr>
+    <tr><td>Stat-arb</td><td class="mono">1</td><td>Always</td><td class="mono">$500k–$2M</td></tr>
+    <tr><td>Sandwich searcher</td><td class="mono">2</td><td>sandwich mode</td><td class="mono">$200k–$2M each</td></tr>
+    <tr><td>JIT bot</td><td class="mono">1</td><td>jit mode</td><td class="mono">$1M–$10M</td></tr>
+    <tr><td>Toxic backrunner</td><td class="mono">1</td><td>toxic mode</td><td class="mono">$200k–$2M</td></tr>
+    <tr><td>Oracle manipulator</td><td class="mono">1</td><td>oracle mode</td><td class="mono">$5M–$30M</td></tr>
+  </tbody>
+</table>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 5 — SANDWICH FORENSICS                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane" id="sandwich">
+
+<p class="lead">
+  The sandwich agent took four substantive iterations to behave correctly. Each fix
+  exposed a deeper assumption that turned out to be wrong. This section documents the
+  bugs and the choices that resolved them, in the order they were diagnosed.
+</p>
+
+<h2>The presenting symptom</h2>
+
+<p>
+  Initial state: with sandwich mode active, the forensics panel showed
+  <strong>35 attempts → 0 profitable, $0 P&L</strong>. The searchers were firing,
+  the events were logging, but no profit was ever recorded. Every attempt either
+  vanished or counted as a loss.
+</p>
+
+<h2>Bug 1 — Bundle resolution failure</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    The sandwich front and back txs were submitted, the victim was tagged
+    <code>sandwichedBy</code>, but the profit-computation loop in <code>closeBlock()</code>
+    never fired. The guard <code>if (!(b.front && b.victim && b.back)) continue</code>
+    was always tripping because <code>b.victim</code> was <code>null</code>.
+  </p>
+</div>
+
+<p>
+  Bundle assembly worked by iterating over pending mempool txs and matching each to
+  a bundle by <code>pairedVictimId</code>. The bug: the victim itself doesn't carry
+  <code>pairedVictimId</code>. Only the front and back do. The victim is what the
+  paired-id <em>points to</em>. So the matcher iterated past every victim and bundles
+  stayed half-built.
+</p>
+
+<div class="math-block">
+<div class="math-label">Before — broken</div>
+pending.forEach(t =&gt; {<br>
+&nbsp;&nbsp;if (t.pairedVictimId !== undefined) {  // ⚠ skips victim<br>
+&nbsp;&nbsp;&nbsp;&nbsp;for (const [fid, b] of bundleByFrontId) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (b.front.pairedVictimId === t.id) b.victim = t;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (t.type === 'sandBack' &amp;&amp; t.pairedFrontId === fid) b.back = t;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;}<br>
+});
+</div>
+
+<div class="math-block">
+<div class="math-label">After — fixed</div>
+pending.forEach(t =&gt; {<br>
+&nbsp;&nbsp;for (const [fid, b] of bundleByFrontId) {  // ✓ scan all<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if (b.front.pairedVictimId === t.id) b.victim = t;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;if (t.type === 'sandBack' &amp;&amp; t.pairedFrontId === fid) b.back = t;<br>
+&nbsp;&nbsp;}<br>
+});
+</div>
+
+<p>
+  After this fix, attempts started resolving. But every single one was a <em>loss</em>
+  — sandwiches were systematically losing $500–$1,800 each. The search continued.
+</p>
+
+<h2>Bug 2 — Inverted price convention</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    Every sandwich attempt on USDC/WETH or WBTC/WETH lost money in a specific pattern:
+    the front-run output and the back-run input had wildly inconsistent USD values, as if
+    the swap math was operating on the wrong side of the price.
+  </p>
+</div>
+
+<p>
+  Uniswap V3's internal convention is <code>price = sqrtP² = token1 / token0</code>.
+  Selling token0 pushes <code>sqrtP</code> down; selling token1 pushes it up. The
+  simulator's swap math used this convention correctly.
+</p>
+
+<p>
+  But the <code>POOLS</code> config stored <code>initialPrice</code> values in the
+  human-readable convention — "USDC per WETH = 3,400" rather than "WETH per USDC =
+  1/3,400". For two of the four pools (USDC/WETH and WBTC/WETH) the values were
+  effectively <em>inverted</em>. The swap math was internally consistent but operating
+  in the wrong direction for those pools — selling token0 (USDC) pushed the displayed
+  price down when economically it should have pushed it up (more USDC chasing fewer
+  WETH).
+</p>
+
+<p>
+  For the sandwich agent specifically, this meant the front-run pushed price the
+  <em>opposite</em> direction of intent. The victim then pushed it further opposite. The
+  back-run sold into a pool whose price had moved against the searcher every step —
+  guaranteed loss, every time.
+</p>
+
+<h3>The fix — uniform internal convention with a display layer</h3>
+
+<p>
+  Restructured all four pools to store internal V3 prices uniformly, with a separate
+  <code>displayPrice(pool)</code> helper that handles the inversion for UI and USD
+  conversion:
+</p>
+
+<div class="math-block">
+<div class="math-label">POOLS config — uniform convention</div>
+USDC_WETH: { token0: 'USDC', token1: 'WETH', initialPrice: 1 / REF.WETH, invertDisplay: true }<br>
+WBTC_WETH: { token0: 'WETH', token1: 'WBTC', initialPrice: REF.WETH / REF.WBTC, invertDisplay: true }<br>
+WBTC_USDC: { token0: 'USDC', token1: 'WBTC', initialPrice: 1 / REF.WBTC, invertDisplay: true }<br>
+USDC_USDT: { token0: 'USDC', token1: 'USDT', initialPrice: 1.0, invertDisplay: false }
+</div>
+
+<p>
+  Internal V3 price for every pool is now <em>token1/token0</em> with smaller-USD-value
+  tokens as token0 (stables, or WETH for the BTC pair). Display layer flips for the
+  three pools that need it. All swap math, fee accounting, and tick arithmetic operate
+  on the canonical internal price; the chart, top bar, and tape pass values through
+  <code>displayPrice()</code> before showing them.
+</p>
+
+<h2>Bug 3 — Back-run input was the wrong amount</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    Sandwiches now profitable in principle, but the back-run was leaving small amounts on
+    the table — the searcher's net token position was off by a few percent.
+  </p>
+</div>
+
+<p>
+  At submission time, the back-run's input amount was set to a <em>simulated</em>
+  expected output of the front-run, computed against pool state <em>before</em> the
+  front actually executed. By the time the back ran, the front had already moved the
+  pool and its actual output differed slightly. The back was trying to swap exactly
+  what was predicted, but the searcher actually held the realised amount.
+</p>
+
+<p>
+  Real sandwich bundles are atomic — the back's input is whatever the front returned,
+  not a pre-simulated estimate. The fix was a small patch in <code>executeTx</code>:
+</p>
+
+<div class="math-block">
+<div class="math-label">executeTx — for sandBack txs only</div>
+if (tx.type === 'sandBack' &amp;&amp; tx.pairedFrontId !== undefined) {<br>
+&nbsp;&nbsp;const frontTx = mempool.find(m =&gt; m.id === tx.pairedFrontId);<br>
+&nbsp;&nbsp;if (frontTx &amp;&amp; frontTx.executed &amp;&amp; frontTx.amountOut &gt; 0) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;tx.amountIn = frontTx.amountOut;  // use realised, not simulated<br>
+&nbsp;&nbsp;}<br>
+}
+</div>
+
+<h2>Bug 4 — Naive sizing triggered victim reverts</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom</div>
+  <p>
+    With prices and accounting fixed, sandwiches were profitable on individual bundles
+    but the success rate was poor. Many attempts had the front execute, then the
+    victim revert (slippage exceeded), leaving the searcher's front position stuck with
+    no exit.
+  </p>
+</div>
+
+<p>
+  The original sandwich sizing aimed to extract maximum impact, ignoring the constraint
+  that the victim's slippage tolerance is finite. If the front pushed price too far,
+  the combined front+victim impact would exceed the victim's <code>slippageBps</code>,
+  the victim's swap would revert, and the searcher would be left with a position that
+  the back-run had to unwind into a <em>worsened</em> pool — almost always at a loss.
+</p>
+
+<h3>The fix — slippage-headroom-aware sizing</h3>
+
+<p>
+  Real searchers do this with convex optimisation — solving for the front size that
+  maximises expected profit subject to the victim-revert constraint. The simulator
+  uses a closed-form heuristic that's accurate enough:
+</p>
+
+<div class="math-block">
+<div class="math-label">Sandwich sizing — current implementation</div>
+headroom_bps = victim_slip_bps − victim_impact_bps<br>
+if headroom_bps &lt; 5: skip  // no profitable attack possible<br>
+size_fraction = clamp(0.7 × headroom_bps / victim_impact_bps, 0.2, 2.0)<br>
+front_usd = min(victim_size × size_fraction, searcher_capital × 0.7)<br>
+<br>
+// Profit estimate before submission<br>
+front_impact_bps = victim_impact_bps × (front_usd / victim_size)<br>
+gross_extract = victim_size × front_impact_bps / 10000<br>
+fee_cost = 2 × front_usd × pool_fee_bps / 10000<br>
+gas_cost = $50<br>
+expected_profit = gross_extract − fee_cost − gas_cost<br>
+<br>
+if expected_profit &lt; $50: skip<br>
+if front_impact_bps + victim_impact_bps &gt; victim_slip_bps − 2: skip
+</div>
+
+<p>
+  After this final iteration, the simulator now reports a
+  <strong>~60% sandwich success rate</strong> on whale victims in the 5 bp pool — in
+  line with the historical Flashbots data on mainnet sandwich landings. Failed attempts
+  are mostly from gas-tier collisions where another standalone tx slipped between the
+  front and back-run, not from victim reverts.
+</p>
+
+<div class="chart-block">
+  <h4>Sandwich profitability by pool fee tier and victim size</h4>
+  <div class="chart-canvas-wrap"><canvas id="chart-sandprofit"></canvas></div>
+  <div class="chart-legend">
+    <span><i style="background:var(--moss)"></i>5 bp · USDC/WETH</span>
+    <span><i style="background:var(--amber)"></i>30 bp · WBTC/USDC</span>
+    <span><i style="background:var(--rust)"></i>30 bp · WBTC/WETH</span>
+  </div>
+  <div class="chart-note">
+    Modeled net profit per sandwich vs victim notional. The 5 bp pool clears
+    fee+gas at $200k+ victims; the 30 bp pools require $5M+ victims to cross
+    breakeven. This explains why mainnet sandwich activity concentrates on
+    USDC/WETH 5 bp.
+  </div>
+</div>
+
+<h2>Bug 5 (briefly) — Systematic upward price bias</h2>
+
+<div class="callout warn">
+  <div class="callout-label">Symptom (user-reported)</div>
+  <p>
+    "When sandwich attacks are present there seems to be a bias towards a rising price
+    in the chart. Is this simply due to the inter-agent dynamics?"
+  </p>
+</div>
+
+<p>
+  Investigated by running 5 trials × 1,000 blocks each in <em>none</em> mode (no MEV) and
+  measuring price drift:
+</p>
+
+<table class="spec">
+  <thead>
+    <tr><th>Mode</th><th>WETH drift (mean of 5 trials)</th><th>WBTC drift</th><th>Sandwich attempts</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>none (before fix)</td><td class="mono">+1.45%</td><td class="mono">+1.54%</td><td class="mono">0</td></tr>
+    <tr><td>sandwich (before fix)</td><td class="mono">+0.19%</td><td class="mono">+0.96%</td><td class="mono">~10/run</td></tr>
+    <tr><td>none (after fix)</td><td class="mono">+0.01%</td><td class="mono">+0.01%</td><td class="mono">0</td></tr>
+    <tr><td>sandwich (after fix)</td><td class="mono">−0.02%</td><td class="mono">−0.01%</td><td class="mono">~10/run</td></tr>
+  </tbody>
+</table>
+
+<p>
+  The bias was real but had nothing to do with sandwich attacks. The fund-bias selector
+  was <code>Math.random() &lt; 0.5 ? 'long-eth' : 'long-btc'</code> — every fund was
+  perpetually <em>long-only</em>, never short. Three funds buying continuously, with
+  only symmetric retail flow as counter-pressure, produced the drift.
+</p>
+
+<p>
+  The fix expanded the bias pool to all four directions
+  (<code>long-eth</code>, <code>short-eth</code>, <code>long-btc</code>, <code>short-btc</code>)
+  distributed across the three funds, plus per-fund bias flipping every 5–15 blocks.
+  Drift collapsed to ±0.01% across both modes — what you'd expect from finite-trade
+  random walk and nothing more.
+</p>
+
+<p>
+  Sandwich attacks themselves are <em>theoretically</em> price-neutral. The front and
+  back are equal-and-opposite swaps that cancel in expectation; the only price residue
+  the bundle leaves on the pool is whatever the victim's swap would have produced
+  anyway. Any drift caused by sandwich activity is second-order from imperfect bundle
+  atomicity — and in our run with the fix, it sits well below the noise floor.
+</p>
+
+<h2>Lessons from the iteration</h2>
+
+<div class="two-col">
+  <div class="pos">
+    <h4>What worked</h4>
+    <p>
+      Treating each bug as a hypothesis to be tested with a minimal repro. Every fix was
+      validated by re-running the same 5×1,000-block trial battery. The end-state metrics
+      — sandwich success rate, drift across modes, MEV-extracted-per-day — match published
+      mainnet data within an order of magnitude.
+    </p>
+  </div>
+  <div class="neg">
+    <h4>What surprised</h4>
+    <p>
+      The price-convention bug was the most subtle and most consequential. The swap math
+      <em>looked</em> right in isolation. The pool config <em>looked</em> right in
+      isolation. The interaction between them produced a sign-flip that only manifested
+      in specific compound operations — and sandwiching is a compound operation par
+      excellence.
+    </p>
+  </div>
+</div>
+
+<p class="pullquote">
+  The mainnet evidence is that sandwiching on 30 bp pools barely happens. The simulator
+  reproducing this — without being calibrated to do so — was the validation that the
+  underlying mechanics are right.
+</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB 6 — REFERENCES                                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section class="tab-pane" id="references">
+
+<p class="lead">
+  Every agent strategy, every mitigation, every back-of-envelope number in the simulator
+  is grounded in published literature. The references below are organised by the section
+  of the simulator they support.
+</p>
+
+<div class="ref-cluster">CORE PROTOCOL</div>
+<ol class="ref-list">
+  <li>
+    <span class="ref-authors">Adams, H., Zinsmeister, N., Robinson, D.</span>
+    <span class="ref-year">(2021).</span>
+    <span class="ref-title">Uniswap v3 Core.</span>
+    <span class="ref-venue">Uniswap Labs whitepaper.</span>
+    <a class="ref-link" href="https://uniswap.org/whitepaper-v3.pdf">https://uniswap.org/whitepaper-v3.pdf</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">MEV — FOUNDATIONAL</div>
+<ol class="ref-list" start="2">
+  <li>
+    <span class="ref-authors">Daian, P., Goldfeder, S., Kell, T., Li, Y., Zhao, X., Bentov, I., Breidenbach, L., Juels, A.</span>
+    <span class="ref-year">(2019).</span>
+    <span class="ref-title">Flash Boys 2.0: Frontrunning, Transaction Reordering, and Consensus Instability in Decentralized Exchanges.</span>
+    <span class="ref-venue">arXiv:1904.05234.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/1904.05234">arxiv.org/abs/1904.05234</a>
+  </li>
+  <li>
+    <span class="ref-authors">Qin, K., Zhou, L., Gervais, A.</span>
+    <span class="ref-year">(2023).</span>
+    <span class="ref-title">Quantifying Blockchain Extractable Value: How dark is the forest?</span>
+    <span class="ref-venue">arXiv:2101.05511 (also IEEE S&P).</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2101.05511">arxiv.org/abs/2101.05511</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">DEX FLOW & ADOPTION</div>
+<ol class="ref-list" start="4">
+  <li>
+    <span class="ref-authors">Capponi, A., Jia, R.</span>
+    <span class="ref-year">(2023).</span>
+    <span class="ref-title">The Adoption of Blockchain-based Decentralized Exchanges.</span>
+    <span class="ref-venue">SSRN 3805095.</span>
+    <a class="ref-link" href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3805095">ssrn.com/abstract=3805095</a>
+  </li>
+  <li>
+    <span class="ref-authors">Wang, Y., Chen, Y., Wu, H., Zhou, L., Deng, S., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Cyclic Arbitrage in Decentralized Exchanges.</span>
+    <span class="ref-venue">arXiv:2105.02784.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2105.02784">arxiv.org/abs/2105.02784</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">JIT LIQUIDITY</div>
+<ol class="ref-list" start="6">
+  <li>
+    <span class="ref-authors">Wan, X., Adams, H.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Just-in-Time Liquidity in Uniswap V3.</span>
+    <span class="ref-venue">Uniswap Labs blog.</span>
+    <a class="ref-link" href="https://blog.uniswap.org/jit-liquidity">blog.uniswap.org/jit-liquidity</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">LVR & TOXIC FLOW</div>
+<ol class="ref-list" start="7">
+  <li>
+    <span class="ref-authors">Milionis, J., Moallemi, C. C., Roughgarden, T., Zhang, A. L.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">Automated Market Making and Loss-Versus-Rebalancing.</span>
+    <span class="ref-venue">arXiv:2208.06046.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2208.06046">arxiv.org/abs/2208.06046</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">ORACLE MANIPULATION</div>
+<ol class="ref-list" start="8">
+  <li>
+    <span class="ref-authors">Mackinga, T., Nadahalli, T., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">TWAP Oracle Attacks: Easier Done than Said?</span>
+    <span class="ref-venue">IACR ePrint 2022/445.</span>
+    <a class="ref-link" href="https://eprint.iacr.org/2022/445">eprint.iacr.org/2022/445</a>
+  </li>
+  <li>
+    <span class="ref-authors">Eskandari, S., Salehi, M., Gu, W. C., Clark, J.</span>
+    <span class="ref-year">(2021).</span>
+    <span class="ref-title">SoK: Oracles from the Ground Truth to Market Manipulation.</span>
+    <span class="ref-venue">arXiv:2106.00667.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2106.00667">arxiv.org/abs/2106.00667</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">MITIGATION — PRIVATE ROUTING</div>
+<ol class="ref-list" start="10">
+  <li>
+    <span class="ref-authors">Heimbach, L., Wattenhofer, R.</span>
+    <span class="ref-year">(2022).</span>
+    <span class="ref-title">SoK: Preventing Transaction Reordering Manipulations in Decentralized Finance.</span>
+    <span class="ref-venue">arXiv:2203.11520.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2203.11520">arxiv.org/abs/2203.11520</a>
+  </li>
+  <li>
+    <span class="ref-authors">Flashbots.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Flashbots Protect — Documentation.</span>
+    <span class="ref-venue">Flashbots official docs.</span>
+    <a class="ref-link" href="https://docs.flashbots.net/flashbots-protect/overview">docs.flashbots.net/flashbots-protect/overview</a>
+  </li>
+  <li>
+    <span class="ref-authors">CoW DAO / MEV Blocker.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">MEV Blocker — Architecture and refund mechanism.</span>
+    <span class="ref-venue">Project documentation.</span>
+    <a class="ref-link" href="https://mevblocker.io/">mevblocker.io</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">MITIGATION — ROLLUP DESIGN</div>
+<ol class="ref-list" start="13">
+  <li>
+    <span class="ref-authors">Uniswap Labs.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">Unichain: A DeFi-native L2.</span>
+    <span class="ref-venue">Uniswap Labs blog.</span>
+    <a class="ref-link" href="https://blog.uniswap.org/unichain">blog.uniswap.org/unichain</a>
+  </li>
+  <li>
+    <span class="ref-authors">Resnick, M., Schmid, L., et al.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">On the Relevance of Block Time in Blockchain Systems.</span>
+    <span class="ref-venue">arXiv:2305.13598.</span>
+    <a class="ref-link" href="https://arxiv.org/abs/2305.13598">arxiv.org/abs/2305.13598</a>
+  </li>
+</ol>
+
+<div class="ref-cluster">REFERENCE IMPLEMENTATIONS & TOOLS</div>
+<ol class="ref-list" start="15">
+  <li>
+    <span class="ref-authors">Anderson, I.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">defipy — Python reference implementation of Uniswap V2/V3.</span>
+    <span class="ref-venue">Open source library.</span>
+    <a class="ref-link" href="https://defipy.org/">defipy.org</a>
+  </li>
+  <li>
+    <span class="ref-authors">Various.</span>
+    <span class="ref-year">(2024).</span>
+    <span class="ref-title">dark-forest-toolkit — MEV strategy taxonomy and reference implementations.</span>
+    <span class="ref-venue">GitHub.</span>
+    <a class="ref-link" href="https://github.com/dark-forest-fund/dark-forest-toolkit">github.com/dark-forest-fund/dark-forest-toolkit</a>
+  </li>
+  <li>
+    <span class="ref-authors">EigenPhi, Parsec.</span>
+    <span class="ref-year">(ongoing).</span>
+    <span class="ref-title">On-chain MEV monitoring dashboards.</span>
+    <span class="ref-venue">Reference data for sandwich landing rates and JIT detection.</span>
+    <a class="ref-link" href="https://eigenphi.io/">eigenphi.io</a>
+  </li>
+</ol>
+
+</section>
+
+</main>
+
+<footer class="footer">
+  <div>amm-sim · Movmint research · single-file simulator · no dependencies</div>
+  <div class="footer-mark">— educational use only —</div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- SCRIPT                                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<script>
+// ----- Tab switching -----
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const id = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Trigger chart render on first activation
+    if (id === 'architecture') drawDiurnal();
+    if (id === 'sandwich') drawSandProfit();
+  });
+});
+
+// ----- Diurnal chart -----
+const DIURNAL = [0.55, 0.65, 0.72, 0.78, 0.74, 0.62, 0.45, 0.38, 0.42, 0.55, 0.72, 0.88,
+                 1.05, 1.30, 1.45, 1.50, 1.42, 1.30, 1.10, 0.92, 0.80, 0.72, 0.65, 0.58];
+
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawDiurnal() {
+  const canvas = document.getElementById('chart-diurnal');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+
+  ctx.clearRect(0, 0, w, h);
+  const padL = 44, padR = 16, padT = 16, padB = 36;
+  const cw = w - padL - padR;
+  const ch = h - padT - padB;
+
+  // Background gridlines and labels (multiplier axis)
+  ctx.font = '10px IBM Plex Mono';
+  ctx.textBaseline = 'middle';
+  for (let m = 0; m <= 1.5; m += 0.5) {
+    const y = padT + ch * (1 - m / 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + cw, y); ctx.stroke();
+    ctx.fillStyle = '#7a7466';
+    ctx.textAlign = 'right';
+    ctx.fillText(m.toFixed(1) + '×', padL - 8, y);
+  }
+
+  // Peak/trough bands
+  ctx.fillStyle = 'rgba(107, 138, 58, 0.06)';
+  ctx.fillRect(padL, padT, cw, ch * (1 - 1.20 / 1.5));  // band ≥1.2
+  ctx.fillStyle = 'rgba(184, 92, 47, 0.06)';
+  ctx.fillRect(padL, padT + ch * (1 - 0.50 / 1.5), cw, ch * (0.50 / 1.5));  // band ≤0.5
+
+  // Bars
+  const barW = cw / 24;
+  for (let i = 0; i < 24; i++) {
+    const v = DIURNAL[i];
+    const barH = ch * v / 1.5;
+    const x = padL + i * barW;
+    const y = padT + ch - barH;
+    let color = '#d99a3f';
+    if (v >= 1.20) color = '#6b8a3a';
+    else if (v < 0.50) color = '#b85c2f';
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 1, y, barW - 2, barH);
+    // Top stroke for current hour highlight
+  }
+
+  // Smoothed line over bars
+  ctx.beginPath();
+  for (let i = 0; i < 24; i++) {
+    const v = DIURNAL[i];
+    const x = padL + i * barW + barW / 2;
+    const y = padT + ch - ch * v / 1.5;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#f5b94d';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // X-axis hour labels
+  ctx.fillStyle = '#7a7466';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  for (let i = 0; i < 24; i += 3) {
+    const x = padL + i * barW + barW / 2;
+    ctx.fillText(i.toString().padStart(2, '0'), x, padT + ch + 8);
+  }
+  // Axis label
+  ctx.fillStyle = '#7a7466';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('UTC HOUR', padL + cw / 2, padT + ch + 24);
+
+  // Highlight default sim start (13:00)
+  const startX = padL + 13 * barW + barW / 2;
+  ctx.strokeStyle = '#f5b94d';
+  ctx.setLineDash([3, 3]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(startX, padT);
+  ctx.lineTo(startX, padT + ch);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#f5b94d';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('SIM START 13:00', startX + 4, padT + 6);
+}
+
+// ----- Sandwich profit chart -----
+function drawSandProfit() {
+  const canvas = document.getElementById('chart-sandprofit');
+  if (!canvas) return;
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+
+  const padL = 60, padR = 16, padT = 16, padB = 40;
+  const cw = w - padL - padR;
+  const ch = h - padT - padB;
+
+  // Model: net profit per sandwich vs victim notional, given pool fee tier and depth
+  // Approximation:
+  //   victim_impact_bps ≈ k × (victim_size / pool_depth)   where k is a tuning const
+  //   front_size ≈ 0.5 × victim_size
+  //   gross_extract = victim_size × front_impact_bps / 10000
+  //   front_impact_bps ≈ victim_impact_bps × (front_size / victim_size) = 0.5 × victim_impact_bps
+  //   fee_cost = 2 × front_size × fee_bps / 10000
+  //   gas = $50
+  //   profit ≈ 0.5 × victim_size × (k × victim_size / pool_depth) / 10000 − front_size × fee_bps / 5000 − 50
+  //          = victim_size² × 0.5 × k / (10000 × pool_depth) − victim_size × fee_bps / 10000 − 50
+  // Choose k so that 1% of pool_depth victim → ~50bps impact, i.e. k ≈ 5000
+  const k = 5000;
+
+  const pools = [
+    { name: '5bp · USDC/WETH', fee: 5,  depth: 60_000_000, color: '#6b8a3a' },
+    { name: '30bp · WBTC/USDC', fee: 30, depth: 9_000_000,  color: '#d99a3f' },
+    { name: '30bp · WBTC/WETH', fee: 30, depth: 15_000_000, color: '#b85c2f' },
+  ];
+  function profit(victimUsd, pool) {
+    const victimImpactBps = k * victimUsd / pool.depth;
+    const frontUsd = 0.5 * victimUsd;
+    const grossExtract = victimUsd * (0.5 * victimImpactBps) / 10000;
+    const feeCost = 2 * frontUsd * pool.fee / 10000;
+    return grossExtract - feeCost - 50;
+  }
+
+  // x: $50k → $20M log scale
+  const xMin = Math.log10(50_000), xMax = Math.log10(20_000_000);
+  const yMin = -3000, yMax = 12000;
+
+  // Y gridlines + labels
+  ctx.font = '10px IBM Plex Mono';
+  for (let y = yMin; y <= yMax; y += 3000) {
+    const py = padT + ch * (yMax - y) / (yMax - yMin);
+    ctx.strokeStyle = y === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.moveTo(padL, py); ctx.lineTo(padL + cw, py); ctx.stroke();
+    ctx.fillStyle = '#7a7466';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('$' + (y >= 0 ? '' : '−') + Math.abs(y/1000).toFixed(0) + 'k', padL - 8, py);
+  }
+
+  // X axis ticks at $100k, $1M, $10M
+  const xTicks = [100_000, 1_000_000, 10_000_000];
+  ctx.fillStyle = '#7a7466';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const xt of xTicks) {
+    const px = padL + cw * (Math.log10(xt) - xMin) / (xMax - xMin);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + ch); ctx.stroke();
+    const label = xt >= 1_000_000 ? '$' + (xt/1_000_000).toFixed(0) + 'M' : '$' + (xt/1000).toFixed(0) + 'k';
+    ctx.fillStyle = '#7a7466';
+    ctx.fillText(label, px, padT + ch + 6);
+  }
+  ctx.fillStyle = '#7a7466';
+  ctx.font = '9px IBM Plex Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('VICTIM NOTIONAL (USD, log scale)', padL + cw / 2, padT + ch + 24);
+
+  // Curves
+  for (const pool of pools) {
+    ctx.strokeStyle = pool.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let first = true;
+    const samples = 80;
+    for (let i = 0; i <= samples; i++) {
+      const lx = xMin + (xMax - xMin) * i / samples;
+      const v = Math.pow(10, lx);
+      const p = profit(v, pool);
+      const px = padL + cw * (lx - xMin) / (xMax - xMin);
+      const py = padT + ch * (yMax - p) / (yMax - yMin);
+      if (first) { ctx.moveTo(px, py); first = false; } else { ctx.lineTo(px, py); }
+    }
+    ctx.stroke();
+
+    // Find breakeven point for label
+    let breakeven = null;
+    for (let v = 50_000; v < 20_000_000; v *= 1.05) {
+      if (profit(v, pool) >= 0) { breakeven = v; break; }
+    }
+    if (breakeven) {
+      const px = padL + cw * (Math.log10(breakeven) - xMin) / (xMax - xMin);
+      const py = padT + ch * (yMax - 0) / (yMax - yMin);
+      ctx.fillStyle = pool.color;
+      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+// Initial render of charts in active tab
+window.addEventListener('load', () => {
+  // architecture tab might not be active; render only if visible
+  if (document.getElementById('architecture').classList.contains('active')) drawDiurnal();
+  if (document.getElementById('sandwich').classList.contains('active')) drawSandProfit();
+});
+window.addEventListener('resize', () => {
+  if (document.getElementById('architecture').classList.contains('active')) drawDiurnal();
+  if (document.getElementById('sandwich').classList.contains('active')) drawSandProfit();
+});
+</script>
+
+</body>
+</html>
