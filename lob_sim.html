@@ -1154,30 +1154,67 @@ function markingStep() {
   const sess = currentSession();
   manipCycle++;
 
+  // Record price at session transitions
+  if (sess.id === 'close' && forensics.priceAtCloseStart === null) {
+    forensics.priceAtCloseStart = lastPrice;
+    // Compute mid-session averages for comparison
+    const midPrices = priceHistory.filter(p => p.session === 'mid');
+    if (midPrices.length > 0) {
+      forensics.midSessionAvgPrice = midPrices.reduce((s,p)=>s+p.price,0) / midPrices.length;
+    }
+    // Mid-session volume rate: total mid vol / duration in minutes
+    const midDurMin = 240; // mid session = 300-540min = 240 min
+    forensics.midSessionVolRate = (forensics.sessionVolume['mid']||0) / midDurMin;
+    addNews(`MARK CLOSE: Close session begins. Price at entry: ${fmt(lastPrice)}. Mid-session avg: ${fmt(forensics.midSessionAvgPrice||lastPrice)}. Marking agents MN1/MN2 now active.`, 'event-close');
+  }
+
+  // Record settlement window entry
+  const minInDay = simTime / 60;
+  if (minInDay >= 585 && !forensics.settlementWindow) {  // 15:45 = 585 min from 06:00
+    forensics.settlementWindow = true;
+    forensics.priceAtMarkWindow = lastPrice;
+    addNews(`SETTLEMENT WINDOW OPEN (15:45): Price at window entry: ${fmt(lastPrice)}. MN1 now executing most aggressive lifts to maximise settlement reference.`, 'event-close');
+  }
+
+  // Sample price for close chart
+  if (simTime % 30 === 0 && sess.id === 'close') {
+    forensics.closePriceHistory.push({ t: simTime, price: lastPrice,
+      inWindow: forensics.settlementWindow });
+  }
+
   if (sess.id !== 'close') {
-    if (manipCycle % 30 === 0) {
-      addNews(`Marking the Close agents MN1/MN2 inactive — strategy activates in CLOSE session (15:00-16:00 CT).`, 'event-close');
+    if (manipCycle % 60 === 0) {
+      addNews(`Marking the Close: MN1/MN2 inactive until CLOSE session (15:00 CT). Currently in ${sess.label}.`, 'event-close');
     }
     return;
   }
 
-  const minInClose = simTime/60 - 540; // minutes into close session
+  const minInClose = simTime/60 - 540; // minutes into close session (540 = 15:00)
 
   if (manipCycle % 8 === 0) {
-    // Aggressive buys to push last print up
+    const priceBefore = lastPrice;
     if (minInClose > 30) {
-      // Final 30 min window — more aggressive
-      const liftQty = randInt(40, 120);
+      // Settlement window — most aggressive
+      const liftQty = randInt(50, 140);
       if (asks.length) {
         asks[0].qty = Math.max(0, asks[0].qty - liftQty);
         agentPnl['MN1'] -= liftQty * asks[0].price * 0.01;
-        midPrice = round(midPrice + TICK * randInt(1,3));
+        const ticksPushed = randInt(1, 3);
+        midPrice = round(midPrice + TICK * ticksPushed);
         addTape({price: bestAsk(), qty: liftQty, buyId:'MN1', sellId:'MM1', buyTag:'spoof', sellTag:'mm'});
-        addNews(`MARK CLOSE: MN1 lifts ${liftQty} lots at ${fmt(bestAsk())} — aggressive buy to push settlement price higher. Min into close: ${minInClose.toFixed(0)}`, 'event-close');
+        // Record in forensics
+        forensics.markingPrints.push({ t: simTime, price: lastPrice, qty: liftQty, priceBeforeLift: priceBefore, inWindow: true });
+        forensics.closeManipLots  += liftQty;
+        forensics.closeManipTicks += ticksPushed;
+        forensics.sessionMN1Volume['close'] = (forensics.sessionMN1Volume['close']||0) + liftQty;
+        addNews(`MARK CLOSE [SETTLEMENT WINDOW]: MN1 lifts ${liftQty} lots at ${fmt(bestAsk())} — +${ticksPushed} ticks. Settlement ref pushed ${fmt(priceBefore)} → ${fmt(lastPrice)}. Min into close: ${minInClose.toFixed(0)}`, 'event-close');
       }
     } else {
-      addOrUpdate('bid', round(midPrice - TICK), randInt(20,50), 'MN1', 'spoof');
-      addNews(`MARK CLOSE: MN1 building bid support ahead of settlement window. Current price: ${fmt(midPrice)}`, 'event-close');
+      // Early close — building support
+      const supportQty = randInt(20, 60);
+      addOrUpdate('bid', round(midPrice - TICK), supportQty, 'MN1', 'spoof');
+      forensics.markingPrints.push({ t: simTime, price: lastPrice, qty: supportQty, priceBeforeLift: priceBefore, inWindow: false });
+      addNews(`MARK CLOSE [EARLY]: MN1 places ${supportQty}-lot bid at ${fmt(round(midPrice-TICK))} — building support before settlement window. Current: ${fmt(midPrice)}`, 'event-close');
     }
   }
 }
@@ -1891,8 +1928,8 @@ let forensics = {
   spoofOrdersPlaced:  0,
   spoofOrdersCancelled: 0,
   spoofTotalQty:      0,
-  spoofFillsEnabled:  0,   // fills that happened within 200ms of a spoof
-  priceAtSpoof:       [],  // [{t, priceBefore, priceAfter, direction}]
+  spoofFillsEnabled:  0,
+  priceAtSpoof:       [],
   layerOrdsPlaced:    0,
   layerOrdsCancelled: 0,
   layerFills:         0,
@@ -1902,14 +1939,26 @@ let forensics = {
   insiderProfit:      0,
   frontrunFills:      0,
   frontrunEdgeTicks:  [],
-  markingPrints:      [],  // {t, price} of close-session aggressive buys
-  cancelRatioByAgent: {},  // agentId -> {placed, cancelled}
+  // Marking the Close — detailed session tracking
+  markingPrints:      [],  // {t, price, qty, priceBeforeLift} — each aggressive lift by MN1
+  sessionVolume:      { pre:0, open:0, mid:0, close:0 },   // fills by session
+  sessionMN1Volume:   { pre:0, open:0, mid:0, close:0 },   // MN1 fills by session
+  closePriceHistory:  [],  // {t, price} sampled every 30s — for mini chart
+  midSessionAvgPrice: 0,   // computed at close session entry
+  midSessionVolRate:  0,   // avg lots/min in mid session
+  closeManipLots:     0,   // total lots MN1 lifts in close session
+  closeManipTicks:    0,   // total ticks pushed by MN1 in close
+  settlementWindow:   false, // true after 15:45
+  priceAtCloseStart:  null,  // price when close session begins
+  priceAtMarkWindow:  null,  // price at 15:45
+  // ──
+  cancelRatioByAgent: {},
   fillRatioByAgent:   {},
-  agentBidVol:        {},  // agentId -> outstanding bid qty
-  agentAskVol:        {},  // agentId -> outstanding ask qty
-  agentFills:         {},  // agentId -> total filled qty
-  agentCancels:       {},  // agentId -> total cancelled qty
-  priceImpactEvents:  [],  // {t, agent, side, qty, priceBefore, priceAfter, ticks}
+  agentBidVol:        {},
+  agentAskVol:        {},
+  agentFills:         {},
+  agentCancels:       {},
+  priceImpactEvents:  [],
 };
 
 function resetForensics() {
@@ -1917,9 +1966,14 @@ function resetForensics() {
     spoofOrdersPlaced:0, spoofOrdersCancelled:0, spoofTotalQty:0, spoofFillsEnabled:0,
     priceAtSpoof:[], layerOrdsPlaced:0, layerOrdsCancelled:0, layerFills:0,
     washVolume:0, washPctOfTotal:0, insiderFills:0, insiderProfit:0,
-    frontrunFills:0, frontrunEdgeTicks:[], markingPrints:[], cancelRatioByAgent:{},
-    fillRatioByAgent:{}, agentBidVol:{}, agentAskVol:{}, agentFills:{},
-    agentCancels:{}, priceImpactEvents:[],
+    frontrunFills:0, frontrunEdgeTicks:[],
+    markingPrints:[], sessionVolume:{pre:0,open:0,mid:0,close:0},
+    sessionMN1Volume:{pre:0,open:0,mid:0,close:0},
+    closePriceHistory:[], midSessionAvgPrice:0, midSessionVolRate:0,
+    closeManipLots:0, closeManipTicks:0, settlementWindow:false,
+    priceAtCloseStart:null, priceAtMarkWindow:null,
+    cancelRatioByAgent:{}, fillRatioByAgent:{}, agentBidVol:{}, agentAskVol:{},
+    agentFills:{}, agentCancels:{}, priceImpactEvents:[],
   };
 }
 
@@ -1990,6 +2044,12 @@ matchBook = function() {
     if (f.buyTag==='wash'||f.sellTag==='wash') forensics.washVolume += f.qty;
     if (f.buyTag==='insider'||f.sellTag==='insider') forensics.insiderFills += f.qty;
     if (f.buyTag==='frontrun'||f.sellTag==='frontrun') forensics.frontrunFills += f.qty;
+    // Session volume bucketing
+    const sessId = currentSession().id;
+    forensics.sessionVolume[sessId] = (forensics.sessionVolume[sessId]||0) + f.qty;
+    if (f.buyerId === 'MN1' || f.sellerId === 'MN1') {
+      forensics.sessionMN1Volume[sessId] = (forensics.sessionMN1Volume[sessId]||0) + f.qty;
+    }
     // Price impact
     if (lastPrice !== priceBefore) {
       const ticks = Math.round(Math.abs(lastPrice-priceBefore)/TICK);
@@ -2144,20 +2204,147 @@ function renderForensics() {
       </div>`;
     alert1 = `<div class="for-alert amber">⚠ Layering activity — multiple orders stacked to create artificial depth, then removed after genuine fill on opposite side.</div>`;
   } else if (mode === 'marking') {
-    const markPrints = forensics.markingPrints.length;
-    const lastMark = forensics.markingPrints[forensics.markingPrints.length-1];
-    modeSection = `
+    // ── Computed stats for comparison ──
+    const sessVol    = forensics.sessionVolume;
+    const mn1Vol     = forensics.sessionMN1Volume;
+    const closeVol   = sessVol.close || 0;
+    const midVol     = sessVol.mid   || 1;
+    const openVol    = sessVol.open  || 1;
+    const mn1Close   = mn1Vol.close  || 0;
+    const mn1Mid     = mn1Vol.mid    || 0;
+
+    // Volume rate comparison (close is 60 min, mid is 240 min → normalise to per-min)
+    const closeRate  = (closeVol / 60).toFixed(1);
+    const midRate    = (midVol   / 240).toFixed(1);
+    const openRate   = (openVol  / 90).toFixed(1);
+    const closeVsMid = midVol > 0 ? ((closeVol/60) / (midVol/240)).toFixed(1) : '—';
+
+    // MN1 share of close volume
+    const mn1ShareClose = closeVol > 0 ? ((mn1Close / closeVol)*100).toFixed(0) : '0';
+    const mn1ShareMid   = midVol   > 0 ? ((mn1Mid   / midVol  )*100).toFixed(0) : '0';
+
+    // Price impact
+    const priceLiftTotal   = forensics.closeManipTicks;
+    const priceAtCloseStart = forensics.priceAtCloseStart || lastPrice;
+    const priceAtWindow    = forensics.priceAtMarkWindow  || lastPrice;
+    const windowLift       = forensics.settlementWindow
+      ? ((lastPrice - priceAtWindow) / TICK).toFixed(0) : '—';
+    const closeLift        = ((lastPrice - priceAtCloseStart) / TICK).toFixed(0);
+
+    // Marking prints in window vs early close
+    const windowPrints = forensics.markingPrints.filter(p=>p.inWindow);
+    const earlyPrints  = forensics.markingPrints.filter(p=>!p.inWindow);
+    const windowLots   = windowPrints.reduce((s,p)=>s+p.qty,0);
+    const earlyLots    = earlyPrints.reduce((s,p)=>s+p.qty,0);
+
+    const sessionStatus = currentSession().id;
+    const inClose = sessionStatus === 'close';
+
+    // Build close price mini-chart as SVG inline
+    const cpHistory = forensics.closePriceHistory;
+    let miniChart = '';
+    if (cpHistory.length >= 2) {
+      const cPrices = cpHistory.map(p=>p.price);
+      const cMin = Math.min(...cPrices) - TICK;
+      const cMax = Math.max(...cPrices) + TICK;
+      const cRange = cMax - cMin || 1;
+      const W=260, H=60, pad=2;
+      const cx = i => pad + (i/(cpHistory.length-1))*(W-2*pad);
+      const cy = p => H - pad - ((p-cMin)/cRange)*(H-2*pad);
+      // Find window start x
+      const winIdx = cpHistory.findIndex(p=>p.inWindow);
+      let winLine = '';
+      if (winIdx > 0) {
+        const wx = cx(winIdx);
+        winLine = \`<line x1="\${wx}" y1="0" x2="\${wx}" y2="\${H}" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>\`;
+        winLine += \`<text x="\${wx+2}" y="10" font-size="7" fill="#a855f7" font-family="IBM Plex Mono">15:45</text>\`;
+      }
+      // Normal points in grey, window points in purple
+      const normalPts = cpHistory.filter((p,i)=>!p.inWindow).map((p,_,arr)=>{
+        const i = cpHistory.indexOf(p);
+        return \`\${cx(i)},\${cy(p.price)}\`;
+      }).join(' ');
+      const winPts = cpHistory.filter(p=>p.inWindow).map(p=>{
+        const i = cpHistory.indexOf(p);
+        return \`\${cx(i)},\${cy(p.price)}\`;
+      }).join(' ');
+      const allPts = cpHistory.map((p,i)=>\`\${cx(i)},\${cy(p.price)}\`).join(' ');
+      miniChart = \`
+        <div class="for-chart-wrap" style="margin-bottom:8px;">
+          <svg width="100%" height="60" viewBox="0 0 \${W} \${H}" preserveAspectRatio="none" style="display:block;">
+            <rect width="\${W}" height="\${H}" fill="#141820"/>
+            \${winIdx>0 ? \`<rect x="\${cx(winIdx)}" y="0" width="\${W-cx(winIdx)}" height="\${H}" fill="rgba(168,85,247,0.08)"/>\` : ''}
+            \${winLine}
+            <polyline points="\${allPts}" fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.9"/>
+            \${winIdx>0 && winPts ? \`<polyline points="\${winPts}" fill="none" stroke="#c084fc" stroke-width="2"/>\` : ''}
+            <text x="4" y="\${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">15:00</text>
+            <text x="\${W-28}" y="\${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">16:00</text>
+            <text x="4" y="10" font-size="7" fill="#4a5870" font-family="IBM Plex Mono">Price — Close Session (purple = settlement window)</text>
+          </svg>
+        </div>\`;
+    } else {
+      miniChart = \`<div class="for-empty" style="padding:10px;font-size:10px;">Jump to 15:00 Close session to populate the price chart.</div>\`;
+    }
+
+    // Table of each marking lift
+    const liftRows = [...forensics.markingPrints].reverse().slice(0,8).map(p=>
+      \`<tr>
+        <td>\${offsetToTimeFull(p.t)}</td>
+        <td class="\${p.inWindow?'hi-red':'hi-amber'}">\${p.qty}</td>
+        <td>\${fmt(p.priceBeforeLift)}</td>
+        <td class="hi-red">\${fmt(p.price)}</td>
+        <td class="\${p.inWindow?'hi-red':'hi-amber'}">\${p.inWindow?'WINDOW':'EARLY'}</td>
+      </tr>\`
+    ).join('') || '<tr><td colspan="5" style="color:var(--text3);text-align:center;">No marking activity yet — skip to 15:00 Close session</td></tr>';
+
+    const statusBanner = !inClose
+      ? \`<div class="for-alert amber">⏳ Marking the Close activates in the CLOSE session (15:00–16:00 CT). Use the jump buttons to skip to 15:00 Close or 15:55 Mark.</div>\`
+      : forensics.settlementWindow
+      ? \`<div class="for-alert red">⚠ SETTLEMENT WINDOW ACTIVE (15:45+) — MN1 executing most aggressive lifts. Price at window entry: \${fmt(priceAtWindow)}. Current: \${fmt(lastPrice)} (\${+windowLift>=0?'+':''}\${windowLift} ticks from window open).</div>\`
+      : \`<div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">⚠ Close session active. MN1 building position. Settlement window opens at 15:45 — watch for volume and price acceleration.</div>\`;
+
+    modeSection = \`
       <div class="for-section">
-        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Marking the Close Metrics</div>
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Close Session Price Trajectory</div>
+        \${miniChart}
+      </div>
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Volume Rate — Session Comparison</div>
         <div class="for-stat-grid">
-          <div class="for-stat-card"><div class="for-stat-card-label">Aggressive Prints</div><div class="for-stat-card-val" style="color:var(--purple);">${forensics.priceImpactEvents.filter(e=>e.side==='spoof').length}</div><div class="for-stat-card-sub">close session lifts</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Settlement Window</div><div class="for-stat-card-val amber">${simTime>35700?'ACTIVE':'PENDING'}</div><div class="for-stat-card-sub">15:55 activation</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Close Session Vol</div><div class="for-stat-card-val amber">${forensics.priceImpactEvents.filter(e=>e.t>32400).reduce((s,e)=>s+e.qty,0)}</div><div class="for-stat-card-sub">lots after 15:00</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Price vs Open</div><div class="for-stat-card-val ${lastPrice>dayOpen?'green':'red'}">${lastPrice>dayOpen?'+':''}${((lastPrice-dayOpen)/TICK).toFixed(0)} ticks</div><div class="for-stat-card-sub">intraday move</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Open Vol/min</div><div class="for-stat-card-val green">\${openRate}</div><div class="for-stat-card-sub">09:30–11:00 baseline</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Mid-Session Vol/min</div><div class="for-stat-card-val" style="color:var(--blue2);">\${midRate}</div><div class="for-stat-card-sub">11:00–15:00 baseline</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close Vol/min</div><div class="for-stat-card-val \${parseFloat(closeVsMid)>1.5?'red':'amber'}">\${closeRate}</div><div class="for-stat-card-sub">15:00–16:00 current</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close / Mid Ratio</div><div class="for-stat-card-val \${parseFloat(closeVsMid)>2?'red':parseFloat(closeVsMid)>1.3?'amber':'green'}">\${closeVsMid}×</div><div class="for-stat-card-sub">>1.5× is anomalous</div></div>
         </div>
-        <div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">📌 Marking the Close — aggressive buying in final minutes inflates settlement reference price. Detectable via volume-at-best analysis in final 30-min window vs rest of day.</div>
-      </div>`;
-    alert1 = `<div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">⚠ Close session manipulation active — price being pushed by MN1 to influence settlement reference.</div>`;
+      </div>
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">MN1 Share of Volume by Session</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Mid-Session %</div><div class="for-stat-card-val" style="color:var(--blue2);">\${mn1ShareMid}%</div><div class="for-stat-card-sub">of all mid-session fills</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Close Session %</div><div class="for-stat-card-val \${+mn1ShareClose>15?'red':+mn1ShareClose>8?'amber':'green'}">\${mn1ShareClose}%</div><div class="for-stat-card-sub">of all close fills</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Lots (MN1)</div><div class="for-stat-card-val red">\${windowLots}</div><div class="for-stat-card-sub">aggressive lifts in 15:45+ window</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Early Lots (MN1)</div><div class="for-stat-card-val amber">\${earlyLots}</div><div class="for-stat-card-sub">bid support 15:00–15:45</div></div>
+        </div>
+      </div>
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Price Impact</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">Price at Close Entry</div><div class="for-stat-card-val amber">\${fmt(priceAtCloseStart)}</div><div class="for-stat-card-sub">15:00 reference</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close Session Lift</div><div class="for-stat-card-val \${+closeLift>0?'red':'green'}">\${+closeLift>0?'+':''}\${closeLift} ticks</div><div class="for-stat-card-sub">vs 15:00 entry price</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Entry Price</div><div class="for-stat-card-val" style="color:var(--purple);">\${fmt(priceAtWindow)}</div><div class="for-stat-card-sub">15:45 reference</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Lift</div><div class="for-stat-card-val \${+windowLift>0?'red':'green'}">\${+windowLift>=0?'+':''}\${windowLift} ticks</div><div class="for-stat-card-sub">vs 15:45 entry price</div></div>
+        </div>
+      </div>
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Marking Lifts Log</div>
+        <table class="for-table">
+          <thead><tr><th>Time</th><th>Qty</th><th>Price Before</th><th>Price After</th><th>Phase</th></tr></thead>
+          <tbody>\${liftRows}</tbody>
+        </table>
+      </div>
+      <div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">📌 Forensic signature: MN1 volume share spikes in the close window vs mid-session baseline. Aggressive lifts at best offer in final minutes with no corresponding news event. Price settles above intraday VWAP. Regulatory detection: compare vol/min and at-best-offer trades in 15:45–16:00 vs same agent in 11:00–15:00.</div>\`;
+
+    alert1 = statusBanner;
   } else if (mode === 'wash') {
     alert1 = `<div class="for-alert" style="background:rgba(219,39,119,0.1);border:1px solid rgba(219,39,119,0.4);color:#f9a8d4;">⚠ Wash trading detected — ${forensics.washVolume} lots crossed with no change in beneficial ownership. Inflated volume: ${washPct}% of total prints are wash.</div>`;
     modeSection = `
