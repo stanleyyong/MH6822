@@ -2256,93 +2256,93 @@ function renderForensics() {
       let winLine = '';
       if (winIdx > 0) {
         const wx = cx(winIdx);
-        winLine = \`<line x1="\${wx}" y1="0" x2="\${wx}" y2="\${H}" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>\`;
-        winLine += \`<text x="\${wx+2}" y="10" font-size="7" fill="#a855f7" font-family="IBM Plex Mono">15:45</text>\`;
+        winLine = `<line x1="${wx}" y1="0" x2="${wx}" y2="${H}" stroke="#a855f7" stroke-width="1" stroke-dasharray="3,2" opacity="0.7"/>`;
+        winLine += `<text x="${wx+2}" y="10" font-size="7" fill="#a855f7" font-family="IBM Plex Mono">15:45</text>`;
       }
       // Normal points in grey, window points in purple
       const normalPts = cpHistory.filter((p,i)=>!p.inWindow).map((p,_,arr)=>{
         const i = cpHistory.indexOf(p);
-        return \`\${cx(i)},\${cy(p.price)}\`;
+        return `${cx(i)},${cy(p.price)}`;
       }).join(' ');
       const winPts = cpHistory.filter(p=>p.inWindow).map(p=>{
         const i = cpHistory.indexOf(p);
-        return \`\${cx(i)},\${cy(p.price)}\`;
+        return `${cx(i)},${cy(p.price)}`;
       }).join(' ');
-      const allPts = cpHistory.map((p,i)=>\`\${cx(i)},\${cy(p.price)}\`).join(' ');
-      miniChart = \`
+      const allPts = cpHistory.map((p,i)=>`${cx(i)},${cy(p.price)}`).join(' ');
+      miniChart = `
         <div class="for-chart-wrap" style="margin-bottom:8px;">
-          <svg width="100%" height="60" viewBox="0 0 \${W} \${H}" preserveAspectRatio="none" style="display:block;">
-            <rect width="\${W}" height="\${H}" fill="#141820"/>
-            \${winIdx>0 ? \`<rect x="\${cx(winIdx)}" y="0" width="\${W-cx(winIdx)}" height="\${H}" fill="rgba(168,85,247,0.08)"/>\` : ''}
-            \${winLine}
-            <polyline points="\${allPts}" fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.9"/>
-            \${winIdx>0 && winPts ? \`<polyline points="\${winPts}" fill="none" stroke="#c084fc" stroke-width="2"/>\` : ''}
-            <text x="4" y="\${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">15:00</text>
-            <text x="\${W-28}" y="\${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">16:00</text>
+          <svg width="100%" height="60" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="display:block;">
+            <rect width="${W}" height="${H}" fill="#141820"/>
+            ${winIdx>0 ? `<rect x="${cx(winIdx)}" y="0" width="${W-cx(winIdx)}" height="${H}" fill="rgba(168,85,247,0.08)"/>` : ''}
+            ${winLine}
+            <polyline points="${allPts}" fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.9"/>
+            ${winIdx>0 && winPts ? `<polyline points="${winPts}" fill="none" stroke="#c084fc" stroke-width="2"/>` : ''}
+            <text x="4" y="${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">15:00</text>
+            <text x="${W-28}" y="${H-4}" font-size="7" fill="#6e7681" font-family="IBM Plex Mono">16:00</text>
             <text x="4" y="10" font-size="7" fill="#4a5870" font-family="IBM Plex Mono">Price — Close Session (purple = settlement window)</text>
           </svg>
-        </div>\`;
+        </div>`;
     } else {
-      miniChart = \`<div class="for-empty" style="padding:10px;font-size:10px;">Jump to 15:00 Close session to populate the price chart.</div>\`;
+      miniChart = `<div class="for-empty" style="padding:10px;font-size:10px;">Jump to 15:00 Close session to populate the price chart.</div>`;
     }
 
     // Table of each marking lift
     const liftRows = [...forensics.markingPrints].reverse().slice(0,8).map(p=>
-      \`<tr>
-        <td>\${offsetToTimeFull(p.t)}</td>
-        <td class="\${p.inWindow?'hi-red':'hi-amber'}">\${p.qty}</td>
-        <td>\${fmt(p.priceBeforeLift)}</td>
-        <td class="hi-red">\${fmt(p.price)}</td>
-        <td class="\${p.inWindow?'hi-red':'hi-amber'}">\${p.inWindow?'WINDOW':'EARLY'}</td>
-      </tr>\`
+      `<tr>
+        <td>${offsetToTimeFull(p.t)}</td>
+        <td class="${p.inWindow?'hi-red':'hi-amber'}">${p.qty}</td>
+        <td>${fmt(p.priceBeforeLift)}</td>
+        <td class="hi-red">${fmt(p.price)}</td>
+        <td class="${p.inWindow?'hi-red':'hi-amber'}">${p.inWindow?'WINDOW':'EARLY'}</td>
+      </tr>`
     ).join('') || '<tr><td colspan="5" style="color:var(--text3);text-align:center;">No marking activity yet — skip to 15:00 Close session</td></tr>';
 
     const statusBanner = !inClose
-      ? \`<div class="for-alert amber">⏳ Marking the Close activates in the CLOSE session (15:00–16:00 CT). Use the jump buttons to skip to 15:00 Close or 15:55 Mark.</div>\`
+      ? `<div class="for-alert amber">⏳ Marking the Close activates in the CLOSE session (15:00–16:00 CT). Use the jump buttons to skip to 15:00 Close or 15:55 Mark.</div>`
       : forensics.settlementWindow
-      ? \`<div class="for-alert red">⚠ SETTLEMENT WINDOW ACTIVE (15:45+) — MN1 executing most aggressive lifts. Price at window entry: \${fmt(priceAtWindow)}. Current: \${fmt(lastPrice)} (\${+windowLift>=0?'+':''}\${windowLift} ticks from window open).</div>\`
-      : \`<div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">⚠ Close session active. MN1 building position. Settlement window opens at 15:45 — watch for volume and price acceleration.</div>\`;
+      ? `<div class="for-alert red">⚠ SETTLEMENT WINDOW ACTIVE (15:45+) — MN1 executing most aggressive lifts. Price at window entry: ${fmt(priceAtWindow)}. Current: ${fmt(lastPrice)} (${+windowLift>=0?'+':''}${windowLift} ticks from window open).</div>`
+      : `<div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">⚠ Close session active. MN1 building position. Settlement window opens at 15:45 — watch for volume and price acceleration.</div>`;
 
-    modeSection = \`
+    modeSection = `
       <div class="for-section">
         <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Close Session Price Trajectory</div>
-        \${miniChart}
+        ${miniChart}
       </div>
       <div class="for-section">
         <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Volume Rate — Session Comparison</div>
         <div class="for-stat-grid">
-          <div class="for-stat-card"><div class="for-stat-card-label">Open Vol/min</div><div class="for-stat-card-val green">\${openRate}</div><div class="for-stat-card-sub">09:30–11:00 baseline</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Mid-Session Vol/min</div><div class="for-stat-card-val" style="color:var(--blue2);">\${midRate}</div><div class="for-stat-card-sub">11:00–15:00 baseline</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Close Vol/min</div><div class="for-stat-card-val \${parseFloat(closeVsMid)>1.5?'red':'amber'}">\${closeRate}</div><div class="for-stat-card-sub">15:00–16:00 current</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Close / Mid Ratio</div><div class="for-stat-card-val \${parseFloat(closeVsMid)>2?'red':parseFloat(closeVsMid)>1.3?'amber':'green'}">\${closeVsMid}×</div><div class="for-stat-card-sub">>1.5× is anomalous</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Open Vol/min</div><div class="for-stat-card-val green">${openRate}</div><div class="for-stat-card-sub">09:30–11:00 baseline</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Mid-Session Vol/min</div><div class="for-stat-card-val" style="color:var(--blue2);">${midRate}</div><div class="for-stat-card-sub">11:00–15:00 baseline</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close Vol/min</div><div class="for-stat-card-val ${parseFloat(closeVsMid)>1.5?'red':'amber'}">${closeRate}</div><div class="for-stat-card-sub">15:00–16:00 current</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close / Mid Ratio</div><div class="for-stat-card-val ${parseFloat(closeVsMid)>2?'red':parseFloat(closeVsMid)>1.3?'amber':'green'}">${closeVsMid}×</div><div class="for-stat-card-sub">>1.5× is anomalous</div></div>
         </div>
       </div>
       <div class="for-section">
         <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">MN1 Share of Volume by Session</div>
         <div class="for-stat-grid">
-          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Mid-Session %</div><div class="for-stat-card-val" style="color:var(--blue2);">\${mn1ShareMid}%</div><div class="for-stat-card-sub">of all mid-session fills</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Close Session %</div><div class="for-stat-card-val \${+mn1ShareClose>15?'red':+mn1ShareClose>8?'amber':'green'}">\${mn1ShareClose}%</div><div class="for-stat-card-sub">of all close fills</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Window Lots (MN1)</div><div class="for-stat-card-val red">\${windowLots}</div><div class="for-stat-card-sub">aggressive lifts in 15:45+ window</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Early Lots (MN1)</div><div class="for-stat-card-val amber">\${earlyLots}</div><div class="for-stat-card-sub">bid support 15:00–15:45</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Mid-Session %</div><div class="for-stat-card-val" style="color:var(--blue2);">${mn1ShareMid}%</div><div class="for-stat-card-sub">of all mid-session fills</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Close Session %</div><div class="for-stat-card-val ${+mn1ShareClose>15?'red':+mn1ShareClose>8?'amber':'green'}">${mn1ShareClose}%</div><div class="for-stat-card-sub">of all close fills</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Lots (MN1)</div><div class="for-stat-card-val red">${windowLots}</div><div class="for-stat-card-sub">aggressive lifts in 15:45+ window</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Early Lots (MN1)</div><div class="for-stat-card-val amber">${earlyLots}</div><div class="for-stat-card-sub">bid support 15:00–15:45</div></div>
         </div>
       </div>
       <div class="for-section">
         <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Price Impact</div>
         <div class="for-stat-grid">
-          <div class="for-stat-card"><div class="for-stat-card-label">Price at Close Entry</div><div class="for-stat-card-val amber">\${fmt(priceAtCloseStart)}</div><div class="for-stat-card-sub">15:00 reference</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Close Session Lift</div><div class="for-stat-card-val \${+closeLift>0?'red':'green'}">\${+closeLift>0?'+':''}\${closeLift} ticks</div><div class="for-stat-card-sub">vs 15:00 entry price</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Window Entry Price</div><div class="for-stat-card-val" style="color:var(--purple);">\${fmt(priceAtWindow)}</div><div class="for-stat-card-sub">15:45 reference</div></div>
-          <div class="for-stat-card"><div class="for-stat-card-label">Window Lift</div><div class="for-stat-card-val \${+windowLift>0?'red':'green'}">\${+windowLift>=0?'+':''}\${windowLift} ticks</div><div class="for-stat-card-sub">vs 15:45 entry price</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Price at Close Entry</div><div class="for-stat-card-val amber">${fmt(priceAtCloseStart)}</div><div class="for-stat-card-sub">15:00 reference</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close Session Lift</div><div class="for-stat-card-val ${+closeLift>0?'red':'green'}">${+closeLift>0?'+':''}${closeLift} ticks</div><div class="for-stat-card-sub">vs 15:00 entry price</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Entry Price</div><div class="for-stat-card-val" style="color:var(--purple);">${fmt(priceAtWindow)}</div><div class="for-stat-card-sub">15:45 reference</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Window Lift</div><div class="for-stat-card-val ${+windowLift>0?'red':'green'}">${+windowLift>=0?'+':''}${windowLift} ticks</div><div class="for-stat-card-sub">vs 15:45 entry price</div></div>
         </div>
       </div>
       <div class="for-section">
         <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Marking Lifts Log</div>
         <table class="for-table">
           <thead><tr><th>Time</th><th>Qty</th><th>Price Before</th><th>Price After</th><th>Phase</th></tr></thead>
-          <tbody>\${liftRows}</tbody>
+          <tbody>${liftRows}</tbody>
         </table>
       </div>
-      <div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">📌 Forensic signature: MN1 volume share spikes in the close window vs mid-session baseline. Aggressive lifts at best offer in final minutes with no corresponding news event. Price settles above intraday VWAP. Regulatory detection: compare vol/min and at-best-offer trades in 15:45–16:00 vs same agent in 11:00–15:00.</div>\`;
+      <div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">📌 Forensic signature: MN1 volume share spikes in the close window vs mid-session baseline. Aggressive lifts at best offer in final minutes with no corresponding news event. Price settles above intraday VWAP. Regulatory detection: compare vol/min and at-best-offer trades in 15:45–16:00 vs same agent in 11:00–15:00.</div>`;
 
     alert1 = statusBanner;
   } else if (mode === 'wash') {
