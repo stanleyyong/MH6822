@@ -166,7 +166,7 @@ body {
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: 240px 220px 1fr 300px;
+  grid-template-columns: 240px 280px 1fr 300px;
   grid-template-rows: 1fr 140px;
   gap: 1px;
   background: var(--border);
@@ -300,11 +300,12 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
 .tape-body::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
 
 .tape-row {
-  display: grid; grid-template-columns: 52px 1fr 1fr 52px;
-  padding: 2px 8px;
-  font-size: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.02);
+  display: grid; grid-template-columns: 60px 1fr 1fr 56px;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
   align-items: center;
+  min-height: 28px;
   animation: tape-in 0.2s ease;
 }
 @keyframes tape-in { from { background: rgba(255,255,255,0.06); } to { background: transparent; } }
@@ -313,10 +314,10 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
 .tape-row.sell .tape-price { color: var(--red2); }
 .tape-row.wash { opacity: 0.7; }
 
-.tape-time  { color: var(--text3); font-size: 9px; }
-.tape-price { font-weight: 600; text-align: right; }
-.tape-qty   { text-align: right; color: var(--text2); }
-.tape-tag   { font-size: 8px; text-align: right; padding: 1px 4px; border-radius: 2px; }
+.tape-time  { color: var(--text3); font-size: 10px; }
+.tape-price { font-weight: 600; text-align: right; font-size: 12px; }
+.tape-qty   { text-align: right; color: var(--text2); font-size: 12px; }
+.tape-tag   { font-size: 9px; text-align: right; padding: 2px 5px; border-radius: 2px; }
 
 .tag-manip  { background: rgba(220,38,38,0.25); color: var(--red2); border: 1px solid rgba(220,38,38,0.4); }
 .tag-fund   { background: rgba(37,99,235,0.2); color: var(--blue2); border: 1px solid rgba(37,99,235,0.3); }
@@ -505,50 +506,75 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
 .skip-flash-overlay { position:absolute; inset:0; background:rgba(240,165,0,0.08); pointer-events:none; opacity:0; animation:skip-flash 0.6s ease forwards; }
 
 
-/* ── AGENT PANEL — rich stats ── */
-.agent-list { flex: 1; overflow-y: auto; padding: 0; }
-.agent-row {
+/* ── AGENT PANEL — card layout ── */
+.agent-list { flex: 1; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 4px; }
+
+.agent-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.agent-card:hover { border-color: var(--border2); }
+.agent-card.is-manip { border-color: rgba(220,38,38,0.35); background: rgba(220,38,38,0.04); }
+
+/* Name header bar */
+.agent-card-header {
+  display: flex; align-items: center; gap: 6px;
   padding: 5px 8px 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  font-size: 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
 }
-.agent-row:hover { background: rgba(255,255,255,0.02); }
-.agent-row-top {
-  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
-}
-.agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.agent-name { color: var(--text); font-size: 10px; font-weight: 500; flex: 1; }
+.agent-card.is-manip .agent-card-header { background: rgba(220,38,38,0.12); border-bottom-color: rgba(220,38,38,0.2); }
+.agent-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.agent-name { color: var(--white); font-size: 11px; font-weight: 600; flex: 1; letter-spacing: 0.02em; }
+.agent-card.is-manip .agent-name { color: var(--red2); }
 .agent-type-badge {
-  font-size: 8px; padding: 1px 5px; border-radius: 2px;
-  background: var(--bg3); color: var(--text3); letter-spacing: 0.06em;
-  text-transform: uppercase; flex-shrink: 0;
+  font-size: 8px; padding: 2px 6px; border-radius: 2px;
+  background: rgba(255,255,255,0.06); color: var(--text3);
+  letter-spacing: 0.06em; text-transform: uppercase; flex-shrink: 0;
 }
-.agent-row.is-manip .agent-type-badge { background: rgba(220,38,38,0.2); color: var(--red2); }
-.agent-row.is-manip .agent-name { color: var(--red2); }
+.agent-card.is-manip .agent-type-badge { background: rgba(220,38,38,0.25); color: var(--red2); }
+
+/* Exposure bar row */
+.agent-exposure {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px 3px;
+  border-bottom: 1px solid var(--border);
+}
+.exp-bar-wrap {
+  flex: 1; height: 5px; background: var(--bg); border-radius: 3px;
+  position: relative; overflow: hidden;
+}
+.exp-bar-bid { position: absolute; left: 0; height: 100%; background: var(--green); border-radius: 3px 0 0 3px; opacity: 0.8; transition: width 0.25s; }
+.exp-bar-ask { position: absolute; right: 0; height: 100%; background: var(--red); border-radius: 0 3px 3px 0; opacity: 0.8; transition: width 0.25s; }
+.exp-side-label { font-size: 9px; font-weight: 600; white-space: nowrap; flex-shrink: 0; line-height: 1; }
+.exp-side-label.bid { color: var(--green); }
+.exp-side-label.ask { color: var(--red2); }
+
+/* Stats grid — 2×2 */
 .agent-stats {
   display: grid; grid-template-columns: 1fr 1fr;
-  gap: 2px 8px; font-size: 9px;
+  gap: 0; padding: 2px 0;
 }
-.agent-stat { display: flex; justify-content: space-between; align-items: center; }
-.agent-stat-label { color: var(--text3); }
-.agent-stat-val { font-weight: 500; color: var(--text2); font-size: 9px; }
-.agent-stat-val.pos { color: var(--green); }
-.agent-stat-val.neg { color: var(--red2); }
+.agent-stat {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 3px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  gap: 6px;
+}
+.agent-stat:nth-child(odd)  { border-right: 1px solid rgba(255,255,255,0.025); }
+.agent-stat-label { color: var(--text3); font-size: 9px; white-space: nowrap; }
+.agent-stat-val   { font-weight: 600; font-size: 10px; white-space: nowrap; text-align: right; }
+.agent-stat-val.pos  { color: var(--green); }
+.agent-stat-val.neg  { color: var(--red2); }
 .agent-stat-val.gold { color: var(--amber); }
-
-/* Order exposure bar */
-.agent-exposure {
-  display: flex; align-items: center; gap: 4px; margin-top: 4px; height: 6px;
-}
-.exp-bar-wrap { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; position: relative; overflow: hidden; }
-.exp-bar-bid { position: absolute; left: 0; height: 100%; background: var(--green); border-radius: 2px 0 0 2px; opacity: 0.7; transition: width 0.3s; }
-.exp-bar-ask { position: absolute; right: 0; height: 100%; background: var(--red); border-radius: 0 2px 2px 0; opacity: 0.7; transition: width 0.3s; }
-.exp-label-bid { font-size: 8px; color: var(--green); width: 28px; text-align: left; }
-.exp-label-ask { font-size: 8px; color: var(--red2); width: 28px; text-align: right; }
+.agent-stat-val.dim  { color: var(--text2); }
 
 .agent-list-hdr {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 4px 8px;
+  padding: 5px 8px;
   border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
   font-size: 9px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase;
@@ -625,6 +651,79 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
 .for-alert.red   { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3); color: #fca5a5; }
 .for-alert.amber { background: rgba(240,165,0,0.1); border: 1px solid rgba(240,165,0,0.3); color: var(--amber2); }
 .for-alert.green { background: rgba(0,201,122,0.1); border: 1px solid rgba(0,201,122,0.3); color: var(--green2); }
+
+
+/* ── DOWNLOAD BUTTONS ── */
+.dl-btn {
+  background: transparent; border: 1px solid var(--border2);
+  color: var(--text3); font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  padding: 2px 8px; cursor: pointer; border-radius: 2px; white-space: nowrap;
+  letter-spacing: 0.06em; transition: all 0.12s; margin-left: 6px;
+}
+.dl-btn:hover { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+
+/* ── INFO TOOLTIP (forensics) ── */
+.for-info-btn {
+  display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--bg3); border: 1px solid var(--border2);
+  color: var(--text3); font-size: 9px; line-height: 14px; text-align: center;
+  cursor: pointer; margin-left: 5px; flex-shrink: 0; vertical-align: middle;
+  transition: all 0.12s; font-family: 'IBM Plex Sans', sans-serif; font-style: italic;
+  user-select: none;
+}
+.for-info-btn:hover { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+
+/* ── RESEARCH MODAL ── */
+.research-modal {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center;
+}
+.research-modal.open { display: flex; }
+.research-modal-inner {
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-top: 2px solid var(--amber);
+  width: min(680px, 92vw); max-height: 80vh;
+  display: flex; flex-direction: column;
+  border-radius: 4px; box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+.rm-header {
+  padding: 14px 18px 10px; border-bottom: 1px solid var(--border2);
+  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+}
+.rm-title { font-size: 15px; font-weight: 600; color: var(--amber2); line-height: 1.3; }
+.rm-subtitle { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.rm-close {
+  cursor: pointer; color: var(--text3); font-size: 18px; line-height: 1;
+  background: none; border: none; padding: 0 0 0 12px; flex-shrink: 0;
+}
+.rm-close:hover { color: var(--text); }
+.rm-body { overflow-y: auto; padding: 16px 18px; flex: 1; }
+.rm-body::-webkit-scrollbar { width: 4px; }
+.rm-body::-webkit-scrollbar-thumb { background: var(--bg4); }
+.rm-section { margin-bottom: 20px; }
+.rm-section-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 8px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border2);
+}
+.rm-para { font-size: 12px; color: var(--text2); line-height: 1.65; margin-bottom: 8px; }
+.rm-para strong { color: var(--text); }
+.rm-cite {
+  font-size: 11px; color: var(--text3); line-height: 1.6;
+  padding: 6px 10px; background: var(--bg3); border-radius: 3px;
+  border-left: 2px solid var(--border2); margin-bottom: 6px; font-style: italic;
+}
+.rm-cite strong { font-style: normal; color: var(--text2); }
+.rm-tag {
+  display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 2px;
+  margin: 0 3px 4px 0; letter-spacing: 0.05em;
+}
+.rm-tag.red    { background: rgba(220,38,38,0.15); color: var(--red2); }
+.rm-tag.amber  { background: rgba(240,165,0,0.15); color: var(--amber2); }
+.rm-tag.green  { background: rgba(0,201,122,0.15); color: var(--green2); }
+.rm-tag.blue   { background: rgba(41,121,255,0.15); color: var(--blue2); }
+.rm-tag.purple { background: rgba(168,85,247,0.15); color: #d8b4fe; }
 
 /* Scrollbar global */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -768,11 +867,17 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
   <div class="panel" id="tape-panel">
     <div class="panel-header">
       <span class="panel-title">Market Data</span>
-      <span style="font-size:9px;color:var(--text3);" id="tape-count">0 PRINTS</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-size:9px;color:var(--text3);" id="tape-count">0 PRINTS</span>
+        <button class="dl-btn" onclick="downloadTapeCSV()" title="Download Time &amp; Sales as CSV">⬇ T&amp;S CSV</button>
+        <button class="dl-btn" onclick="downloadSimCSV()"  title="Download full simulation data as CSV">⬇ SIM CSV</button>
+      </div>
     </div>
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchTab('tape')">Time &amp; Sales</button>
       <button class="tab-btn"        onclick="switchTab('forensics')">⚖ Forensics</button>
+      <div style="flex:1;"></div>
+      <button class="tab-btn" style="font-size:9px;color:var(--text3);" onclick="openResearch(simMode)" title="Why do these metrics matter? Academic background.">📖 Why these metrics?</button>
     </div>
     <!-- TAPE PANE -->
     <div class="tab-pane active" id="pane-tape">
@@ -797,7 +902,10 @@ canvas.for-chart { width: 100%; height: 100%; display: block; }
   <div class="panel" id="news-panel">
     <div class="panel-header">
       <span class="panel-title">Event Log — Information Flow & Surveillance Signals</span>
-      <span style="font-size:9px;color:var(--text3);">Insider leaks shown in pink · Agent signals in amber</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:9px;color:var(--text3);">Insider leaks shown in pink · Agent signals in amber</span>
+        <button class="dl-btn" onclick="downloadEventLog()" title="Download event log as CSV">⬇ EVENT LOG CSV</button>
+      </div>
     </div>
     <div class="news-body" id="news-body"></div>
   </div>
@@ -895,7 +1003,10 @@ const AGENT_TYPES = {
 };
 
 let agents = [];
-let agentPnl = {};
+let agentPnl      = {};  // realised P&L per agent ($)
+let agentPos      = {};  // net position in contracts (+ long, - short)
+let agentAvgEntry = {};  // volume-weighted avg entry price
+let agentRealised = {};  // locked-in realised P&L
 
 // Spoof orders (pending cancellation)
 let pendingSpoofs = [];  // {orderId, tCancel, side, price, origQty}
@@ -920,7 +1031,12 @@ function buildAgents() {
     { id:'WS1',  type:'wash',    name:'???-Wash',   active:false },
     { id:'IN1',  type:'insider', name:'???-Priv',   active:false },
   ];
-  agents.forEach(a => { agentPnl[a.id] = 0; });
+  agents.forEach(a => {
+    agentPnl[a.id]      = 0;
+    agentPos[a.id]      = 0;
+    agentAvgEntry[a.id] = 0;
+    agentRealised[a.id] = 0;
+  });
 }
 
 function setManipActive() {
@@ -1359,10 +1475,18 @@ function addTape(fill) {
 // ═══════════════════════════════════════════════════════
 //  NEWS
 // ═══════════════════════════════════════════════════════
+let eventLogData = [];  // for CSV download
+
 function addNews(text, cls='') {
+  const timeStr = offsetToTimeFull(simTime);
+  // Store for download
+  const evtType = cls.replace('event-','') || 'general';
+  eventLogData.push({ time: timeStr, simSec: simTime, type: evtType, text: text, mode: simMode, session: currentSession().id });
+  if (eventLogData.length > 2000) eventLogData.shift();
+
   const item = document.createElement('div');
   item.className = `news-item ${cls}`;
-  item.innerHTML = `<span class="news-time">${offsetToTimeFull(simTime)}</span><span class="news-text">${text}</span>`;
+  item.innerHTML = `<span class="news-time">${timeStr}</span><span class="news-text">${text}</span>`;
   const body = document.getElementById('news-body');
   body.insertBefore(item, body.firstChild);
   if (body.children.length > 60) body.removeChild(body.lastChild);
@@ -1645,6 +1769,7 @@ function startSim() {
       </div>`;
     document.getElementById('news-body').innerHTML = '';
     document.getElementById('agent-list').innerHTML = '';
+    eventLogData = [];
     addNews('Simulation started. Initialising order book and agents.','');
   }
 
@@ -1802,6 +1927,7 @@ function skipTo(targetSec) {
     initBook();
     document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
     document.getElementById('news-body').innerHTML = '';
+    eventLogData = [];
     addNews('Rewound — fast-forwarding to ' + offsetToTimeFull(targetSec) + '...', '');
   }
 
@@ -2044,6 +2170,41 @@ matchBook = function() {
     if (f.buyTag==='wash'||f.sellTag==='wash') forensics.washVolume += f.qty;
     if (f.buyTag==='insider'||f.sellTag==='insider') forensics.insiderFills += f.qty;
     if (f.buyTag==='frontrun'||f.sellTag==='frontrun') forensics.frontrunFills += f.qty;
+
+    // ── P&L accounting — inventory model ──
+    // $50/point. Track position and average entry price.
+    // Realised P&L crystallises when an agent reduces or flips their position.
+    const D = 50; // dollars per index point for ES
+    [
+      { id: f.buyerId,  sign: +1 },  // buyer goes long
+      { id: f.sellerId, sign: -1 },  // seller goes short
+    ].forEach(({ id, sign }) => {
+      if (!id || agentPos[id] === undefined) return;
+      const qty    = f.qty;
+      const price  = f.price;
+      const oldPos = agentPos[id];
+      const newPos = oldPos + sign * qty;
+
+      if (oldPos === 0) {
+        // Opening a new position
+        agentAvgEntry[id] = price;
+      } else if (Math.sign(oldPos) === Math.sign(sign)) {
+        // Adding to existing position — update VWAP entry
+        agentAvgEntry[id] = (agentAvgEntry[id] * Math.abs(oldPos) + price * qty)
+                            / (Math.abs(oldPos) + qty);
+      } else {
+        // Reducing or flipping position — crystallise realised P&L
+        const closingQty = Math.min(Math.abs(oldPos), qty);
+        const realisedTick = (price - agentAvgEntry[id]) * Math.sign(oldPos); // positive if profitable
+        agentRealised[id] = (agentRealised[id] || 0) + realisedTick * closingQty * D;
+        if (qty > Math.abs(oldPos)) {
+          // Flipped — reset avg entry for the remaining contracts
+          agentAvgEntry[id] = price;
+        }
+      }
+      agentPos[id] = newPos;
+    });
+
     // Session volume bucketing
     const sessId = currentSession().id;
     forensics.sessionVolume[sessId] = (forensics.sessionVolume[sessId]||0) + f.qty;
@@ -2085,7 +2246,13 @@ renderAgents = function() {
 
   list.innerHTML = active.map(a => {
     const type  = AGENT_TYPES[a.type];
-    const pnl   = agentPnl[a.id] || 0;
+    // Total P&L = realised + unrealised mark-to-mid
+    const realised   = agentRealised[a.id] || 0;
+    const pos        = agentPos[a.id] || 0;
+    const avgEntry   = agentAvgEntry[a.id] || midPrice;
+    const unrealised = pos * (midPrice - avgEntry) * 50;
+    const pnl        = realised + unrealised;
+    agentPnl[a.id]   = pnl;  // keep in sync for CSV export
     const isM   = type.manip && a.active;
     const bidV  = forensics.agentBidVol[a.id] || 0;
     const askV  = forensics.agentAskVol[a.id] || 0;
@@ -2093,34 +2260,47 @@ renderAgents = function() {
     const cxls  = forensics.cancelRatioByAgent[a.id]?.cancelled || 0;
     const plcd  = forensics.cancelRatioByAgent[a.id]?.placed || 1;
     const cancelPct = Math.round((cxls/plcd)*100);
-    const netPos = bidV - askV;
     const totalExp = bidV + askV;
     const bidPct = totalExp > 0 ? (bidV/maxExposure*100).toFixed(0) : 0;
     const askPct = totalExp > 0 ? (askV/maxExposure*100).toFixed(0) : 0;
 
-    return `<div class="agent-row ${isM?'is-manip':''}">
-      <div class="agent-row-top">
+    const pnlStr   = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
+    const pnlClass = pnl > 50 ? 'pos' : pnl < -50 ? 'neg' : 'dim';
+    const posStr   = pos === 0 ? '—' : (pos > 0 ? '+' : '') + pos;
+    const posClass = pos > 0 ? 'pos' : pos < 0 ? 'neg' : 'dim';
+    const cxlClass = cancelPct > 60 ? 'neg' : cancelPct > 30 ? 'gold' : 'dim';
+
+    return `<div class="agent-card ${isM?'is-manip':''}">
+      <div class="agent-card-header">
         <div class="agent-dot" style="background:${type.color}"></div>
         <span class="agent-name">${a.name}</span>
         <span class="agent-type-badge">${type.label}</span>
       </div>
       <div class="agent-exposure">
-        <span class="exp-label-bid">${bidV}</span>
+        <span class="exp-side-label bid">B ${bidV}</span>
         <div class="exp-bar-wrap">
-          <div class="exp-bar-bid"  style="width:${bidPct}%"></div>
-          <div class="exp-bar-ask"  style="width:${askPct}%"></div>
+          <div class="exp-bar-bid" style="width:${bidPct}%"></div>
+          <div class="exp-bar-ask" style="width:${askPct}%"></div>
         </div>
-        <span class="exp-label-ask">${askV}</span>
+        <span class="exp-side-label ask">${askV} A</span>
       </div>
       <div class="agent-stats">
-        <div class="agent-stat"><span class="agent-stat-label">P&L</span>
-          <span class="agent-stat-val ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(0)}</span></div>
-        <div class="agent-stat"><span class="agent-stat-label">Fills</span>
-          <span class="agent-stat-val gold">${fills}</span></div>
-        <div class="agent-stat"><span class="agent-stat-label">Net</span>
-          <span class="agent-stat-val ${netPos>0?'pos':netPos<0?'neg':''}">${netPos>0?'+':''}${netPos}</span></div>
-        <div class="agent-stat"><span class="agent-stat-label">CxlR</span>
-          <span class="agent-stat-val ${cancelPct>60?'neg':cancelPct>30?'gold':''}">${cancelPct}%</span></div>
+        <div class="agent-stat">
+          <span class="agent-stat-label">P&amp;L</span>
+          <span class="agent-stat-val ${pnlClass}">${pnlStr}</span>
+        </div>
+        <div class="agent-stat">
+          <span class="agent-stat-label">Fills</span>
+          <span class="agent-stat-val gold">${fills}</span>
+        </div>
+        <div class="agent-stat">
+          <span class="agent-stat-label">Pos</span>
+          <span class="agent-stat-val ${posClass}">${posStr}</span>
+        </div>
+        <div class="agent-stat">
+          <span class="agent-stat-label">CxlR</span>
+          <span class="agent-stat-val ${cxlClass}">${cancelPct}%</span>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -2432,6 +2612,266 @@ setInterval(() => {
   if (document.getElementById('pane-forensics').classList.contains('active')) renderForensics();
 }, 3000);
 
+// ════════════════════════════════════════════════════
+//  DOWNLOAD FUNCTIONS
+// ════════════════════════════════════════════════════
+let tapeData = [];
+
+const _origAddTape = addTape;
+addTape = function(fill) {
+  tapeData.push({
+    time: offsetToTimeFull(simTime), simSec: simTime,
+    price: fill.price, qty: fill.qty,
+    buyAgent: fill.buyId || '', sellAgent: fill.sellId || '',
+    tag: fill.buyTag || fill.sellTag || '',
+    session: currentSession().id, mode: simMode
+  });
+  if (tapeData.length > 5000) tapeData.shift();
+  _origAddTape(fill);
+};
+
+function csvEscape(v) {
+  const s = String(v === undefined || v === null ? '' : v);
+  return (s.includes(',') || s.includes('"') || s.includes('\n'))
+    ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function triggerDownload(filename, content) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadTapeCSV() {
+  if (!tapeData.length) { alert('No tape data — start the simulation first.'); return; }
+  const H = ['Time','SimSec','Price','Qty','BuyAgent','SellAgent','Tag','Session','Mode'];
+  const rows = tapeData.map(r =>
+    [r.time,r.simSec,r.price.toFixed(2),r.qty,r.buyAgent,r.sellAgent,r.tag,r.session,r.mode]
+    .map(csvEscape).join(','));
+  triggerDownload('ES_Z25_tape_' + simMode + '.csv', [H.join(','),...rows].join('\n'));
+}
+
+function downloadEventLog() {
+  if (!eventLogData.length) { alert('No event log data — start the simulation first.'); return; }
+  const H = ['Time','SimSec','Type','Session','Mode','Event'];
+  const rows = eventLogData.map(e =>
+    [e.time, e.simSec, e.type, e.session, e.mode, e.text].map(csvEscape).join(','));
+  triggerDownload('ES_Z25_event_log_' + simMode + '.csv', [H.join(','), ...rows].join('\n'));
+}
+
+function downloadSimCSV() {
+  if (!priceHistory.length) { alert('No simulation data — run the simulation first.'); return; }
+  const H = ['SimSec','WallTime','Price','BarVol','Session','DayHigh','DayLow','CumVol','Mode'];
+  const rows = priceHistory.map(p =>
+    [p.t,offsetToTimeFull(p.t),p.price.toFixed(2),p.vol,
+     p.session,dayHigh.toFixed(2),dayLow.toFixed(2),p.cumVol||0,simMode]
+    .map(csvEscape).join(','));
+  const aH = ['','# Agent Summary','AgentID,Name,Type,PnL,Fills,BidOut,AskOut,CancelRate'];
+  const aR = agents.map(a => {
+    const cr = forensics.cancelRatioByAgent[a.id];
+    const cRate = cr && cr.placed > 0 ? ((cr.cancelled/cr.placed)*100).toFixed(0)+'%' : '0%';
+    return [a.id,a.name,AGENT_TYPES[a.type].label,(agentPnl[a.id]||0).toFixed(0),
+            forensics.agentFills[a.id]||0,forensics.agentBidVol[a.id]||0,
+            forensics.agentAskVol[a.id]||0,cRate].map(csvEscape).join(',');
+  });
+  const sH = ['','# Session Volume','Session,TotalVol,MN1Vol'];
+  const sR = ['pre','open','mid','close'].map(s =>
+    [s,forensics.sessionVolume[s]||0,forensics.sessionMN1Volume[s]||0].join(','));
+  const ts = offsetToTime(simTime/60).replace(':','h');
+  triggerDownload('ES_Z25_sim_'+simMode+'_'+ts+'.csv',
+    [H.join(','),...rows,...aH,...aR,...sH,...sR].join('\n'));
+}
+
+// ════════════════════════════════════════════════════
+//  RESEARCH MODAL
+// ════════════════════════════════════════════════════
+const RESEARCH = {
+  none: {
+    title:'Baseline Market Microstructure Metrics',
+    subtitle:'Normal agent behaviour, cancel ratios, and order flow',
+    tags:[{t:'Microstructure',c:'blue'},{t:'Liquidity',c:'green'},{t:'VWAP',c:'amber'}],
+    sections:[
+      { title:'Why Cancel Ratio Differs by Agent Type',
+        body:'Market makers legitimately cancel 80-99% of orders as they continuously update quotes with the mid-price. This is normal behaviour, not manipulation. The forensics panel therefore excludes MM1/MM2 from cancel ratio accounting. Only directional agents (MN1, MN2, WS1, IN1) are tracked. This reflects the core surveillance design principle: thresholds must be calibrated per agent-type.',
+        cites:[
+          {ref:'Glosten & Milgrom (1985)',text:'Bid, Ask and Transaction Prices in a Specialist Market. Journal of Financial Economics 14(1).'},
+          {ref:'Harris (2003)',text:'Trading and Exchanges: Market Microstructure for Practitioners. Oxford University Press.'}
+        ]
+      },
+      { title:'VWAP as Settlement Benchmark',
+        body:'The Volume-Weighted Average Price (VWAP) is the standard institutional execution benchmark. Closing price deviation from intraday VWAP is one of the primary forensic signals for marking-the-close. A closing price above intraday VWAP, achieved by concentrated buying at the best offer in the final minutes, is statistically anomalous.',
+        cites:[{ref:'Putniņš (2012)',text:'Market Manipulation: A Survey. Journal of Economic Surveys 26(5).'}]
+      }
+    ]
+  },
+  spoofing: {
+    title:'Spoofing — Why These Metrics?',
+    subtitle:'Cancel ratio, order size asymmetry, and fill sequencing',
+    tags:[{t:'CFTC',c:'red'},{t:'Dodd-Frank 2010',c:'red'},{t:'Cancel Ratio >70%',c:'amber'},{t:'CRA 2020',c:'blue'}],
+    sections:[
+      { title:'The Cancel Ratio Signal',
+        body:'The order cancellation ratio (cancelled / placed) is the foundational spoofing heuristic. Legitimate algorithmic traders cancel 20-40% of orders. A trader cancelling 70-99% of orders — particularly large ones placed on one side immediately before fills on the other — is the defining statistical signature. The US Commodity Exchange Act (Dodd-Frank, 2010) defines spoofing as "bidding or offering with the intent to cancel before execution." The CFTC has prosecuted cases where cancel ratios exceeded 95%.',
+        cites:[
+          {ref:'CFTC v. Navinder Sarao (2015)',text:'Documents spoofing cancel ratios exceeding 95% in E-mini S&P 500 futures. Linked to the 6 May 2010 Flash Crash.'},
+          {ref:'Attari, Lynch, Chhabra & Fazilet (2020)',text:'Primer on Futures Markets and Spoofing Allegations. CRA Insights: Finance. Charles River Associates.'}
+        ]
+      },
+      { title:'Order Size Asymmetry (5× Rule)',
+        body:'Spoof orders are characteristically large relative to resting book depth. The Flaum gold case (CFTC 2019) documented a 245-lot order placed against 12 lots resting — a 20x ratio. Genuine orders of this size at that depth are statistically rare in normal activity. Surveillance systems typically set size-anomaly thresholds at 5-10x average resting depth at the price level as a first-pass filter.',
+        cites:[
+          {ref:'CFTC Order 19-15 (Flaum/Bank of Nova Scotia, 2019)',text:'Documents the 245-lot spoof order, 12-lot resting depth, and 1ms execution sequence in gold futures.'},
+          {ref:'Cumming, Ji, Peter & Tarsalewska (2020)',text:'Market Manipulation and Innovation. Journal of Banking & Finance 120.'}
+        ]
+      },
+      { title:'Generation-3: Machine Learning',
+        body:'Gen-3 surveillance profiles each trader individually across thousands of variables and flags deviations from the individual baseline. This is necessary because legitimate high-frequency traders may structurally have high cancel ratios for their strategy — market-wide thresholds generate false positives for these traders while missing spoofers who stay just below the threshold.',
+        cites:[{ref:'Cao, Chen & Griffin (2005)',text:'Informational Content of Option Volume Prior to Takeovers. Journal of Business 78(3).'}]
+      }
+    ]
+  },
+  layering: {
+    title:'Layering — Why These Metrics?',
+    subtitle:'Multi-level order structure and the place-fill-cancel sequence',
+    tags:[{t:'MAR Art.12',c:'blue'},{t:'FCA Coscia 2013',c:'red'},{t:'Multi-level',c:'amber'},{t:'Effects-Based',c:'purple'}],
+    sections:[
+      { title:'Why Multiple Levels?',
+        body:'Layering uses 4-10 orders at successive price levels, creating an artificial wall of apparent supply or demand. The visible depth distortion is larger and more persistent than a single spoof order. The forensic signature is simultaneous cancellation of all layers immediately after a fill on the opposite side — a sequence nearly impossible to explain as legitimate trading. Michael Coscia (FCA, 2013) was the first European prosecution specifically for layering.',
+        cites:[
+          {ref:'FCA Final Notice: Michael Coscia (2013)',text:'First European layering prosecution. Documents the multi-level structure and simultaneous cancellation.'},
+          {ref:'SEC Release 34-63241 (2010)',text:'Conceptual release on equity market structure — addresses layering explicitly.'}
+        ]
+      },
+      { title:'EU MAR: Effects-Based Standard',
+        body:'Under EU Market Abuse Regulation (MAR) Article 12, layering constitutes manipulation because it gives \"false or misleading signals as to the supply of, demand for or price of a financial instrument.\" Unlike the US intent-based Dodd-Frank standard, MAR is effects-based \u2014 demonstrating the pattern effect on the visible book may be sufficient without proving intent. This makes pattern-analysis evidence more directly actionable.',
+        cites:[
+          {ref:'EU Regulation 596/2014 (MAR), Article 12',text:'Market manipulation definitions and scope.'},
+          {ref:'ESMA Guidelines on Market Abuse (2016)',text:'Layering and spoofing as enumerated examples of manipulation under MAR.'}
+        ]
+      }
+    ]
+  },
+  marking: {
+    title:'Marking the Close — Why These Metrics?',
+    subtitle:'Volume rate comparison, agent concentration, and settlement price impact',
+    tags:[{t:'Settlement Price',c:'purple'},{t:'Comerton-Forde 2011',c:'blue'},{t:'Close/Mid >1.5x',c:'amber'},{t:'CFTC',c:'red'}],
+    sections:[
+      { title:'Why the Close/Mid Volume Rate Ratio?',
+        body:'The Close/Mid ratio compares lots-per-minute in the settlement window against the mid-session baseline. Comerton-Forde & Putniņš (2011) showed that manipulative close sessions display volume rates 1.5-3x above the mid-session norm, concentrated at the best offer (for upward manipulation). A ratio above 1.5x is the standard regulatory threshold for triggering an investigation. This simulation uses 1.5x as the amber threshold and 2x as the red threshold.',
+        cites:[
+          {ref:'Comerton-Forde & Putniņš (2011)',text:'Measuring Closing Price Manipulation. Journal of Financial Intermediation 20(2). The foundational empirical study.'},
+          {ref:'Hillion & Suominen (2004)',text:'The Manipulation of Closing Prices. Journal of Financial Markets 7(4).'}
+        ]
+      },
+      { title:'Single-Agent Volume Share in Settlement Window',
+        body:'A single agent accounting for >15% of prints in the final 15 minutes, predominantly at the best offer, is statistically anomalous. Normal institutional execution (VWAP algorithms) distributes volume across the session to minimise market impact. Concentration in the settlement window has no legitimate execution justification — it is the signature of an agent trying to maximise price at settlement, not minimise execution cost.',
+        cites:[
+          {ref:'Putniņš (2012)',text:'Market Manipulation: A Survey. Journal of Economic Surveys 26(5). Reviews empirical studies — agent concentration in final prints is a consistent finding.'},
+          {ref:'CFTC v. Amaranth Advisors (2007)',text:'$7.5M settlement for natural gas futures closing price manipulation — concentration of settlement-window trades documented.'}
+        ]
+      },
+      { title:'The Economic Incentive Structure',
+        body:'Many derivatives, ETFs, and portfolio benchmarks reference the official settlement price. A fund with a large offsetting derivative position can profit by moving settlement a few ticks — the derivative gain can far exceed the direct manipulation cost in the underlying. This is why small absolute price moves in the settlement window can justify large manipulation expenditure.',
+        cites:[{ref:'Comerton-Forde & Putniņš (2011)',text:'Demonstrates the incentive structure that makes closing price manipulation economically rational.'}]
+      }
+    ]
+  },
+  frontrun: {
+    title:'Front-Running — Why These Metrics?',
+    subtitle:'Pre-trade positioning, timing sequence, and information flow',
+    tags:[{t:'MiFID II',c:'blue'},{t:'HSBC 2017',c:'red'},{t:'Comms Evidence Required',c:'amber'},{t:'Sequencing',c:'green'}],
+    sections:[
+      { title:'The Fill Sequence Signal',
+        body:'Front-running is detected when an agent\u2019s fills appear in the tape consistently before a large client order from the same broker, in the same direction. The Mark Johnson (HSBC, 2017) case — "ohhhh f***ing Christmas" on a recorded call — established that communications evidence is typically required to convert circumstantial trade sequencing into provable intent. Trade data shows the pattern; communications data proves the information channel.',
+        cites:[
+          {ref:'US v. Johnson (2017)',text:'First criminal conviction of a senior banker for front-running a client FX order. Key evidence: recorded phone call.'},
+          {ref:'FCA Final Notice: HSBC Bank Plc (2016)',text:'£40M settlement for front-running Cairn Energy\u2019s $3.5bn FX order.'}
+        ]
+      },
+      { title:'MiFID II Best Execution Obligation',
+        body:'Under MiFID II Articles 27-28, investment firms must demonstrate best execution for client orders. Front-running is structurally incompatible with this obligation — it uses client information to benefit the firm\u2019s own book at the client\u2019s expense. Surveillance systems detect it by correlating firm/employee fills against subsequent client order flow, looking for consistent directional alignment in the window before large client executions.',
+        cites:[{ref:'MiFID II, Articles 27-28 (Directive 2014/65/EU)',text:'Best execution obligations — the regulatory basis for treating front-running as a best-execution breach.'}]
+      }
+    ]
+  },
+  wash: {
+    title:'Wash Trading — Why These Metrics?',
+    subtitle:'Volume inflation, beneficial ownership, and the detection limit',
+    tags:[{t:'Volume Signal',c:'amber'},{t:'Beneficial Ownership',c:'red'},{t:'Cross-Account Required',c:'blue'},{t:'Crypto',c:'purple'}],
+    sections:[
+      { title:'Why Volume Inflation Matters',
+        body:'Volume is a price signal: high volume is interpreted by algorithms as confirmation of price direction and is used in liquidity models and market impact estimates. Wash trading inflates reported volume with no genuine transfer of risk, creating a false impression of activity. It has been used to manipulate options implied volatility by artificially increasing underlying volume, and to attract retail participation to illiquid instruments.',
+        cites:[
+          {ref:'SEC v. Lek Securities Corp (2017)',text:'Systematic wash trading in equities — volume inflation of 30-40% documented.'},
+          {ref:'CFTC v. Coinbase (2021)',text:'Documents wash trading in crypto perpetual futures markets.'}
+        ]
+      },
+      { title:'The Detection Limit: Beneficial Ownership',
+        body:'A wash trade is invisible from public data — it looks identical to a genuine trade on the tape. Detection requires identifying that buyer and seller share beneficial ownership, requiring exchange-level or regulatory cross-account data. This is why the forensics panel flags wash volume separately: it cannot be detected by Gen-1 or Gen-2 surveillance without privileged cross-account access. This is the core lesson: some manipulation requires institutional-level data to detect.',
+        cites:[{ref:'Comerton-Forde & Putniņš (2015)',text:'Dark Trading and Price Discovery. Journal of Financial Economics 116(3).'}]
+      }
+    ]
+  },
+  insider: {
+    title:'Insider Trading — Why These Metrics?',
+    subtitle:'Pre-announcement accumulation, information timing, and detection limits',
+    tags:[{t:'MNPI',c:'purple'},{t:'Pre-announcement Signal',c:'red'},{t:'Meulbroek 1992',c:'blue'},{t:'Comms Evidence Required',c:'amber'}],
+    sections:[
+      { title:'The Pre-Announcement Accumulation Signal',
+        body:'The primary forensic signal for insider trading is unusual position building before a public announcement that moves prices, directionally aligned with the announcement outcome. Meulbroek (1992) — the classic empirical study — showed that prices run up 40-50% of the total announcement effect before the announcement on insider-trading days. This price run-up is the statistical anomaly that surveillance systems detect first.',
+        cites:[
+          {ref:'Meulbroek (1992)',text:'An Empirical Analysis of Illegal Insider Trading. Journal of Finance 47(5). The foundational empirical study of insider trading detection.'},
+          {ref:'Keown & Pinkerton (1981)',text:'Merger Announcements and Insider Trading Activity. Journal of Finance 36(4).'}
+        ]
+      },
+      { title:'Why Market Data Alone Is Insufficient',
+        body:'The IN1 metric — comparing fills before vs after the public announcement — is circumstantially suspicious but not conclusive. A skilled fundamental analyst could arrive at the same position through legitimate research. Prosecution requires establishing the information chain: who knew, when, and how it was communicated. This is why the information leak appears in pink in the event log, separately from the public tape — it is knowledge invisible to all other participants and to any market data feed.',
+        cites:[
+          {ref:'Bhattacharya & Daouk (2002)',text:'The World Price of Insider Trading. Journal of Finance 57(1).'},
+          {ref:'PP v. Soh Chee Wen [2023] SGHC 299',text:'Singapore BAL case — accumulation patterns used alongside communications evidence.'}
+        ]
+      }
+    ]
+  }
+};
+
+function openResearch(mode) {
+  const data = RESEARCH[mode] || RESEARCH['none'];
+  document.getElementById('rm-title').textContent    = data.title;
+  document.getElementById('rm-subtitle').textContent = data.subtitle;
+  const tags = (data.tags||[]).map(t => '<span class="rm-tag '+t.c+'">'+t.t+'</span>').join('');
+  const sections = (data.sections||[]).map(s => {
+    const cites = (s.cites||[]).map(c =>
+      '<div class="rm-cite"><strong>'+c.ref+':</strong> '+c.text+'</div>').join('');
+    const bodyHtml = s.body.split('\n').join('<br><br>');
+    return '<div class="rm-section"><div class="rm-section-title">'+s.title+'</div>'
+      +'<div class="rm-para">'+bodyHtml+'</div>'+cites+'</div>';
+  }).join('');
+  document.getElementById('rm-body').innerHTML = '<div style="margin-bottom:14px;">'+tags+'</div>'+sections;
+  document.getElementById('research-modal').classList.add('open');
+}
+
+function closeResearch() {
+  document.getElementById('research-modal').classList.remove('open');
+}
 </script>
+
+<!-- RESEARCH MODAL -->
+<div class="research-modal" id="research-modal" onclick="if(event.target===this)closeResearch()">
+  <div class="research-modal-inner">
+    <div class="rm-header">
+      <div>
+        <div class="rm-title" id="rm-title">Metric Background</div>
+        <div class="rm-subtitle" id="rm-subtitle">Academic foundations and regulatory significance</div>
+      </div>
+      <button class="rm-close" onclick="closeResearch()">✕</button>
+    </div>
+    <div class="rm-body" id="rm-body"></div>
+  </div>
+</div>
+
 </body>
 </html>
