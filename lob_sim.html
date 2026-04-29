@@ -166,8 +166,8 @@ body {
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: 280px 1fr 280px;
-  grid-template-rows: 1fr 160px;
+  grid-template-columns: 240px 220px 1fr 300px;
+  grid-template-rows: 1fr 140px;
   gap: 1px;
   background: var(--border);
   overflow: hidden;
@@ -199,7 +199,7 @@ body {
 }
 
 /* ── ORDER BOOK ── */
-#ob-panel { grid-row: 1; grid-column: 1; }
+#ob-panel    { grid-row: 1; grid-column: 1; }
 
 .ob-cols {
   display: grid; grid-template-columns: 1fr 72px 1fr;
@@ -266,7 +266,7 @@ body {
 .ob-spread-val { font-size: 11px; color: var(--amber); font-weight: 600; }
 
 /* ── CHART + ACTIVITY ── */
-#chart-panel { grid-row: 1; grid-column: 2; }
+#chart-panel { grid-row: 1; grid-column: 3; }
 
 .chart-wrap { flex: 1; position: relative; overflow: hidden; min-height: 0; }
 canvas#price-chart { width: 100%; height: 100%; display: block; }
@@ -292,7 +292,7 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
 }
 
 /* ── TAPE / T&S ── */
-#tape-panel { grid-row: 1; grid-column: 3; }
+#tape-panel  { grid-row: 1; grid-column: 4; }
 
 .tape-body { flex: 1; overflow-y: auto; padding: 2px 0; min-height: 0; }
 .tape-body::-webkit-scrollbar { width: 3px; }
@@ -326,8 +326,8 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
 .tag-front  { background: rgba(6,182,212,0.25); color: var(--cyan); border: 1px solid rgba(6,182,212,0.4); }
 
 /* ── BOTTOM ROW ── */
-#news-panel  { grid-row: 2; grid-column: 1 / 3; background: var(--bg1); }
-#agent-panel { grid-row: 2; grid-column: 3; }
+#news-panel  { grid-row: 2; grid-column: 1 / 5; background: var(--bg1); }
+#agent-panel { grid-row: 1; grid-column: 2; }
 
 .news-body {
   flex: 1; overflow-y: auto; padding: 4px 0;
@@ -457,6 +457,175 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
   position: absolute; top: -2px; height: 7px; width: 1px; background: var(--amber2);
 }
 
+/* ── SKIP BAR ── */
+.skip-bar {
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.skip-label {
+  font-size: 9px; color: var(--text3); letter-spacing: 0.12em;
+  text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+}
+.skip-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  padding: 3px 10px; cursor: pointer; border-radius: 2px; white-space: nowrap;
+  transition: all 0.12s; letter-spacing: 0.04em; flex-shrink: 0;
+}
+.skip-btn:hover { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+.skip-btn:disabled { opacity: 0.3; cursor: default; }
+.skip-btn:hover:disabled { background: var(--bg3); color: var(--text2); border-color: var(--border); }
+.skip-sep { width: 1px; height: 16px; background: var(--border2); flex-shrink: 0; }
+.scrubber-wrap { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.scrubber {
+  flex: 1; height: 4px; background: var(--bg3); border-radius: 2px;
+  position: relative; cursor: pointer; border: 1px solid var(--border);
+  min-width: 60px;
+}
+.scrubber-fill {
+  height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--amber) 60%, var(--purple) 100%);
+  border-radius: 2px; pointer-events: none; transition: width 0.3s linear;
+}
+.scrubber-thumb {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--amber2); border: 1px solid var(--bg);
+  pointer-events: none; transition: left 0.3s linear;
+  box-shadow: 0 0 6px rgba(240,165,0,0.5);
+}
+.scrubber:hover .scrubber-thumb { width: 13px; height: 13px; }
+.scrubber-time-label { font-size: 10px; color: var(--amber2); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+@keyframes skip-flash { 0% { opacity:0.7; } 100% { opacity:0; } }
+.skip-flash-overlay { position:absolute; inset:0; background:rgba(240,165,0,0.08); pointer-events:none; opacity:0; animation:skip-flash 0.6s ease forwards; }
+
+
+/* ── AGENT PANEL — rich stats ── */
+.agent-list { flex: 1; overflow-y: auto; padding: 0; }
+.agent-row {
+  padding: 5px 8px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 10px;
+}
+.agent-row:hover { background: rgba(255,255,255,0.02); }
+.agent-row-top {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.agent-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.agent-name { color: var(--text); font-size: 10px; font-weight: 500; flex: 1; }
+.agent-type-badge {
+  font-size: 8px; padding: 1px 5px; border-radius: 2px;
+  background: var(--bg3); color: var(--text3); letter-spacing: 0.06em;
+  text-transform: uppercase; flex-shrink: 0;
+}
+.agent-row.is-manip .agent-type-badge { background: rgba(220,38,38,0.2); color: var(--red2); }
+.agent-row.is-manip .agent-name { color: var(--red2); }
+.agent-stats {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2px 8px; font-size: 9px;
+}
+.agent-stat { display: flex; justify-content: space-between; align-items: center; }
+.agent-stat-label { color: var(--text3); }
+.agent-stat-val { font-weight: 500; color: var(--text2); font-size: 9px; }
+.agent-stat-val.pos { color: var(--green); }
+.agent-stat-val.neg { color: var(--red2); }
+.agent-stat-val.gold { color: var(--amber); }
+
+/* Order exposure bar */
+.agent-exposure {
+  display: flex; align-items: center; gap: 4px; margin-top: 4px; height: 6px;
+}
+.exp-bar-wrap { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; position: relative; overflow: hidden; }
+.exp-bar-bid { position: absolute; left: 0; height: 100%; background: var(--green); border-radius: 2px 0 0 2px; opacity: 0.7; transition: width 0.3s; }
+.exp-bar-ask { position: absolute; right: 0; height: 100%; background: var(--red); border-radius: 0 2px 2px 0; opacity: 0.7; transition: width 0.3s; }
+.exp-label-bid { font-size: 8px; color: var(--green); width: 28px; text-align: left; }
+.exp-label-ask { font-size: 8px; color: var(--red2); width: 28px; text-align: right; }
+
+.agent-list-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+  font-size: 9px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ── TAPE / FORENSICS TABS ── */
+.tab-bar {
+  display: flex; border-bottom: 1px solid var(--border2);
+  flex-shrink: 0; background: var(--bg2);
+}
+.tab-btn {
+  padding: 6px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+  font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer; color: var(--text3); border: none; background: transparent;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+.tab-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+.tab-pane.active { display: flex; }
+
+/* ── FORENSICS PANEL ── */
+.forensics-body { flex: 1; overflow-y: auto; padding: 8px; }
+.forensics-body::-webkit-scrollbar { width: 3px; }
+.forensics-body::-webkit-scrollbar-thumb { background: var(--bg4); }
+
+.for-section { margin-bottom: 16px; }
+.for-section-title {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 6px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.for-section-title.red   { color: var(--red2); border-color: rgba(220,38,38,0.3); }
+.for-section-title.amber { color: var(--amber); border-color: rgba(240,165,0,0.3); }
+.for-section-title.teal  { color: var(--teal,#0d9488); border-color: rgba(13,148,136,0.3); }
+.for-section-title.blue  { color: var(--blue2); border-color: rgba(41,121,255,0.3); }
+
+.for-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;
+}
+.for-stat-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 6px 8px;
+}
+.for-stat-card-label { font-size: 8px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
+.for-stat-card-val { font-size: 14px; font-weight: 600; color: var(--text); }
+.for-stat-card-val.red { color: var(--red2); }
+.for-stat-card-val.green { color: var(--green2); }
+.for-stat-card-val.amber { color: var(--amber2); }
+.for-stat-card-sub { font-size: 9px; color: var(--text3); margin-top: 1px; }
+
+.for-table { width: 100%; border-collapse: collapse; font-size: 9px; }
+.for-table th { text-align: left; padding: 3px 6px; color: var(--text3); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border2); }
+.for-table td { padding: 3px 6px; color: var(--text2); border-bottom: 1px solid rgba(255,255,255,0.02); vertical-align: top; line-height: 1.4; }
+.for-table tr:hover td { background: rgba(255,255,255,0.02); }
+.for-table td.hi-red { color: var(--red2); font-weight: 500; }
+.for-table td.hi-green { color: var(--green2); font-weight: 500; }
+.for-table td.hi-amber { color: var(--amber); font-weight: 500; }
+
+.for-chart-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 3px; height: 80px; position: relative; overflow: hidden; margin-bottom: 8px; }
+canvas.for-chart { width: 100%; height: 100%; display: block; }
+
+.for-empty {
+  padding: 20px; text-align: center;
+  font-size: 10px; color: var(--text3); line-height: 1.6;
+}
+
+.for-alert {
+  padding: 6px 10px; border-radius: 3px; margin-bottom: 6px;
+  font-size: 10px; line-height: 1.5;
+}
+.for-alert.red   { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3); color: #fca5a5; }
+.for-alert.amber { background: rgba(240,165,0,0.1); border: 1px solid rgba(240,165,0,0.3); color: var(--amber2); }
+.for-alert.green { background: rgba(0,201,122,0.1); border: 1px solid rgba(0,201,122,0.3); color: var(--green2); }
+
 /* Scrollbar global */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -532,6 +701,30 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
   <div class="day-progress-marker" style="left:93.8%" title="15:45 Mark Window"></div>
 </div>
 
+<!-- SKIP / SCRUBBER BAR -->
+<div class="skip-bar">
+  <span class="skip-label">Jump to:</span>
+  <button class="skip-btn" onclick="skipToSession(0)"    title="06:00 Pre-market">06:00 Pre</button>
+  <button class="skip-btn" onclick="skipToSession(13140)" title="09:39 Market open">09:39 Open</button>
+  <button class="skip-btn" onclick="skipToSession(21600)" title="12:00 Mid-session">12:00 Mid</button>
+  <button class="skip-btn" onclick="skipToSession(32400)" title="15:00 Close">15:00 Close</button>
+  <button class="skip-btn" onclick="skipToSession(35700)" title="15:55 Marking window">15:55 Mark</button>
+  <div class="skip-sep"></div>
+  <button class="skip-btn" onclick="skipMinutes(-60)">&#9664;&#9664; -1h</button>
+  <button class="skip-btn" onclick="skipMinutes(-30)">&#9664; -30m</button>
+  <button class="skip-btn" onclick="skipMinutes(30)">+30m &#9654;</button>
+  <button class="skip-btn" onclick="skipMinutes(60)">+1h &#9654;&#9654;</button>
+  <div class="skip-sep"></div>
+  <div class="scrubber-wrap">
+    <span class="skip-label">Scrub:</span>
+    <div class="scrubber" id="scrubber" onclick="scrubberClick(event)" onmousemove="scrubberHover(event)" onmouseleave="scrubberLeave()">
+      <div class="scrubber-fill"  id="scrubber-fill"  style="width:0%"></div>
+      <div class="scrubber-thumb" id="scrubber-thumb" style="left:0%"></div>
+    </div>
+    <span class="scrubber-time-label" id="scrubber-time">06:00</span>
+  </div>
+</div>
+
 <!-- MAIN GRID -->
 <div class="main">
 
@@ -571,15 +764,31 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
     </div>
   </div>
 
-  <!-- TIME & SALES TAPE -->
+  <!-- TIME & SALES + FORENSICS TABS -->
   <div class="panel" id="tape-panel">
     <div class="panel-header">
-      <span class="panel-title">Time & Sales</span>
+      <span class="panel-title">Market Data</span>
       <span style="font-size:9px;color:var(--text3);" id="tape-count">0 PRINTS</span>
     </div>
-    <div class="tape-body" id="tape-body">
-      <div class="agent-list-header">
-        <span></span><span>Time · Price</span><span>Qty</span><span>Agent</span>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('tape')">Time &amp; Sales</button>
+      <button class="tab-btn"        onclick="switchTab('forensics')">⚖ Forensics</button>
+    </div>
+    <!-- TAPE PANE -->
+    <div class="tab-pane active" id="pane-tape">
+      <div class="tape-body" id="tape-body">
+        <div class="agent-list-header">
+          <span></span><span>Time · Price</span><span>Qty</span><span>Agent</span>
+        </div>
+      </div>
+    </div>
+    <!-- FORENSICS PANE -->
+    <div class="tab-pane" id="pane-forensics">
+      <div class="forensics-body" id="forensics-body">
+        <div class="for-empty" id="for-empty">
+          ⚖ Select a manipulation mode and run the simulation to see forensic analysis here.<br><br>
+          Forensics shows order flow analysis, agent advantage metrics, cancelled order ratios, and price impact attribution.
+        </div>
       </div>
     </div>
   </div>
@@ -596,11 +805,11 @@ canvas#price-chart { width: 100%; height: 100%; display: block; }
   <!-- AGENT PANEL -->
   <div class="panel" id="agent-panel">
     <div class="panel-header">
-      <span class="panel-title">Active Agents</span>
+      <span class="panel-title">Agent Positioning</span>
       <span class="panel-badge" id="agent-count">0 AGENTS</span>
     </div>
-    <div class="agent-list-header">
-      <span></span><span>Agent</span><span>Type</span><span>P&L</span>
+    <div class="agent-list-hdr">
+      <span>Agent · Type</span><span>Bid/Ask Exposure</span>
     </div>
     <div class="agent-list" id="agent-list"></div>
   </div>
@@ -1519,6 +1728,489 @@ window.addEventListener('resize', () => {
 
 // Auto-show initial explanation
 setTimeout(() => setMode('none'), 400);
+
+// ═══════════════════════════════════════════════
+//  SKIP / SCRUBBER
+// ═══════════════════════════════════════════════
+
+function skipTo(targetSec) {
+  if (targetSec < 0) targetSec = 0;
+  if (targetSec >= daySeconds) targetSec = daySeconds - 1;
+
+  if (simTime === 0 && targetSec > 0) {
+    buildAgents(); setManipActive(); initBook();
+    insiderEventFired = false; insiderInfo = null;
+    pendingSpoofs = []; layerOrders = [];
+    manipCycle = 0; washCycle = 0;
+    dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
+    totalVol = 0; vwapSum = 0; tapeCount = 0;
+    priceHistory = []; chartEventPins = [];
+    document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
+    document.getElementById('news-body').innerHTML = '';
+    document.getElementById('agent-list').innerHTML = '';
+  }
+
+  const wasPaused = !running;
+  if (running) { clearInterval(simInterval); running = false; }
+
+  if (targetSec < simTime) {
+    // Rewind — reset then forward
+    simTime = 0; midPrice = BASE_PRICE;
+    pendingSpoofs = []; layerOrders = [];
+    manipCycle = 0; washCycle = 0;
+    insiderEventFired = false; insiderInfo = null;
+    dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
+    totalVol = 0; vwapSum = 0; tapeCount = 0;
+    priceHistory = []; chartEventPins = [];
+    initBook();
+    document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
+    document.getElementById('news-body').innerHTML = '';
+    addNews('Rewound — fast-forwarding to ' + offsetToTimeFull(targetSec) + '...', '');
+  }
+
+  const stepsNeeded = targetSec - simTime;
+  if (stepsNeeded <= 0) {
+    if (!wasPaused) resumeAfterSkip();
+    return;
+  }
+
+  const chartWrap = document.querySelector('.chart-wrap');
+  const flashEl = document.createElement('div');
+  flashEl.className = 'skip-flash-overlay';
+  chartWrap.appendChild(flashEl);
+
+  const BATCH = 300;
+  let done = 0;
+
+  function runBatch() {
+    const batchEnd = Math.min(stepsNeeded, done + BATCH);
+    while (done < batchEnd) {
+      simTime++;
+      noiseAgentStep();
+      if (simMode === 'spoofing') spoofingStep();
+      else if (simMode === 'layering') layeringStep();
+      else if (simMode === 'marking')  markingStep();
+      else if (simMode === 'frontrun') frontRunStep();
+      else if (simMode === 'wash')     washStep();
+      else if (simMode === 'insider')  insiderStep();
+      matchBook();
+      if (simTime % 10 === 0) {
+        priceHistory.push({ t: simTime, price: lastPrice, vol: randInt(10,80), session: currentSession().id, cumVol: totalVol });
+      }
+      done++;
+    }
+    const pct = Math.min(100, (simTime/daySeconds)*100);
+    const sf = document.getElementById('scrubber-fill');
+    const st = document.getElementById('scrubber-thumb');
+    const df = document.getElementById('day-fill');
+    const sl = document.getElementById('scrubber-time');
+    if (sf) sf.style.width = pct+'%';
+    if (st) st.style.left  = pct+'%';
+    if (df) df.style.width = pct+'%';
+    if (sl) sl.textContent = offsetToTime(simTime/60);
+
+    if (done < stepsNeeded) {
+      requestAnimationFrame(runBatch);
+    } else {
+      renderBook(); updateClock(); updateTopBar(); renderChart(); renderAgents();
+      setTimeout(() => flashEl.remove(), 700);
+      addNews('Jumped to ' + offsetToTimeFull(simTime) + ' — ' + currentSession().label, '');
+      if (!wasPaused) resumeAfterSkip();
+    }
+  }
+  requestAnimationFrame(runBatch);
+}
+
+function resumeAfterSkip() {
+  running = true;
+  simInterval = setInterval(simStep, Math.max(50, 1000/speedMul));
+  const btn = document.getElementById('sim-toggle');
+  btn.textContent = '⏸ PAUSE';
+  btn.classList.add('running'); btn.classList.remove('paused');
+}
+
+function skipToSession(targetSec) { skipTo(targetSec); }
+
+function skipMinutes(mins) {
+  skipTo(Math.max(0, Math.min(daySeconds-1, simTime + mins*60)));
+}
+
+function syncScrubber() {
+  const pct = Math.min(100, (simTime/daySeconds)*100);
+  const sf = document.getElementById('scrubber-fill');
+  const st = document.getElementById('scrubber-thumb');
+  const df = document.getElementById('day-fill');
+  const sl = document.getElementById('scrubber-time');
+  if (sf) sf.style.width = pct+'%';
+  if (st) st.style.left  = pct+'%';
+  if (df) df.style.width = pct+'%';
+  if (sl) sl.textContent = offsetToTime(simTime/60);
+}
+
+function scrubberClick(e) {
+  const rect = document.getElementById('scrubber').getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1, (e.clientX - rect.left)/rect.width));
+  skipTo(Math.floor(frac * daySeconds));
+}
+
+function scrubberHover(e) {
+  const rect = document.getElementById('scrubber').getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1, (e.clientX - rect.left)/rect.width));
+  const hSec = Math.floor(frac * daySeconds);
+  const sess = SESSIONS.find(s => (hSec/60) >= s.start && (hSec/60) < s.end);
+  const sl = document.getElementById('scrubber-time');
+  if (sl) sl.textContent = offsetToTime(hSec/60) + (sess ? ' · '+sess.label : '');
+}
+
+function scrubberLeave() { syncScrubber(); }
+
+// Patch simStep to keep scrubber in sync during normal playback
+const _origSimStep = simStep;
+simStep = function() {
+  _origSimStep();
+  syncScrubber();
+};
+
+// ═══════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(tab === 'tape' ? 'time' : 'forensic'))
+  );
+  document.getElementById('pane-tape').classList.toggle('active', tab === 'tape');
+  document.getElementById('pane-forensics').classList.toggle('active', tab === 'forensics');
+  if (tab === 'forensics') renderForensics();
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORENSICS DATA STORE
+// ═══════════════════════════════════════════════════════
+// Running accumulators — updated each simStep
+let forensics = {
+  spoofOrdersPlaced:  0,
+  spoofOrdersCancelled: 0,
+  spoofTotalQty:      0,
+  spoofFillsEnabled:  0,   // fills that happened within 200ms of a spoof
+  priceAtSpoof:       [],  // [{t, priceBefore, priceAfter, direction}]
+  layerOrdsPlaced:    0,
+  layerOrdsCancelled: 0,
+  layerFills:         0,
+  washVolume:         0,
+  washPctOfTotal:     0,
+  insiderFills:       0,
+  insiderProfit:      0,
+  frontrunFills:      0,
+  frontrunEdgeTicks:  [],
+  markingPrints:      [],  // {t, price} of close-session aggressive buys
+  cancelRatioByAgent: {},  // agentId -> {placed, cancelled}
+  fillRatioByAgent:   {},
+  agentBidVol:        {},  // agentId -> outstanding bid qty
+  agentAskVol:        {},  // agentId -> outstanding ask qty
+  agentFills:         {},  // agentId -> total filled qty
+  agentCancels:       {},  // agentId -> total cancelled qty
+  priceImpactEvents:  [],  // {t, agent, side, qty, priceBefore, priceAfter, ticks}
+};
+
+function resetForensics() {
+  forensics = {
+    spoofOrdersPlaced:0, spoofOrdersCancelled:0, spoofTotalQty:0, spoofFillsEnabled:0,
+    priceAtSpoof:[], layerOrdsPlaced:0, layerOrdsCancelled:0, layerFills:0,
+    washVolume:0, washPctOfTotal:0, insiderFills:0, insiderProfit:0,
+    frontrunFills:0, frontrunEdgeTicks:[], markingPrints:[], cancelRatioByAgent:{},
+    fillRatioByAgent:{}, agentBidVol:{}, agentAskVol:{}, agentFills:{},
+    agentCancels:{}, priceImpactEvents:[],
+  };
+}
+
+// Patch key functions to record forensic data
+const _origAddOrUpdate = addOrUpdate;
+addOrUpdate = function(side, price, qty, agentId, tag) {
+  // Track placement
+  if (!forensics.cancelRatioByAgent[agentId]) forensics.cancelRatioByAgent[agentId] = {placed:0,cancelled:0};
+  if (qty > 0) forensics.cancelRatioByAgent[agentId].placed++;
+  if (tag === 'spoof') { forensics.spoofOrdersPlaced++; forensics.spoofTotalQty += qty; }
+  if (tag === 'layer') forensics.layerOrdsPlaced++;
+  _origAddOrUpdate(side, price, qty, agentId, tag);
+  // Update live exposure
+  updateAgentExposure();
+};
+
+const _origRemoveAllByAgent = removeAllByAgent;
+removeAllByAgent = function(agentId) {
+  // Count cancels
+  const bidCount = bids.filter(o=>o.agentId===agentId).length;
+  const askCount = asks.filter(o=>o.agentId===agentId).length;
+  if (!forensics.cancelRatioByAgent[agentId]) forensics.cancelRatioByAgent[agentId]={placed:0,cancelled:0};
+  forensics.cancelRatioByAgent[agentId].cancelled += bidCount + askCount;
+  const tag = bids.concat(asks).find(o=>o.agentId===agentId)?.tag;
+  if (tag === 'spoof') forensics.spoofOrdersCancelled += bidCount + askCount;
+  if (tag === 'layer') forensics.layerOrdsCancelled += bidCount + askCount;
+  _origRemoveAllByAgent(agentId);
+  updateAgentExposure();
+};
+
+const _origMatchBook = matchBook;
+matchBook = function() {
+  const priceBefore = lastPrice;
+  const fills = _origMatchBook();
+  fills.forEach(f => {
+    if (!forensics.agentFills[f.buyerId]) forensics.agentFills[f.buyerId] = 0;
+    if (!forensics.agentFills[f.sellerId]) forensics.agentFills[f.sellerId] = 0;
+    forensics.agentFills[f.buyerId] += f.qty;
+    forensics.agentFills[f.sellerId] += f.qty;
+    if (f.buyTag==='wash'||f.sellTag==='wash') forensics.washVolume += f.qty;
+    if (f.buyTag==='insider'||f.sellTag==='insider') forensics.insiderFills += f.qty;
+    if (f.buyTag==='frontrun'||f.sellTag==='frontrun') forensics.frontrunFills += f.qty;
+    // Price impact
+    if (lastPrice !== priceBefore) {
+      const ticks = Math.round(Math.abs(lastPrice-priceBefore)/TICK);
+      if (ticks > 0) {
+        forensics.priceImpactEvents.push({
+          t: simTime, agent: f.buyerId||f.sellerId, side: f.buyTag||f.sellTag,
+          qty: f.qty, priceBefore, priceAfter: lastPrice, ticks
+        });
+        if (forensics.priceImpactEvents.length > 200) forensics.priceImpactEvents.shift();
+      }
+    }
+  });
+  return fills;
+};
+
+function updateAgentExposure() {
+  agents.forEach(a => {
+    forensics.agentBidVol[a.id] = bids.filter(o=>o.agentId===a.id).reduce((s,o)=>s+o.qty,0);
+    forensics.agentAskVol[a.id] = asks.filter(o=>o.agentId===a.id).reduce((s,o)=>s+o.qty,0);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENHANCED renderAgents
+// ═══════════════════════════════════════════════════════
+renderAgents = function() {
+  const list = document.getElementById('agent-list');
+  const active = agents.filter(a=>a.active || ['MM1','MM2','NT1','NT2','NT3','FD1','FD2','AR1'].includes(a.id));
+
+  const maxExposure = Math.max(1, ...active.map(a =>
+    (forensics.agentBidVol[a.id]||0) + (forensics.agentAskVol[a.id]||0)
+  ));
+
+  list.innerHTML = active.map(a => {
+    const type  = AGENT_TYPES[a.type];
+    const pnl   = agentPnl[a.id] || 0;
+    const isM   = type.manip && a.active;
+    const bidV  = forensics.agentBidVol[a.id] || 0;
+    const askV  = forensics.agentAskVol[a.id] || 0;
+    const fills = forensics.agentFills[a.id] || 0;
+    const cxls  = forensics.cancelRatioByAgent[a.id]?.cancelled || 0;
+    const plcd  = forensics.cancelRatioByAgent[a.id]?.placed || 1;
+    const cancelPct = Math.round((cxls/plcd)*100);
+    const netPos = bidV - askV;
+    const totalExp = bidV + askV;
+    const bidPct = totalExp > 0 ? (bidV/maxExposure*100).toFixed(0) : 0;
+    const askPct = totalExp > 0 ? (askV/maxExposure*100).toFixed(0) : 0;
+
+    return `<div class="agent-row ${isM?'is-manip':''}">
+      <div class="agent-row-top">
+        <div class="agent-dot" style="background:${type.color}"></div>
+        <span class="agent-name">${a.name}</span>
+        <span class="agent-type-badge">${type.label}</span>
+      </div>
+      <div class="agent-exposure">
+        <span class="exp-label-bid">${bidV}</span>
+        <div class="exp-bar-wrap">
+          <div class="exp-bar-bid"  style="width:${bidPct}%"></div>
+          <div class="exp-bar-ask"  style="width:${askPct}%"></div>
+        </div>
+        <span class="exp-label-ask">${askV}</span>
+      </div>
+      <div class="agent-stats">
+        <div class="agent-stat"><span class="agent-stat-label">P&L</span>
+          <span class="agent-stat-val ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(0)}</span></div>
+        <div class="agent-stat"><span class="agent-stat-label">Fills</span>
+          <span class="agent-stat-val gold">${fills}</span></div>
+        <div class="agent-stat"><span class="agent-stat-label">Net</span>
+          <span class="agent-stat-val ${netPos>0?'pos':netPos<0?'neg':''}">${netPos>0?'+':''}${netPos}</span></div>
+        <div class="agent-stat"><span class="agent-stat-label">CxlR</span>
+          <span class="agent-stat-val ${cancelPct>60?'neg':cancelPct>30?'gold':''}">${cancelPct}%</span></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('agent-count').textContent = `${active.length} AGENTS`;
+};
+
+// ═══════════════════════════════════════════════════════
+//  FORENSICS RENDER
+// ═══════════════════════════════════════════════════════
+function renderForensics() {
+  const body = document.getElementById('forensics-body');
+  const mode = simMode;
+
+  if (mode === 'none' && simTime < 100) {
+    body.innerHTML = `<div class="for-empty">⚖ Run the simulation with a manipulation mode selected to populate forensic analysis.</div>`;
+    return;
+  }
+
+  const washPct = totalVol > 0 ? ((forensics.washVolume/totalVol)*100).toFixed(1) : '0.0';
+  const spfRate  = forensics.spoofOrdersPlaced > 0
+    ? ((forensics.spoofOrdersCancelled/forensics.spoofOrdersPlaced)*100).toFixed(0) : '—';
+
+  // Manipulator order stats
+  const mn1Bid = forensics.agentBidVol['MN1']||0;
+  const mn1Ask = forensics.agentAskVol['MN1']||0;
+  const mn2Bid = forensics.agentBidVol['MN2']||0;
+  const mn2Ask = forensics.agentAskVol['MN2']||0;
+
+  // Price impact table — top 8
+  const impacts = [...forensics.priceImpactEvents].reverse().slice(0,8);
+
+  // Build cancel ratio table
+  const cancelRows = Object.entries(forensics.cancelRatioByAgent)
+    .sort((a,b) => b[1].cancelled - a[1].cancelled)
+    .slice(0,10)
+    .map(([id, cr]) => {
+      const pct = cr.placed > 0 ? ((cr.cancelled/cr.placed)*100).toFixed(0) : 0;
+      const isManip = ['MN1','MN2','WS1','IN1'].includes(id);
+      return `<tr>
+        <td class="${isManip?'hi-red':''}">${id}</td>
+        <td>${cr.placed}</td>
+        <td class="${isManip?'hi-red':''}">${cr.cancelled}</td>
+        <td class="${+pct>50?'hi-red':+pct>25?'hi-amber':'hi-green'}">${pct}%</td>
+      </tr>`;
+    }).join('');
+
+  let modeSection = '';
+  let alert1 = '';
+
+  if (mode === 'spoofing') {
+    alert1 = `<div class="for-alert red">⚠ Spoofing detected — ${forensics.spoofOrdersPlaced} large orders placed, ${forensics.spoofOrdersCancelled} cancelled before fill. Cancel rate: ${spfRate}%. Genuine fills obtained on opposite side using artificial depth as catalyst.</div>`;
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title red">Spoof Order Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">Orders Placed</div><div class="for-stat-card-val amber">${forensics.spoofOrdersPlaced}</div><div class="for-stat-card-sub">by MN1/MN2</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Cancelled</div><div class="for-stat-card-val red">${forensics.spoofOrdersCancelled}</div><div class="for-stat-card-sub">never intended to fill</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Cancel Rate</div><div class="for-stat-card-val red">${spfRate}%</div><div class="for-stat-card-sub">normal ≈ 20–40%</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Spoof Qty Total</div><div class="for-stat-card-val amber">${forensics.spoofTotalQty}</div><div class="for-stat-card-sub">lots placed, not filled</div></div>
+        </div>
+        <div class="for-alert amber">📌 Surveillance signal: any single agent with cancel rate &gt;70% AND order sizes 5× market average is a pattern consistent with spoofing under CFTC / MAR Article 12.</div>
+      </div>`;
+  } else if (mode === 'layering') {
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title amber">Layering Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">Layers Placed</div><div class="for-stat-card-val amber">${forensics.layerOrdsPlaced}</div><div class="for-stat-card-sub">stacked across levels</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Layers Removed</div><div class="for-stat-card-val red">${forensics.layerOrdsCancelled}</div><div class="for-stat-card-sub">after opposite fill</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Bid Exposure</div><div class="for-stat-card-val green">${mn1Bid}</div><div class="for-stat-card-sub">lots resting bid</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Ask Exposure</div><div class="for-stat-card-val red">${mn1Ask}</div><div class="for-stat-card-sub">lots resting ask</div></div>
+        </div>
+        <div class="for-alert amber">📌 Layering creates asymmetric book pressure across multiple levels. Gen-2 surveillance detects the place→fill-opposite→cancel sequence across all stacked levels.</div>
+      </div>`;
+    alert1 = `<div class="for-alert amber">⚠ Layering activity — multiple orders stacked to create artificial depth, then removed after genuine fill on opposite side.</div>`;
+  } else if (mode === 'marking') {
+    const markPrints = forensics.markingPrints.length;
+    const lastMark = forensics.markingPrints[forensics.markingPrints.length-1];
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--purple);border-color:rgba(168,85,247,0.3);">Marking the Close Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">Aggressive Prints</div><div class="for-stat-card-val" style="color:var(--purple);">${forensics.priceImpactEvents.filter(e=>e.side==='spoof').length}</div><div class="for-stat-card-sub">close session lifts</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Settlement Window</div><div class="for-stat-card-val amber">${simTime>35700?'ACTIVE':'PENDING'}</div><div class="for-stat-card-sub">15:55 activation</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Close Session Vol</div><div class="for-stat-card-val amber">${forensics.priceImpactEvents.filter(e=>e.t>32400).reduce((s,e)=>s+e.qty,0)}</div><div class="for-stat-card-sub">lots after 15:00</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Price vs Open</div><div class="for-stat-card-val ${lastPrice>dayOpen?'green':'red'}">${lastPrice>dayOpen?'+':''}${((lastPrice-dayOpen)/TICK).toFixed(0)} ticks</div><div class="for-stat-card-sub">intraday move</div></div>
+        </div>
+        <div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">📌 Marking the Close — aggressive buying in final minutes inflates settlement reference price. Detectable via volume-at-best analysis in final 30-min window vs rest of day.</div>
+      </div>`;
+    alert1 = `<div class="for-alert" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.3);color:#d8b4fe;">⚠ Close session manipulation active — price being pushed by MN1 to influence settlement reference.</div>`;
+  } else if (mode === 'wash') {
+    alert1 = `<div class="for-alert" style="background:rgba(219,39,119,0.1);border:1px solid rgba(219,39,119,0.4);color:#f9a8d4;">⚠ Wash trading detected — ${forensics.washVolume} lots crossed with no change in beneficial ownership. Inflated volume: ${washPct}% of total prints are wash.</div>`;
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title" style="color:#f472b6;border-color:rgba(219,39,119,0.3);">Wash Trading Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">Wash Volume</div><div class="for-stat-card-val" style="color:#f472b6;">${forensics.washVolume}</div><div class="for-stat-card-sub">lots — no econ. purpose</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">% of Total Vol</div><div class="for-stat-card-val" style="color:#f472b6;">${washPct}%</div><div class="for-stat-card-sub">artificial inflation</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">True Volume</div><div class="for-stat-card-val green">${totalVol - forensics.washVolume}</div><div class="for-stat-card-sub">genuine fills</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Reported Volume</div><div class="for-stat-card-val amber">${totalVol}</div><div class="for-stat-card-sub">incl. wash prints</div></div>
+        </div>
+        <div class="for-alert" style="background:rgba(219,39,119,0.1);border:1px solid rgba(219,39,119,0.4);color:#f9a8d4;">📌 Wash trading detection requires cross-account beneficial ownership analysis — impossible from tape alone. Exchange-level cross-account matching is required.</div>
+      </div>`;
+  } else if (mode === 'insider') {
+    alert1 = `<div class="for-alert" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.4);color:#c4b5fd;">⚠ Insider position detected — IN1 accumulated ${forensics.agentFills['IN1']||0} lots ahead of public announcement. Advantage window visible in event log.</div>`;
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title" style="color:#c4b5fd;border-color:rgba(167,139,250,0.3);">Insider Trading Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">IN1 Fills</div><div class="for-stat-card-val" style="color:#c4b5fd;">${forensics.agentFills['IN1']||0}</div><div class="for-stat-card-sub">lots accumulated</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">IN1 Bid Exposure</div><div class="for-stat-card-val green">${forensics.agentBidVol['IN1']||0}</div><div class="for-stat-card-sub">resting bids</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">IN1 Ask Exposure</div><div class="for-stat-card-val red">${forensics.agentAskVol['IN1']||0}</div><div class="for-stat-card-sub">resting asks</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Info Advantage</div><div class="for-stat-card-val" style="color:#c4b5fd;">${insiderEventFired?'ACTIVE':'PENDING'}</div><div class="for-stat-card-sub">private info status</div></div>
+        </div>
+        <div class="for-alert" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.4);color:#c4b5fd;">📌 Insider trading is invisible from order/price data alone. Prosecution requires proof of MNPI access. Compare IN1 order timing vs public news event in the Event Log — the pre-announcement accumulation is the forensic signature.</div>
+      </div>`;
+  } else if (mode === 'frontrun') {
+    alert1 = `<div class="for-alert" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.4);color:#a5f3fc;">⚠ Front-running — MN1 positions ahead of known client order. Sequence: INFO LEAK → MN1 build → client exec → MN1 close.</div>`;
+    modeSection = `
+      <div class="for-section">
+        <div class="for-section-title" style="color:var(--cyan);border-color:rgba(6,182,212,0.3);">Front-Running Metrics</div>
+        <div class="for-stat-grid">
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Pre-Trade Fills</div><div class="for-stat-card-val" style="color:var(--cyan);">${forensics.frontrunFills}</div><div class="for-stat-card-sub">lots taken ahead of client</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">MN1 Bid Resting</div><div class="for-stat-card-val green">${mn1Bid}</div><div class="for-stat-card-sub">current bid exposure</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">Client Agent</div><div class="for-stat-card-val blue">FD2</div><div class="for-stat-card-sub">Blackrock order</div></div>
+          <div class="for-stat-card"><div class="for-stat-card-label">FD2 Fills</div><div class="for-stat-card-val blue">${forensics.agentFills['FD2']||0}</div><div class="for-stat-card-sub">client execution</div></div>
+        </div>
+        <div class="for-alert" style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.4);color:#a5f3fc;">📌 Forensic signature: MN1 fills appear in tape milliseconds before FD2 order executes. Comms surveillance required to prove the information channel — the trade sequence alone is circumstantial.</div>
+      </div>`;
+  }
+
+  // Price impact table
+  const impactRows = impacts.length ? impacts.map(e =>
+    `<tr><td>${offsetToTimeFull(e.t)}</td><td class="${['spoof','layer','wash','insider','frontrun'].includes(e.side)?'hi-red':'hi-green'}">${e.side||'mkt'}</td><td>${e.qty}</td><td class="${e.ticks>2?'hi-red':'hi-amber'}">${e.ticks>0?'+':''}${e.ticks} tk</td></tr>`
+  ).join('') : '<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:8px;">No price impact events recorded yet</td></tr>';
+
+  body.innerHTML = `
+    ${alert1}
+    ${modeSection}
+    <div class="for-section">
+      <div class="for-section-title">Cancel Ratio by Agent</div>
+      <table class="for-table">
+        <thead><tr><th>Agent</th><th>Placed</th><th>Cancelled</th><th>Rate</th></tr></thead>
+        <tbody>${cancelRows || '<tr><td colspan="4" style="color:var(--text3);text-align:center;">No order data yet</td></tr>'}</tbody>
+      </table>
+    </div>
+    <div class="for-section">
+      <div class="for-section-title">Price Impact Events</div>
+      <table class="for-table">
+        <thead><tr><th>Time</th><th>Agent Tag</th><th>Qty</th><th>Impact</th></tr></thead>
+        <tbody>${impactRows}</tbody>
+      </table>
+    </div>
+    <div class="for-section">
+      <div class="for-section-title">Agent Fill Summary</div>
+      <table class="for-table">
+        <thead><tr><th>Agent</th><th>Fills</th><th>Bid Out</th><th>Ask Out</th></tr></thead>
+        <tbody>${agents.filter(a=>a.active||['MM1','MM2','NT1','FD1','FD2'].includes(a.id)).map(a=>{
+          const isM = AGENT_TYPES[a.type].manip && a.active;
+          return `<tr><td class="${isM?'hi-red':''}">${a.name}</td><td>${forensics.agentFills[a.id]||0}</td><td class="hi-green">${forensics.agentBidVol[a.id]||0}</td><td class="hi-red">${forensics.agentAskVol[a.id]||0}</td></tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// Hook resetForensics into sim start
+const _origStartSim = startSim;
+startSim = function() {
+  if (simTime === 0) resetForensics();
+  _origStartSim();
+};
+
+// Auto-refresh forensics tab every 3s when it's active
+setInterval(() => {
+  if (document.getElementById('pane-forensics').classList.contains('active')) renderForensics();
+}, 3000);
+
 </script>
 </body>
 </html>
