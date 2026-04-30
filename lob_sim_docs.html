@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOB-SIM Technical Reference — Market Microstructure & Surveillance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@300;400;500;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #1a1a1a;
+  --ink2:      #2d2d2d;
+  --ink3:      #4a4a4a;
+  --paper:     #f5f0e8;
+  --paper2:    #ede8de;
+  --paper3:    #e0d9cc;
+  --accent:    #8b2500;
+  --accent2:   #c43b00;
+  --gold:      #b8860b;
+  --gold2:     #d4a017;
+  --teal:      #1a5c6b;
+  --teal2:     #2a7a8e;
+  --green:     #1a5c2a;
+  --border:    rgba(26,26,26,0.15);
+  --border2:   rgba(26,26,26,0.08);
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Crimson Pro', 'Libre Baskerville', Georgia, serif;
+  --display:   'Libre Baskerville', Georgia, serif;
+  --shadow:    0 2px 12px rgba(0,0,0,0.08);
+  --shadow2:   0 4px 24px rgba(0,0,0,0.14);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.75;
+}
+
+/* ── LAYOUT ── */
+.shell { display: flex; min-height: 100vh; }
+
+/* Sidebar nav */
+.sidebar {
+  width: 260px; flex-shrink: 0;
+  background: var(--ink);
+  color: #d4ccbb;
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto; padding: 28px 0 40px;
+  font-family: var(--mono); font-size: 11px;
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: #333; }
+
+.sidebar-logo {
+  padding: 0 20px 24px;
+  font-family: var(--display);
+  font-size: 15px; font-weight: 700;
+  color: #f0e8d8; letter-spacing: 0.02em;
+  border-bottom: 1px solid #333;
+  margin-bottom: 20px;
+}
+.sidebar-logo span { color: var(--gold2); }
+
+.nav-section {
+  padding: 6px 20px 2px;
+  font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: #5a5040; font-weight: 700; margin-top: 14px;
+}
+.nav-link {
+  display: block; padding: 5px 20px 5px 24px;
+  color: #a09880; text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: all 0.12s; line-height: 1.3;
+}
+.nav-link:hover { color: #f0e8d8; border-left-color: var(--gold2); background: rgba(255,255,255,0.03); }
+.nav-link.active { color: var(--gold2); border-left-color: var(--gold2); }
+.nav-sub { padding-left: 34px; font-size: 10px; color: #7a7060; }
+
+/* Main content */
+.main {
+  flex: 1; max-width: 920px; padding: 60px 72px 100px;
+  min-width: 0;
+}
+
+/* ── TYPOGRAPHY ── */
+h1 {
+  font-family: var(--display); font-size: 2.6rem; font-weight: 700;
+  line-height: 1.15; color: var(--ink);
+  margin-bottom: 16px;
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 16px;
+}
+h2 {
+  font-family: var(--display); font-size: 1.7rem; font-weight: 700;
+  color: var(--ink); margin: 56px 0 20px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+h2::before {
+  content: '§ '; color: var(--accent); font-size: 1.1rem;
+}
+h3 {
+  font-family: var(--display); font-size: 1.25rem; font-weight: 700;
+  color: var(--ink2); margin: 36px 0 12px;
+}
+h4 {
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  margin: 28px 0 8px;
+}
+p { margin-bottom: 16px; color: var(--ink2); }
+p + p { text-indent: 1.5em; }
+strong { color: var(--ink); font-weight: 700; }
+em { font-style: italic; color: var(--ink3); }
+
+/* ── LEAD / ABSTRACT ── */
+.lead {
+  font-size: 1.15rem; color: var(--ink3); font-style: italic;
+  border-left: 3px solid var(--gold); padding-left: 20px;
+  margin: 24px 0 40px; line-height: 1.6;
+}
+.chapter-meta {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink3); margin-bottom: 40px;
+  display: flex; gap: 20px; flex-wrap: wrap;
+}
+
+/* ── SECTION DIVIDER ── */
+.section-rule {
+  border: none; border-top: 1px solid var(--border2);
+  margin: 60px 0;
+}
+.section-rule.heavy {
+  border-top-width: 2px; border-color: var(--border);
+}
+
+/* ── CALLOUT BOXES ── */
+.callout {
+  border-radius: 2px; padding: 16px 20px; margin: 24px 0;
+  font-size: 0.92rem; line-height: 1.6;
+}
+.callout-title {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 6px;
+}
+.callout.def   { background: rgba(26,92,107,0.07); border-left: 3px solid var(--teal); }
+.callout.def .callout-title { color: var(--teal); }
+.callout.warn  { background: rgba(139,37,0,0.06); border-left: 3px solid var(--accent); }
+.callout.warn .callout-title { color: var(--accent); }
+.callout.ref   { background: rgba(184,134,11,0.06); border-left: 3px solid var(--gold); }
+.callout.ref .callout-title { color: var(--gold); }
+.callout.algo  { background: rgba(26,92,42,0.06); border-left: 3px solid var(--green); }
+.callout.algo .callout-title { color: var(--green); }
+
+/* ── FORMULA ── */
+.formula-block {
+  background: var(--paper2); border: 1px solid var(--border);
+  padding: 20px 24px; margin: 20px 0; border-radius: 2px;
+  font-family: var(--mono); font-size: 13px; overflow-x: auto;
+}
+.formula-block .formula-label {
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: 10px; font-weight: 700;
+}
+.formula-block code {
+  display: block; color: var(--accent); font-size: 13px;
+  line-height: 1.8;
+}
+.formula-block .formula-note {
+  font-family: var(--serif); font-size: 13px; color: var(--ink3);
+  margin-top: 10px; font-style: italic;
+}
+
+/* ── TABLES ── */
+table {
+  width: 100%; border-collapse: collapse; margin: 20px 0;
+  font-size: 0.88rem;
+}
+thead { background: var(--ink); color: #f0e8d8; }
+thead th {
+  padding: 10px 14px; text-align: left; font-family: var(--mono);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+tbody tr { border-bottom: 1px solid var(--border2); }
+tbody tr:hover { background: var(--paper2); }
+tbody td { padding: 10px 14px; color: var(--ink2); vertical-align: top; }
+tbody td:first-child { font-weight: 600; color: var(--ink); }
+.table-note {
+  font-size: 12px; color: var(--ink3); font-style: italic; margin-top: -12px; margin-bottom: 20px;
+}
+
+/* ── CODE / ALGO ── */
+pre {
+  background: var(--ink2); color: #c8d4b0; font-family: var(--mono);
+  font-size: 12px; padding: 20px 22px; border-radius: 2px; margin: 20px 0;
+  overflow-x: auto; line-height: 1.65;
+}
+pre .kw  { color: #f0a060; }
+pre .fn  { color: #88ccaa; }
+pre .cm  { color: #687860; font-style: italic; }
+pre .num { color: #88c0d0; }
+pre .str { color: #c8b484; }
+code {
+  font-family: var(--mono); font-size: 0.85em; background: var(--paper2);
+  padding: 1px 5px; border-radius: 2px; color: var(--accent);
+}
+pre code { background: none; padding: 0; color: inherit; }
+
+/* ── DIAGRAMS (SVG) ── */
+.diagram-wrap {
+  background: var(--paper2); border: 1px solid var(--border);
+  padding: 24px; margin: 24px 0; border-radius: 2px;
+  overflow-x: auto;
+}
+.diagram-caption {
+  font-family: var(--mono); font-size: 10px; color: var(--ink3);
+  letter-spacing: 0.08em; text-align: center; margin-top: 12px;
+  text-transform: uppercase;
+}
+
+/* ── GLOSSARY ── */
+.glossary-term {
+  display: grid; grid-template-columns: 220px 1fr;
+  gap: 12px 24px; padding: 14px 0;
+  border-bottom: 1px solid var(--border2);
+  font-size: 0.92rem;
+}
+.glossary-term:first-child { border-top: 1px solid var(--border2); }
+.term-word {
+  font-family: var(--mono); font-weight: 700; font-size: 13px;
+  color: var(--accent); align-self: start; padding-top: 2px;
+}
+.term-def { color: var(--ink2); }
+.term-def em { color: var(--teal); font-style: normal; font-size: 0.85em; }
+
+/* ── AGENT CARDS (docs) ── */
+.agent-doc-card {
+  border: 1px solid var(--border); border-radius: 2px;
+  margin: 20px 0; overflow: hidden;
+}
+.agent-doc-header {
+  background: var(--ink2); color: #f0e8d8; padding: 14px 20px;
+  display: flex; align-items: center; gap: 14px;
+}
+.agent-doc-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+}
+.agent-doc-name { font-family: var(--display); font-size: 1.1rem; font-weight: 700; }
+.agent-doc-type {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: #9a9080; margin-left: auto;
+}
+.agent-doc-body { padding: 16px 20px; }
+.agent-doc-body p { font-size: 0.92rem; }
+.agent-steps {
+  counter-reset: step; list-style: none; padding: 0; margin: 12px 0;
+}
+.agent-steps li {
+  counter-increment: step; position: relative; padding-left: 30px;
+  margin-bottom: 8px; font-size: 0.9rem; color: var(--ink2);
+}
+.agent-steps li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 2px;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: white; font-family: var(--mono);
+  font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+
+/* ── ABUSE TYPOLOGY CARDS ── */
+.abuse-card {
+  border-radius: 2px; padding: 20px 24px; margin: 20px 0;
+  border: 1px solid var(--border);
+}
+.abuse-card-header {
+  display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px;
+}
+.abuse-badge {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 2px;
+}
+.abuse-card.spoof   { border-left: 4px solid var(--accent); }
+.abuse-card.layer   { border-left: 4px solid var(--gold); }
+.abuse-card.mark    { border-left: 4px solid purple; }
+.abuse-card.front   { border-left: 4px solid var(--teal); }
+.abuse-card.wash    { border-left: 4px solid #b44; }
+.abuse-card.insider { border-left: 4px solid #66a; }
+.abuse-badge.spoof   { background: rgba(139,37,0,0.1); color: var(--accent); }
+.abuse-badge.layer   { background: rgba(184,134,11,0.1); color: var(--gold); }
+.abuse-badge.mark    { background: rgba(128,0,128,0.1); color: purple; }
+.abuse-badge.front   { background: rgba(26,92,107,0.1); color: var(--teal); }
+.abuse-badge.wash    { background: rgba(180,68,68,0.1); color: #b44; }
+.abuse-badge.insider { background: rgba(102,102,170,0.1); color: #66a; }
+
+/* ── STEP SEQUENCE ── */
+.step-seq { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+.step-item {
+  display: flex; gap: 14px; padding: 10px 0;
+  border-left: 2px solid var(--border2); padding-left: 16px;
+  position: relative;
+}
+.step-item::before {
+  content: '';
+  position: absolute; left: -6px; top: 14px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--ink3);
+}
+.step-num { font-family: var(--mono); font-size: 10px; color: var(--ink3); flex-shrink: 0; padding-top: 3px; }
+.step-text { font-size: 0.9rem; color: var(--ink2); line-height: 1.5; }
+.step-text strong { color: var(--ink); }
+
+/* ── INDEX / TOC ── */
+.toc-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px;
+  margin: 20px 0;
+}
+.toc-entry {
+  font-family: var(--mono); font-size: 11px; color: var(--teal2);
+  display: flex; justify-content: space-between;
+  padding: 3px 0; border-bottom: 1px dotted var(--border2);
+}
+.toc-entry a { color: inherit; text-decoration: none; }
+.toc-entry a:hover { color: var(--accent); }
+
+/* ── PRINT / SCROLL PROGRESS ── */
+.scroll-bar {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: var(--accent); z-index: 100;
+  width: 0%; transition: width 0.1s;
+}
+
+/* ── FOOTNOTES ── */
+.footnote {
+  font-size: 0.82rem; color: var(--ink3); font-style: italic;
+  border-top: 1px solid var(--border2); padding-top: 8px; margin-top: 40px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1000px) {
+  .sidebar { display: none; }
+  .main { padding: 40px 28px; }
+  h1 { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="scroll-bar" id="scroll-bar"></div>
+
+<div class="shell">
+
+<!-- SIDEBAR NAV -->
+<nav class="sidebar">
+  <div class="sidebar-logo">LOB-<span>SIM</span><br>Technical Reference</div>
+
+  <div class="nav-section">Overview</div>
+  <a href="#intro" class="nav-link">Introduction</a>
+  <a href="#architecture" class="nav-link">System Architecture</a>
+  <a href="#instrument" class="nav-link">Instrument Specification</a>
+
+  <div class="nav-section">Order Book</div>
+  <a href="#lob" class="nav-link">Limit Order Book Mechanics</a>
+  <a href="#matching" class="nav-link">Order Matching Engine</a>
+  <a href="#sessions" class="nav-link">Trading Sessions</a>
+
+  <div class="nav-section">Agents</div>
+  <a href="#agent-overview" class="nav-link">Agent Framework</a>
+  <a href="#market-makers" class="nav-link nav-sub">Market Makers</a>
+  <a href="#retail" class="nav-link nav-sub">Retail / Noise Traders</a>
+  <a href="#funds" class="nav-link nav-sub">Institutional Funds</a>
+  <a href="#execution" class="nav-link nav-sub">Execution Desks</a>
+  <a href="#arb" class="nav-link nav-sub">Arb / Systematic</a>
+  <a href="#cta" class="nav-link nav-sub">CTA Agents</a>
+  <a href="#rtm" class="nav-link nav-sub">Retail Momentum</a>
+  <a href="#manip-agents" class="nav-link nav-sub">Manipulation Agents</a>
+
+  <div class="nav-section">Capital Model</div>
+  <a href="#capital" class="nav-link">Capital & Margin</a>
+  <a href="#pnl" class="nav-link">P&L Accounting</a>
+  <a href="#bankruptcy" class="nav-link">Bankruptcy & Rebirth</a>
+
+  <div class="nav-section">Bet Sizing</div>
+  <a href="#sizing" class="nav-link">Sizing Strategies</a>
+  <a href="#fixed-frac" class="nav-link nav-sub">Fixed Fractional</a>
+  <a href="#fixed-ratio" class="nav-link nav-sub">Fixed Ratio</a>
+  <a href="#kelly" class="nav-link nav-sub">Kelly Criterion</a>
+  <a href="#antimartingale" class="nav-link nav-sub">Anti-Martingale</a>
+
+  <div class="nav-section">Market Abuse</div>
+  <a href="#abuse-overview" class="nav-link">Overview & Legal Basis</a>
+  <a href="#spoofing" class="nav-link nav-sub">Spoofing</a>
+  <a href="#layering" class="nav-link nav-sub">Layering</a>
+  <a href="#marking" class="nav-link nav-sub">Marking the Close</a>
+  <a href="#frontrun" class="nav-link nav-sub">Front-Running</a>
+  <a href="#wash" class="nav-link nav-sub">Wash Trading</a>
+  <a href="#insider" class="nav-link nav-sub">Insider Trading</a>
+
+  <div class="nav-section">Forensics</div>
+  <a href="#forensics" class="nav-link">Detection Methods</a>
+  <a href="#etf-arb" class="nav-link">ETF Arb Mechanics</a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#glossary" class="nav-link">Glossary</a>
+  <a href="#bibliography" class="nav-link">Bibliography</a>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+<!-- ═══════════════════════════════════ INTRO -->
+<section id="intro">
+<h1>LOB-SIM Technical Reference</h1>
+<div class="chapter-meta">
+  <span>NTU MH6822 RegTech Course</span>
+  <span>Trade Surveillance Module</span>
+  <span>ES·Z25 Futures Simulation Engine</span>
+</div>
+<div class="lead">
+  This document describes the complete simulation engine underlying LOB-SIM — a browser-based
+  limit order book simulator for E-mini S&P 500 futures. It covers the mathematical foundations
+  of each agent's decision logic, the P&amp;L accounting treatment for different participant types,
+  bet sizing methodologies, and the six market abuse typologies modelled in the system.
+</div>
+
+<div class="toc-grid">
+  <div class="toc-entry"><a href="#lob">Limit Order Book Mechanics</a><span>§2</span></div>
+  <div class="toc-entry"><a href="#agent-overview">Agent Framework</a><span>§4</span></div>
+  <div class="toc-entry"><a href="#capital">Capital &amp; Margin Model</a><span>§5</span></div>
+  <div class="toc-entry"><a href="#sizing">Bet Sizing Strategies</a><span>§6</span></div>
+  <div class="toc-entry"><a href="#abuse-overview">Market Abuse Typologies</a><span>§7</span></div>
+  <div class="toc-entry"><a href="#forensics">Forensic Detection Methods</a><span>§8</span></div>
+  <div class="toc-entry"><a href="#etf-arb">ETF Arbitrage Mechanics</a><span>§9</span></div>
+  <div class="toc-entry"><a href="#glossary">Glossary</a><span>§10</span></div>
+</div>
+</section>
+
+<hr class="section-rule heavy">
+
+<!-- ═══════════════════════════════════ ARCHITECTURE -->
+<section id="architecture">
+<h2>System Architecture</h2>
+
+<p>The simulation runs as a single-threaded event loop advancing one <em>sim-second</em> per tick. At each tick, agents are evaluated in a fixed sequence, orders are matched, fills are recorded, and the UI updates. The entire system is self-contained in a single HTML file with no external dependencies.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:'JetBrains Mono',monospace;">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#1a1a1a"/>
+    </marker>
+  </defs>
+
+  <!-- SimStep loop -->
+  <rect x="10" y="10" width="740" height="320" rx="4" fill="none" stroke="#ccc" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="20" y="26" font-size="10" fill="#999" font-weight="700" letter-spacing="1">SIM STEP LOOP (1 sim-second per tick)</text>
+
+  <!-- Row 1: inputs -->
+  <rect x="30" y="40" width="120" height="44" rx="3" fill="#2d2d2d" stroke="none"/>
+  <text x="90" y="60" font-size="10" fill="#f0e8d8" text-anchor="middle">stepSpy()</text>
+  <text x="90" y="74" font-size="9" fill="#9a9080" text-anchor="middle">ETF price drift</text>
+
+  <rect x="170" y="40" width="120" height="44" rx="3" fill="#2d2d2d"/>
+  <text x="230" y="60" font-size="10" fill="#f0e8d8" text-anchor="middle">buildCandle()</text>
+  <text x="230" y="74" font-size="9" fill="#9a9080" text-anchor="middle">OHLCV aggregation</text>
+
+  <rect x="310" y="40" width="140" height="44" rx="3" fill="#2d2d2d"/>
+  <text x="380" y="60" font-size="10" fill="#f0e8d8" text-anchor="middle">processRebirths()</text>
+  <text x="380" y="74" font-size="9" fill="#9a9080" text-anchor="middle">spawn new accounts</text>
+
+  <rect x="470" y="40" width="120" height="44" rx="3" fill="#2d2d2d"/>
+  <text x="530" y="60" font-size="10" fill="#f0e8d8" text-anchor="middle">stepPool()</text>
+  <text x="530" y="74" font-size="9" fill="#9a9080" text-anchor="middle">100 retail agents</text>
+
+  <!-- Row 2: agent engine -->
+  <rect x="30" y="110" width="690" height="60" rx="3" fill="#1a5c2a" fill-opacity="0.12" stroke="#1a5c2a" stroke-width="1"/>
+  <text x="375" y="130" font-size="10" fill="#1a5c2a" text-anchor="middle" font-weight="700">noiseAgentStep() — Agent Decision Engine</text>
+  <text x="375" y="148" font-size="9" fill="#2a7a4a" text-anchor="middle">MM1/MM2 · NT1-3 · FD1/FD2 · AR1 · D1A · ETA · PBX · RTM1-3 · CTA1-4 · Price Drift</text>
+
+  <!-- Row 3: manipulation -->
+  <rect x="30" y="190" width="330" height="44" rx="3" fill="#8b2500" fill-opacity="0.1" stroke="#8b2500" stroke-width="1"/>
+  <text x="195" y="210" font-size="10" fill="#8b2500" text-anchor="middle" font-weight="700">Manipulation Step (if active)</text>
+  <text x="195" y="224" font-size="9" fill="#8b2500" text-anchor="middle">spoofing · layering · marking · frontrun · wash · insider</text>
+
+  <!-- Row 3: matching -->
+  <rect x="380" y="190" width="340" height="44" rx="3" fill="#1a5c6b" fill-opacity="0.1" stroke="#1a5c6b" stroke-width="1"/>
+  <text x="550" y="210" font-size="10" fill="#1a5c6b" text-anchor="middle" font-weight="700">matchBook() — Price-Time Priority</text>
+  <text x="550" y="224" font-size="9" fill="#1a5c6b" text-anchor="middle">fills → P&amp;L accounting → tape → forensics</text>
+
+  <!-- Row 4: rendering -->
+  <text x="375" y="268" font-size="9" fill="#666" text-anchor="middle" font-style="italic">Render every step: order book · agents · clock · top bar · pool panel</text>
+  <text x="375" y="284" font-size="9" fill="#666" text-anchor="middle" font-style="italic">Render every 2s: candlestick chart (OHLCV + SPY fair-value line)</text>
+
+  <!-- Arrows row1→2 -->
+  <line x1="375" y1="84" x2="375" y2="108" stroke="#1a1a1a" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- Arrows row2→3 -->
+  <line x1="195" y1="170" x2="195" y2="188" stroke="#1a1a1a" stroke-width="1" marker-end="url(#arr)"/>
+  <line x1="550" y1="170" x2="550" y2="188" stroke="#1a1a1a" stroke-width="1" marker-end="url(#arr)"/>
+
+  <!-- Loop-back arrow -->
+  <path d="M720,300 Q740,300 740,170 Q740,40 720,40" fill="none" stroke="#999" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+  <text x="745" y="175" font-size="8" fill="#999" transform="rotate(90,745,175)">next tick</text>
+</svg>
+<div class="diagram-caption">Figure 1 — Simulation step execution order per tick</div>
+</div>
+
+</section>
+
+<!-- ═══════════════════════════════════ INSTRUMENT -->
+<section id="instrument">
+<h2>Instrument Specification</h2>
+
+<table>
+<thead><tr><th>Parameter</th><th>Value</th><th>Significance</th></tr></thead>
+<tbody>
+<tr><td>Instrument</td><td>E-mini S&amp;P 500 — ES·Z25</td><td>Most liquid US equity futures; standard surveillance training instrument</td></tr>
+<tr><td>Tick size</td><td>$0.25 (index points)</td><td>Minimum price increment; all prices are multiples of 0.25</td></tr>
+<tr><td>Tick value</td><td>$12.50 per contract</td><td>Dollar value of 1-tick move: 0.25 × $50 multiplier</td></tr>
+<tr><td>Contract multiplier</td><td>$50 per index point</td><td>1 contract = exposure to $50 × index level</td></tr>
+<tr><td>Initial margin</td><td>$11,500 per contract</td><td>CME requirement to open a position</td></tr>
+<tr><td>Maintenance margin</td><td>$10,500 per contract</td><td>Threshold below which broker force-closes position</td></tr>
+<tr><td>Taker fee</td><td>$1.00 per contract</td><td>Paid by aggressive (market) orders</td></tr>
+<tr><td>Maker rebate</td><td>−$0.25 per contract</td><td>Received by passive (limit) orders that provide liquidity</td></tr>
+<tr><td>Wash fee</td><td>$2.00 per side</td><td>Applied to self-crossing wash trade orders</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ ORDER BOOK -->
+<section id="lob">
+<h2>Limit Order Book Mechanics</h2>
+
+<div class="callout def">
+  <div class="callout-title">Definition — Limit Order Book</div>
+  A <strong>limit order book (LOB)</strong> is a continuously-updated record of all outstanding buy and sell orders at each price level. Orders are organised into two sides: the <em>bid</em> (buy orders, sorted descending) and the <em>ask</em> (sell orders, sorted ascending). The best bid and best ask define the <strong>inside market</strong>; their difference is the <strong>spread</strong>.
+</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 600 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:600px;font-family:'JetBrains Mono',monospace;display:block;margin:0 auto;">
+  <!-- Headers -->
+  <text x="100" y="20" font-size="10" fill="#666" text-anchor="middle">QTY (Ask)</text>
+  <text x="300" y="20" font-size="10" fill="#666" text-anchor="middle">PRICE</text>
+  <text x="500" y="20" font-size="10" fill="#666" text-anchor="middle">QTY (Bid)</text>
+
+  <!-- Ask levels -->
+  <g fill="rgba(232,64,64,0.12)" stroke="none">
+    <rect x="20" y="30" width="160" height="26" rx="2"/>
+    <rect x="20" y="58" width="130" height="26" rx="2"/>
+    <rect x="20" y="86" width="100" height="26" rx="2"/>
+    <rect x="20" y="114" width="145" height="26" rx="2"/>
+  </g>
+  <text x="110" y="48" font-size="12" fill="#e84040" text-anchor="middle">42</text>
+  <text x="300" y="48" font-size="12" fill="#e84040" text-anchor="middle" font-weight="700">5893.00</text>
+  <text x="110" y="76" font-size="12" fill="#e84040" text-anchor="middle">35</text>
+  <text x="300" y="76" font-size="12" fill="#e84040" text-anchor="middle" font-weight="700">5892.75</text>
+  <text x="110" y="104" font-size="12" fill="#e84040" text-anchor="middle">28</text>
+  <text x="300" y="104" font-size="12" fill="#e84040" text-anchor="middle" font-weight="700">5892.50</text>
+  <text x="110" y="132" font-size="12" fill="#e84040" text-anchor="middle">39</text>
+  <text x="300" y="132" font-size="12" fill="#e84040" text-anchor="middle" font-weight="700">5892.25</text>
+
+  <!-- Best ask label -->
+  <text x="580" y="132" font-size="9" fill="#e84040" text-anchor="end">← best ask</text>
+
+  <!-- Spread -->
+  <rect x="200" y="146" width="200" height="22" rx="2" fill="#f5f0e8" stroke="#ccc" stroke-width="1"/>
+  <text x="300" y="161" font-size="10" fill="#666" text-anchor="middle">SPREAD: 0.25 · MID: 5892.125</text>
+
+  <!-- Bid levels -->
+  <g fill="rgba(0,180,100,0.12)" stroke="none">
+    <rect x="420" y="170" width="160" height="26" rx="2"/>
+    <rect x="420" y="198" width="120" height="26" rx="2"/>
+    <rect x="420" y="226" width="170" height="26" rx="2"/>
+    <rect x="420" y="254" width="95" height="26" rx="2"/>
+  </g>
+  <text x="300" y="188" font-size="12" fill="#00c97a" text-anchor="middle" font-weight="700">5892.00</text>
+  <text x="490" y="188" font-size="12" fill="#00c97a" text-anchor="middle">45</text>
+  <text x="300" y="216" font-size="12" fill="#00c97a" text-anchor="middle" font-weight="700">5891.75</text>
+  <text x="490" y="216" font-size="12" fill="#00c97a" text-anchor="middle">32</text>
+  <text x="300" y="244" font-size="12" fill="#00c97a" text-anchor="middle" font-weight="700">5891.50</text>
+  <text x="490" y="244" font-size="12" fill="#00c97a" text-anchor="middle">48</text>
+  <text x="300" y="272" font-size="12" fill="#00c97a" text-anchor="middle" font-weight="700">5891.25</text>
+  <text x="490" y="272" font-size="12" fill="#00c97a" text-anchor="middle">26</text>
+
+  <!-- Best bid label -->
+  <text x="580" y="188" font-size="9" fill="#00c97a" text-anchor="end">← best bid</text>
+
+  <!-- Arrows: aggressive orders -->
+  <text x="20" y="170" font-size="9" fill="#8b2500" font-style="italic">Market buy</text>
+  <text x="20" y="181" font-size="8" fill="#8b2500">hits best ask →</text>
+</svg>
+<div class="diagram-caption">Figure 2 — Limit order book structure. Asks sorted ascending, bids descending. Best ask = 5892.25, best bid = 5892.00, spread = 0.25 (1 tick).</div>
+</div>
+
+<h3>Price-Time Priority</h3>
+<p>Orders at the same price level are filled in the order they arrived (<em>time priority</em>). The matching engine in LOB-SIM implements strict price-time priority:</p>
+
+<div class="formula-block">
+  <div class="formula-label">Matching Rule</div>
+  <code>while bestAsk() ≤ bestBid():
+    fill at price = asks[0].price
+    qty = min(asks[0].qty, bids[0].qty)
+    → crystallise fills, update agentPos, agentRealised
+    → update lastPrice, totalVol, vwapSum</code>
+</div>
+
+</section>
+
+<section id="matching">
+<h3>Order Types in LOB-SIM</h3>
+<table>
+<thead><tr><th>Type</th><th>Description</th><th>Fee</th><th>Agents</th></tr></thead>
+<tbody>
+<tr><td>Passive Limit</td><td>Posted at specific price; rests in book until filled or cancelled</td><td>−$0.25 (rebate)</td><td>MM, Funds, Arb, CTA, D1A, PBX</td></tr>
+<tr><td>Aggressive Limit</td><td>Posted at or better than opposite best; fills immediately</td><td>$1.00</td><td>NT, RTM, ETA, Manip</td></tr>
+<tr><td>Wash Cross</td><td>Both sides posted simultaneously by same agent</td><td>$2.00 each side</td><td>WS1 only</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="sessions">
+<h3>Trading Sessions</h3>
+<table>
+<thead><tr><th>Session</th><th>Sim time (min)</th><th>Wall time</th><th>Characteristics</th></tr></thead>
+<tbody>
+<tr><td>Pre-Market</td><td>0 – 210</td><td>06:00 – 09:30</td><td>Wide spreads; MMs quote cautiously; manipulation agents inactive</td></tr>
+<tr><td>Open</td><td>210 – 300</td><td>09:30 – 11:00</td><td>Highest volatility; largest spreads; institutional participation peaks</td></tr>
+<tr><td>Mid-Session</td><td>300 – 540</td><td>11:00 – 15:00</td><td>Tightest spreads; lowest volatility; arb/CTA activity dominant</td></tr>
+<tr><td>Close</td><td>540 – 600</td><td>15:00 – 16:00</td><td>Volume builds; marking strategy activates; settlement window at 15:45+</td></tr>
+</tbody>
+</table>
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ AGENTS -->
+<section id="agent-overview">
+<h2>Agent Framework</h2>
+
+<p>Every agent in LOB-SIM has a <strong>type</strong>, a <strong>capital account</strong>, a <strong>decision function</strong> that runs each sim-step, and a <strong>state object</strong> containing all persistent parameters. The decision functions are called in a fixed sequence inside <code>noiseAgentStep()</code>.</p>
+
+<div class="callout def">
+  <div class="callout-title">Principal vs Agency</div>
+  A critical distinction governs P&amp;L accounting. <strong>Principal agents</strong> trade for their own account — they bear inventory risk and their P&amp;L reflects mark-to-market gains and losses. <strong>Agency agents</strong> (D1A, PBX) execute orders on behalf of clients; the client bears the economic risk, not the desk. Agency agents earn a commission minus exchange fees but never accumulate inventory.
+</div>
+
+<table>
+<thead><tr><th>Agent</th><th>ID</th><th>Type</th><th>Role</th><th>Accounting</th></tr></thead>
+<tbody>
+<tr><td>JPM-MM</td><td>MM1</td><td>mm</td><td>Designated market maker</td><td>Spread capture (no inventory)</td></tr>
+<tr><td>GS-MM</td><td>MM2</td><td>mm</td><td>Designated market maker</td><td>Spread capture (no inventory)</td></tr>
+<tr><td>Retail-A/B/C</td><td>NT1-3</td><td>noise</td><td>Signal-driven retail</td><td>Inventory model + fees</td></tr>
+<tr><td>Vanguard</td><td>FD1</td><td>fund</td><td>TWAP mandate executor</td><td>Inventory model + fees</td></tr>
+<tr><td>Blackrock</td><td>FD2</td><td>fund</td><td>TWAP mandate executor</td><td>Inventory model + fees</td></tr>
+<tr><td>SIG-Arb</td><td>AR1</td><td>arb</td><td>VWAP mean-reversion</td><td>Inventory model + fees</td></tr>
+<tr><td>GS-DeltaOne</td><td>D1A</td><td>d1 (agency)</td><td>Client block execution</td><td>Commission − fee only</td></tr>
+<tr><td>ETF-Arb</td><td>ETA</td><td>etfarb</td><td>SPY/ES premium arb</td><td>Inventory model + fees</td></tr>
+<tr><td>PB-Exec</td><td>PBX</td><td>pbexec (agency)</td><td>Iceberg order execution</td><td>Commission − fee only</td></tr>
+<tr><td>MomAlgo-A</td><td>RTM1</td><td>rtm</td><td>Time-series momentum</td><td>Inventory model + fees</td></tr>
+<tr><td>QSys-B</td><td>RTM2</td><td>rtm</td><td>MA crossover</td><td>Inventory model + fees</td></tr>
+<tr><td>BrkOut-C</td><td>RTM3</td><td>rtm</td><td>Donchian breakout</td><td>Inventory model + fees</td></tr>
+<tr><td>AHL-FF</td><td>CTA1</td><td>cta</td><td>Fixed fractional sizing</td><td>Inventory model + fees</td></tr>
+<tr><td>Jones-FR</td><td>CTA2</td><td>cta</td><td>Fixed ratio sizing</td><td>Inventory model + fees</td></tr>
+<tr><td>Winton-KC</td><td>CTA3</td><td>cta</td><td>Kelly criterion</td><td>Inventory model + fees</td></tr>
+<tr><td>MAN-AM</td><td>CTA4</td><td>cta</td><td>Anti-martingale</td><td>Inventory model + fees</td></tr>
+<tr><td>???-Alpha</td><td>MN1</td><td>manip</td><td>Primary manipulator</td><td>Inventory model + fees</td></tr>
+<tr><td>???-Beta</td><td>MN2</td><td>manip</td><td>Support manipulator</td><td>Inventory model + fees</td></tr>
+<tr><td>???-Wash</td><td>WS1</td><td>wash</td><td>Wash trader</td><td>Fee only (no inventory)</td></tr>
+<tr><td>???-Priv</td><td>IN1</td><td>insider</td><td>Insider trader</td><td>Inventory model + fees</td></tr>
+<tr><td>Retail Pool</td><td>P000–P099</td><td>pool</td><td>100 lightweight retail</td><td>Simplified: mid ± half-spread</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- MARKET MAKERS -->
+<section id="market-makers">
+<h3>Market Makers (MM1, MM2)</h3>
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#059669"></div>
+    <div class="agent-doc-name">JPM-MM / GS-MM — Designated Market Makers</div>
+    <div class="agent-doc-type">Avellaneda-Stoikov · Passive · Spread Capture</div>
+  </div>
+  <div class="agent-doc-body">
+    <p>Market makers provide continuous two-sided liquidity by quoting both bid and ask prices simultaneously. Their sole objective is to earn the bid-ask spread. They carry <em>no directional inventory</em> — every fill is a spread capture event, not a position entry.</p>
+
+    <h4>Decision Algorithm</h4>
+    <ol class="agent-steps">
+      <li>Remove all existing quotes from the book (<code>removeAllByAgent</code>)</li>
+      <li>Compute adverse selection ratio: <em>adverseFills / totalFills</em>. If ratio &gt; 60%, widen spread multiplier by 1.5×</li>
+      <li>Scale quote size based on P&amp;L trajectory and capital health. If P&amp;L &lt; −$2,000: small quotes. If capital &lt; 50%: scale down proportionally</li>
+      <li>Post 8 levels on each side at <em>mid ± spreadMult × i × tick</em> for i = 1..8</li>
+      <li>Collect maker rebate ($0.25/contract) on all passive fills</li>
+    </ol>
+
+    <div class="formula-block">
+      <div class="formula-label">Spread Multiplier Dynamics</div>
+      <code>spreadMult_new = spreadMult × 1.5  if adverseRatio > 0.60
+spreadMult_new = spreadMult × 0.85 if adverseRatio < 0.30 and fills > 5
+spreadMult ∈ [0.75, 4.0]
+
+quoteSize = f(P&L) × (availableCapital / startCapital)
+           capped at capitalQuoteCap = ⌊capital / (11500 × 16)⌋</code>
+      <div class="formula-note">Adverse selection: an ask fill is adverse if price moved up after the fill (MM sold just before price rose). Widening prevents MMs from being repeatedly "picked off" by informed traders.</div>
+    </div>
+
+    <div class="callout ref">
+      <div class="callout-title">Reference</div>
+      Avellaneda &amp; Stoikov (2008). <em>High-frequency trading in a limit order book.</em> Quantitative Finance 8(3). Glosten &amp; Milgrom (1985). <em>Bid, Ask and Transaction Prices in a Specialist Market.</em> Journal of Financial Economics 14(1).
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- RETAIL -->
+<section id="retail">
+<h3>Retail / Noise Traders (NT1–NT3)</h3>
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#4a6080"></div>
+    <div class="agent-doc-name">Retail-A, Retail-B, Retail-C</div>
+    <div class="agent-doc-type">Signal-Driven · Capital-Constrained · Rebirth on Bankruptcy</div>
+  </div>
+  <div class="agent-doc-body">
+    <p>Retail traders have a weak directional signal (personal bias blended with recent price momentum), a capital account ($15k–$50k), and strict risk rules including stop-losses, breakeven trailing stops, and a "don't add to losers" filter.</p>
+
+    <h4>Decision Algorithm</h4>
+    <ol class="agent-steps">
+      <li>Check <code>checkMarginAndCapital()</code> — if bankrupt, mark dead and schedule rebirth</li>
+      <li>Update capital-derived position limit: <em>posLimit = ⌊availableCapital / $11,500⌋</em></li>
+      <li>Check <strong>breakeven trail</strong>: if unrealised profit ≥ 2 ticks, activate trail stop at entry price, move with market</li>
+      <li>Check <strong>stop-loss</strong>: if ‖mid − entry‖ ≥ stopLoss ticks, flatten position</li>
+      <li>If at position limit, or adding new margin would exceed available capital → skip</li>
+      <li>Refresh directional signal every 30–90 steps: <em>signal = 0.4 × bias + 0.6 × momentum</em></li>
+      <li>If ‖signal‖ &lt; 0.1, no conviction — skip. If holding losing position, 70% chance to skip</li>
+      <li>Post 1 lot at best bid or ask (competitive price, not behind it)</li>
+    </ol>
+
+    <div class="formula-block">
+      <div class="formula-label">Signal Computation</div>
+      <code>momentum = (price[t] − price[t−5]) / (tick × 6)
+signal   = bias × 0.4 + momentum × 0.6
+         + noise ∈ [−0.3, 0.3]
+         clamped to [−1.0, 1.0]
+
+entry if |signal| > 0.1 AND not adding to loser</code>
+      <div class="formula-note">Bias is initialised randomly as +0.4 (bull) or −0.4 (bear) at account creation. Bankrupted accounts receive a new random bias on rebirth.</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- FUNDS -->
+<section id="funds">
+<h3>Institutional Funds (FD1, FD2)</h3>
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#2563eb"></div>
+    <div class="agent-doc-name">Vanguard / Blackrock — TWAP Mandate Executors</div>
+    <div class="agent-doc-type">TWAP · VWAP Discipline · Front-Running Target</div>
+  </div>
+  <div class="agent-doc-body">
+    <p>Funds execute a pre-determined directional mandate (buy or sell a fixed quantity) over the trading session using a TWAP (Time-Weighted Average Price) algorithm. They will not execute if the current market price is more than 3 ticks from session VWAP in the adverse direction. They pause when execution quality degrades.</p>
+
+    <h4>Decision Algorithm</h4>
+    <ol class="agent-steps">
+      <li>Check capital floor: if equity &lt; 30% of starting capital, suspend mandate</li>
+      <li>Check execution quality pause: if average exec cost vs VWAP &gt; 3 ticks over last 5 slices, pause 30–90 seconds</li>
+      <li>Check VWAP discipline: <em>priceOK = (isBuy → mid ≤ VWAP + 3 ticks) OR (isSell → mid ≥ VWAP − 3 ticks)</em></li>
+      <li>If mandate complete (<em>filled ≥ target</em>), stop</li>
+      <li>Place passive limit order of <em>sliceQty</em> lots at competitive best bid/ask</li>
+      <li>Record execution cost for quality monitoring</li>
+    </ol>
+
+    <div class="callout ref">
+      <div class="callout-title">Reference</div>
+      Almgren &amp; Chriss (2001). <em>Optimal Execution of Portfolio Transactions.</em> Journal of Risk 3(2).
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- EXECUTION DESKS -->
+<section id="execution">
+<h3>Execution Desks (D1A, PBX) — Agency Model</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Critical Accounting Distinction</div>
+  D1A and PBX are <strong>agency execution desks</strong>. They do not trade for their own account. The client bears all inventory risk; the desk earns only the execution commission. Therefore: <em>no inventory position accumulates in agentPos</em>, and P&amp;L = commission earned ($0.50/contract) minus exchange fee paid ($1.00/contract) = net −$0.50/contract. This is covered by the broader client relationship revenue.
+</div>
+
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#0e7490"></div>
+    <div class="agent-doc-name">GS Delta-One Desk (D1A)</div>
+    <div class="agent-doc-type">Agency · Client Block Execution · 15% Participation Cap</div>
+  </div>
+  <div class="agent-doc-body">
+    <p>The Delta-One desk executes index hedging mandates for institutional clients. A block arrives (representing a phone call from a portfolio manager wanting to hedge equity exposure) and is sliced over 30–90 minutes at a controlled participation rate.</p>
+
+    <h4>Decision Algorithm</h4>
+    <ol class="agent-steps">
+      <li>With 0.033% probability per step (~1 call per 50 sim-minutes): generate a new client block of 500–2,000 lots</li>
+      <li>Compute slice size: <em>slice = 12% × estimatedMarketVolumeRate × 0.5</em></li>
+      <li>Every 60–180 sim-seconds: place next slice as passive limit at best bid/ask</li>
+      <li>Log completion with execution quality note when block is done</li>
+    </ol>
+
+    <div class="formula-block">
+      <div class="formula-label">Slice Interval (adaptive)</div>
+      <code>mktVolRate   = totalVol / (simTime_elapsed / 60)
+liquidAdj   = min(1.5, mktVolRate / 40)    [40 lots/min = baseline]
+sliceInterval = max(60, round(120 / liquidAdj))
+nextSlice   = now + uniform(0.7×interval, interval)</code>
+    </div>
+  </div>
+</div>
+
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#4338ca"></div>
+    <div class="agent-doc-name">PB-Exec Iceberg (PBX)</div>
+    <div class="agent-doc-type">Agency · Iceberg Algorithm · 12% Participation Rate</div>
+  </div>
+  <div class="agent-doc-body">
+    <p>Simulates a prime brokerage execution algorithm concealing a large client mandate behind a small visible iceberg tip. The true order size (500–1,500 lots) is never shown to the market. The desk enforces a strict 12% participation rate and pauses if VWAP slips adversely.</p>
+
+    <h4>Forensic significance of the iceberg pattern</h4>
+    <p>A series of consistent small fills at the same price, regularly spaced, from the same agent ID, indicates a large hidden order. This is the canonical pattern surveillance systems use to detect institutional presence before large price moves — and what front-running agents exploit when they receive advance information.</p>
+
+    <div class="formula-block">
+      <div class="formula-label">Participation Rate Enforcement</div>
+      <code>targetFillRate = 0.12 × (totalVol / elapsed_minutes)
+actualFillRate = order.filled / elapsed_minutes
+
+if actualFillRate > 1.2 × targetFillRate:
+    pause 15–40 seconds          [filling too fast]
+if |mid − benchmarkVWAP| > 4 ticks:
+    pause 10–30 seconds          [market moved adversely]</code>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ARB -->
+<section id="arb">
+<h3>SIG Arbitrageur (AR1)</h3>
+<div class="agent-doc-card">
+  <div class="agent-doc-header">
+    <div class="agent-doc-dot" style="background:#7c3aed"></div>
+    <div class="agent-doc-name">SIG-Arb — VWAP Mean-Reversion</div>
+    <div class="agent-doc-type">Statistical Arb · Confidence-Scaled · Hard Stops</div>
+  </div>
+  <div class="agent-doc-body">
+    <ol class="agent-steps">
+      <li>Check daily loss limit (10% of capital), cooldown timer</li>
+      <li>If holding position: check stop (5 ticks) and profit target (8 ticks). Record win/loss, update confidence</li>
+      <li>After 3 consecutive losses with confidence &lt; 50%: pause 2–4 minutes</li>
+      <li>Entry only if ‖mid − VWAP‖ ≥ 3 ticks and confidence ≥ 30%</li>
+      <li>Size = <em>baseQty × confidence</em> (confidence-scaled position)</li>
+      <li>Direction: short if mid above VWAP (rich); long if mid below (cheap)</li>
+    </ol>
+    <div class="callout ref">
+      <div class="callout-title">Reference</div>
+      Gatev, Goetzmann &amp; Rouwenhorst (2006). <em>Pairs Trading.</em> Review of Financial Studies 19(3).
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+<h2>CTA Agents — Bet Sizing Strategies</h2>
+
+<p>The four CTA agents implement distinct position sizing methodologies from the systematic trading literature. All share: a 5-bar vs 30-bar price momentum entry signal (threshold 0.4 ticks), a 15% high-water mark drawdown shutdown, an institutional credit facility (borrow 50% of capital once), and distance-to-insolvency position scaling.</p>
+
+<div class="formula-block">
+  <div class="formula-label">Shared Trend Signal</div>
+  <code>fast = mean(price[t−5..t])
+slow = mean(price[t−30..t])
+signal = (fast − slow) / tick
+
+entry if |signal| > 0.4  [any measurable trend direction]</code>
+</div>
+
+<div class="formula-block">
+  <div class="formula-label">Universal Risk Ceiling (all CTAs)</div>
+  <code>dist = availableCapital / startingCapital
+
+if dist ≥ RISK_SCALE_FLOOR (0.25):  scaleFactor = 1.0
+if dist < RISK_SCALE_FLOOR:         scaleFactor = dist / 0.25
+
+maxPos = ⌊posLimit × scaleFactor⌋
+
+[Prevents any position when equity < 25% of capital]</code>
+</div>
+</section>
+
+<section id="fixed-frac">
+<h3>CTA1 — Fixed Fractional (AHL-FF)</h3>
+<div class="formula-block">
+  <div class="formula-label">Position Sizing Formula</div>
+  <code>riskAmount   = equity × riskPct          [2% of current equity]
+stopLossDollars = 3 ticks × $12.50       [$37.50/contract]
+rawSize      = ⌊riskAmount / stopLossDollars⌋
+marginFloor  = ⌊availableCapital / $11,500⌋
+
+sizeQty = min(rawSize, marginFloor, maxPos − |currentPos|)</code>
+  <div class="formula-note">The triple cap (formula size, margin floor, risk ceiling) ensures the position never exceeds what available capital can support at CME margin rates, regardless of what the formula produces.</div>
+</div>
+<div class="callout ref"><div class="callout-title">Reference</div>Vince, R. (1992). <em>The Mathematics of Money Management.</em> John Wiley &amp; Sons.</div>
+</section>
+
+<section id="fixed-ratio">
+<h3>CTA2 — Fixed Ratio (Jones-FR)</h3>
+<div class="formula-block">
+  <div class="formula-label">Unit Calculation</div>
+  <code>equityGain = max(0, currentEquity − startingCapital)
+units      = max(1, min(8, 1 + ⌊equityGain / delta⌋))    [delta = $5,000]
+sizeQty    = min(units × 2, maxPos − |currentPos|)
+
+On loss: units = max(1, units − 1)          [Ryan Jones' own rule]</code>
+  <div class="formula-note">The Fixed Ratio method compounds position sizes faster than Fixed Fractional during winning periods but is more destructive in drawdowns — an explicit tradeoff documented by Ryan Jones.</div>
+</div>
+<div class="callout ref"><div class="callout-title">Reference</div>Jones, R. (1999). <em>The Trading Game.</em> John Wiley &amp; Sons.</div>
+</section>
+
+<section id="kelly">
+<h3>CTA3 — Kelly Criterion (Winton-KC)</h3>
+<div class="formula-block">
+  <div class="formula-label">Fractional Kelly Sizing</div>
+  <code>W = wins / total_trades           [from last 20 trades; default = 0.50]
+R = mean(rewardRatio of wins)      [default = 1.50 if < 5 trades]
+
+fullKelly  = W − (1 − W) / R
+fracKelly  = 0.25 × fullKelly      [25% fraction — standard practitioner]
+
+sizeQty = max(1, min(⌊fracKelly × maxPos⌋, maxPos − |pos|))</code>
+  <div class="formula-note">Quarter-Kelly is used instead of full Kelly to control variance. Full Kelly is theoretically optimal for long-run growth but produces ruinous drawdowns in practice. At W=0.55, R=1.5: fullKelly = 0.25, fracKelly = 0.0625 × maxPos.</div>
+</div>
+<div class="callout ref"><div class="callout-title">Reference</div>Kelly, J.L. (1956). <em>A New Interpretation of Information Rate.</em> Bell System Technical Journal. Thorp, E. (1962). <em>Beat the Dealer.</em></div>
+</section>
+
+<section id="antimartingale">
+<h3>CTA4 — Anti-Martingale (MAN-AM)</h3>
+<div class="formula-block">
+  <div class="formula-label">Size Multiplier Logic</div>
+  <code>On WIN:  consecutiveWins++
+         currentMult = min(maxMult, 1 &lt;&lt; min(consecutiveWins, 3))
+         [1 win → 2×, 2 wins → 4×, 3+ wins → capped at 4×]
+
+On LOSS: currentMult = 1
+         consecutiveWins = 0                [full reset]
+
+sizeQty = min(baseSize × currentMult, maxPos − |pos|)    [baseSize = 3]</code>
+  <div class="formula-note">The Anti-Martingale is the correct application of the "bet more when winning" principle. The Martingale (doubling on losses) is the famous gambler's fallacy. This strategy captures trend momentum: a 3-win streak produces a 12-contract position; the next loss immediately returns to 3 contracts.</div>
+</div>
+<div class="callout ref"><div class="callout-title">Reference</div>Balsara, N. (1992). <em>Money Management Strategies for Futures Traders.</em> John Wiley &amp; Sons. The article at utradealgos.com/blog/what-are-the-different-bet-sizing-strategies documents all four methods as used by institutional managers.</div>
+</section>
+
+<!-- RTM -->
+<section id="rtm">
+<h3>Retail Momentum Agents (RTM1–3)</h3>
+<p>Three retail-scaled agents implementing systematic strategies at $15k–$40k capital with 5–8 contract position limits. All share the confidence/cooldown framework: confidence degrades 20% per loss, recovers 12% per win; 3 consecutive losses below 50% confidence triggers a 90–180 second pause.</p>
+
+<table>
+<thead><tr><th>Agent</th><th>Strategy</th><th>Entry Signal</th><th>Stop</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td>MomAlgo-A (RTM1)</td><td>Time-Series Momentum</td><td>Price change over 10 bars &gt; 3 ticks</td><td>4 ticks</td><td>7 ticks</td></tr>
+<tr><td>QSys-B (RTM2)</td><td>MA Crossover 5/15</td><td>fast MA &gt; slow MA + 0.5 tick buffer</td><td>5 ticks (or signal reversal)</td><td>Signal reversal</td></tr>
+<tr><td>BrkOut-C (RTM3)</td><td>Donchian Breakout (8-bar)</td><td>mid &gt; 8-bar high + 1 tick (long) or &lt; low − 1 tick (short)</td><td>6 ticks</td><td>10 ticks</td></tr>
+</tbody>
+</table>
+<div class="callout ref"><div class="callout-title">References</div>
+Moskowitz, Ooi &amp; Pedersen (2012). <em>Time Series Momentum.</em> Journal of Financial Economics 104(2).<br>
+Faber, M. (2007). <em>A Quantitative Approach to Tactical Asset Allocation.</em> Journal of Wealth Management.<br>
+Donchian, R.D. (1960). <em>High Finance in Copper.</em> Commodities Journal.
+</div>
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ CAPITAL -->
+<section id="capital">
+<h2>Capital and Margin Model</h2>
+
+<p>Every agent has a capital account. Capital ranges differ by type to reflect realistic account sizes for each market participant category.</p>
+
+<table>
+<thead><tr><th>Agent Type</th><th>Capital Range</th><th>Basis</th></tr></thead>
+<tbody>
+<tr><td>Retail (NT1–3)</td><td>$15k – $50k</td><td>Minimum to hold 1 ES contract + buffer</td></tr>
+<tr><td>Retail Systematic (RTM)</td><td>$15k – $40k</td><td>Same bracket, tighter upper bound</td></tr>
+<tr><td>CTA</td><td>$200k – $500k</td><td>Allocated slice of a mid-size CTA fund programme</td></tr>
+<tr><td>Market Maker</td><td>$500k – $2M</td><td>CME designated MM capital requirements</td></tr>
+<tr><td>Fund (FD)</td><td>$1M – $5M</td><td>Single desk allocation within a large institution</td></tr>
+<tr><td>Arb (AR1)</td><td>$150k – $400k</td><td>Prop desk allocation</td></tr>
+<tr><td>Delta-One (D1A)</td><td>$2M – $8M</td><td>Agency desk with large notional throughput</td></tr>
+<tr><td>ETF Arb (ETA)</td><td>$500k – $2M</td><td>Self-funded arb strategy with leverage</td></tr>
+<tr><td>PB Execution (PBX)</td><td>$1M – $4M</td><td>Agency desk capital float</td></tr>
+<tr><td>Manipulator (MN)</td><td>$100k – $300k</td><td>Dedicated spoofing account (documented in Flaum/JPMorgan cases)</td></tr>
+<tr><td>Wash Trader (WS1)</td><td>$50k – $150k</td><td>Needs only fee float</td></tr>
+<tr><td>Insider (IN1)</td><td>$100k – $500k</td><td>Pre-announcement accumulation account</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="pnl">
+<h3>P&amp;L Accounting</h3>
+
+<div class="callout def">
+  <div class="callout-title">Effective Equity</div>
+  <code style="font-family:var(--mono);font-size:12px;">effectiveEquity(id) = agentCapital[id] + agentRealised[id] + unrealisedPnl(id)
+unrealisedPnl(id)   = agentPos[id] × (midPrice − agentAvgEntry[id]) × $50</code>
+</div>
+
+<table>
+<thead><tr><th>Agent Type</th><th>P&L Mechanism</th><th>Inventory Tracked?</th></tr></thead>
+<tbody>
+<tr><td>Market Maker</td><td>Spread capture: <em>(fillPrice − mid) × (−sign) × qty × $50</em> + maker rebate</td><td>No</td></tr>
+<tr><td>Agency Desk (D1A, PBX)</td><td>Commission ($0.50/contract) minus exchange fee ($1.00/contract) = −$0.50/contract net</td><td>No</td></tr>
+<tr><td>Wash Trader</td><td>−FEE_WASH × qty on both sides; no directional P&amp;L</td><td>No</td></tr>
+<tr><td>All directional agents</td><td>Inventory model: VWAP avg entry; realised P&amp;L crystallises on position reduction or flip</td><td>Yes</td></tr>
+</tbody>
+</table>
+
+<div class="formula-block">
+  <div class="formula-label">Inventory Model — Realised P&L on Partial Close</div>
+  <code>closingQty   = min(|oldPos|, fillQty)
+pnlPerPoint  = (fillPrice − avgEntry) × sign(oldPos)
+realisedPnL += pnlPerPoint × closingQty × $50
+
+if fillQty > |oldPos|:   avgEntry = fillPrice   [position flipped]</code>
+  <div class="formula-note">sign(oldPos): +1 if long (seller profits from price rise), −1 if short (buyer profits from price fall). Unrealised component = remaining position × (mid − avgEntry) × $50.</div>
+</div>
+</section>
+
+<section id="bankruptcy">
+<h3>Bankruptcy and Rebirth</h3>
+
+<div class="step-seq">
+  <div class="step-item">
+    <div class="step-num">T1</div>
+    <div class="step-text"><strong>Margin call check every step:</strong> if <em>effectiveEquity &lt; |pos| × $10,500</em>, force-close position at mid, crystallise loss into realised P&amp;L. Agent survives but position limit shrinks to match reduced capital.</div>
+  </div>
+  <div class="step-item">
+    <div class="step-num">T2</div>
+    <div class="step-text"><strong>Bankruptcy check:</strong> if <em>effectiveEquity ≤ 0</em>, agent is marked dead. Position force-closed. <em>rebirthAt = simTime + uniform(60, 180)</em>. Event logged.</div>
+  </div>
+  <div class="step-item">
+    <div class="step-num">T3</div>
+    <div class="step-text"><strong>Rebirth (noise/rtm only):</strong> after timer expires, new account spawns: fresh randomised capital, new directional bias, generation suffix (Retail-A², Retail-A³). CTAs and institutional desks do not rebirth — they use a credit facility instead.</div>
+  </div>
+  <div class="step-item">
+    <div class="step-num">T4</div>
+    <div class="step-text"><strong>CTA credit facility:</strong> when CTA equity first hits zero, one-time credit line of 50% of starting capital activates (<em>agentCapital += creditLine</em>). If equity hits zero again: permanent shutdown.</div>
+  </div>
+</div>
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ MARKET ABUSE -->
+<section id="abuse-overview">
+<h2>Market Abuse Typologies</h2>
+
+<div class="callout warn">
+  <div class="callout-title">Legal Basis</div>
+  In the United States, market manipulation is prohibited under the Commodity Exchange Act (CEA) §9(a)(2), as amended by Dodd-Frank (2010), enforced by the CFTC. In the European Union, Market Abuse Regulation (EU 596/2014, "MAR") Article 12 applies. Singapore is governed by the Securities and Futures Act (SFA) ss. 197–201, enforced by MAS. The IOSCO Objectives and Principles (Principle 36) require all member jurisdictions to prohibit market manipulation and insider trading.
+</div>
+
+<p>LOB-SIM models six distinct manipulation typologies drawn from enforcement case law. Each is implemented as a separate agent strategy, activatable via the manipulation mode selector.</p>
+</section>
+
+<section id="spoofing">
+<div class="abuse-card spoof">
+  <div class="abuse-card-header">
+    <span class="abuse-badge spoof">Spoofing</span>
+    <h3 style="margin:0">Spoofing — Fictitious Order Placement</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Placing large visible orders with no intention of execution, for the purpose of creating a false impression of supply or demand, then cancelling the orders after the intended price effect is achieved.</p>
+
+  <h4>Mechanism in LOB-SIM</h4>
+  <div class="step-seq">
+    <div class="step-item"><div class="step-num">1</div><div class="step-text"><strong>Book imbalance analysis:</strong> MN1 measures depth on both sides. Spoof is placed on the <em>heavier</em> side (reinforcing existing depth for maximum visual impact).</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text"><strong>Spoof placement:</strong> MN1 posts 200–400 lots 3–6 ticks deep. MN2 adds 60% of MN1 quantity at adjacent level. These orders are never intended to fill.</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>Real order:</strong> MN1 places 5–15 lots at best price on the <em>opposite</em> side, priced to fill immediately.</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text"><strong>Cancel:</strong> Spoof orders are cancelled 2–6 sim-seconds after placement. They never fill.</div></div>
+    <div class="step-item"><div class="step-num">5</div><div class="step-text"><strong>P&amp;L gate:</strong> Episode only fires if spread ≥ 1 tick AND cumulative P&amp;L &gt; −$2,000. Otherwise MN1 pauses for 5–10 min.</div></div>
+  </div>
+
+  <div class="formula-block">
+    <div class="formula-label">Expected Edge per Episode</div>
+    <code>realQty × TICK_VAL − realQty × FEE_TAKER
+= realQty × ($12.50 − $1.00) = realQty × $11.50
+≈ $57.50 – $172.50 per episode (5–15 lots)</code>
+  </div>
+
+  <h4>Forensic Detection Signals</h4>
+  <table>
+  <thead><tr><th>Signal</th><th>Normal Range</th><th>Anomaly Threshold</th></tr></thead>
+  <tbody>
+  <tr><td>Cancel ratio (large orders)</td><td>20–40%</td><td>&gt;70% is red flag</td></tr>
+  <tr><td>Order size vs book depth</td><td>1–3×</td><td>&gt;5× is anomalous</td></tr>
+  <tr><td>Time to cancel (ms)</td><td>&gt;500ms</td><td>&lt;100ms = never-intended</td></tr>
+  <tr><td>Fill-then-cancel sequence</td><td>Rare</td><td>Consistent pattern = spoofing</td></tr>
+  </tbody>
+  </table>
+
+  <div class="callout ref"><div class="callout-title">Key Cases &amp; References</div>
+  CFTC v. Navinder Singh Sarao (2015) — E-mini S&amp;P 500; linked to Flash Crash of 6 May 2010. Cancel ratios &gt;95%.<br>
+  CFTC Order 19-15 (Flaum / Bank of Nova Scotia, 2019) — 245-lot spoof vs 12-lot resting depth (20× ratio).<br>
+  DOJ v. JPMorgan Chase &amp; Co. (2020) — $920M resolution; multi-trader coordination in precious metals.<br>
+  Attari, Lynch, Chhabra &amp; Fazilet (2020). <em>Primer on Futures Markets and Spoofing Allegations.</em> CRA Insights.
+  </div>
+</div>
+</section>
+
+<section id="layering">
+<div class="abuse-card layer">
+  <div class="abuse-card-header">
+    <span class="abuse-badge layer">Layering</span>
+    <h3 style="margin:0">Layering — Multi-Level Artificial Depth</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Placing multiple orders at successive price levels on one side of the book to create an artificial impression of deep supply or demand, while executing a genuine order on the opposite side. Distinguished from spoofing by its multi-level architecture.</p>
+
+  <h4>Place → Fill → Cancel Sequence</h4>
+  <div class="step-seq">
+    <div class="step-item"><div class="step-num">1</div><div class="step-text"><strong>MN1 stacks 4–7 passive orders</strong> at consecutive price levels (e.g. bids at best−2, −3, −4, −5, −6 ticks). Each is 80–180 lots — an artificial "wall" of demand.</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text"><strong>MN2 places genuine execution order</strong> on the opposite side (ask in this example), sized 30–60 lots. Other participants, seeing the apparent demand wall, move their prices.</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>MN2's ask fills</strong> at a price artificially moved by the apparent book pressure.</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text"><strong>MN1 simultaneously cancels all layers</strong> immediately after MN2's fill. The cancellation of all levels in the same millisecond is the forensic signature.</div></div>
+  </div>
+
+  <div class="callout ref"><div class="callout-title">Regulatory Treatment</div>
+  EU MAR Article 12 is <strong>effects-based</strong> — demonstrating the market effect of the layered orders may be sufficient without proving intent. The US standard under Dodd-Frank requires proof of intent to cancel. This distinction is critical for cross-border enforcement.<br><br>
+  FCA Final Notice: Michael Coscia (2013) — first European prosecution for layering. Fined £903,000 and banned. Documents the specific multi-level architecture.
+  </div>
+</div>
+</section>
+
+<section id="marking">
+<div class="abuse-card mark">
+  <div class="abuse-card-header">
+    <span class="abuse-badge mark">Mark-Close</span>
+    <h3 style="margin:0">Marking the Close — Settlement Price Manipulation</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Executing trades in the final minutes of the trading session with the intent of artificially influencing the settlement price or closing reference price, to benefit positions in related instruments (derivatives, ETFs, benchmarks).</p>
+
+  <h4>Economic Incentive</h4>
+  <p>Many derivatives, ETFs, index products, and portfolio performance benchmarks reference the official settlement price. A fund with a large offsetting derivative position can generate disproportionate gains on that position by artificially moving the settlement price a few ticks — even if it sustains a small trading loss on the manipulation itself.</p>
+
+  <h4>Phase Structure in LOB-SIM</h4>
+  <table>
+  <thead><tr><th>Phase</th><th>Time</th><th>Behaviour</th></tr></thead>
+  <tbody>
+  <tr><td>Inactive</td><td>Before 15:00</td><td>MN1/MN2 do nothing; waiting for close session</td></tr>
+  <tr><td>Build Phase</td><td>15:00–15:45</td><td>MN1 places passive bid support to prevent price decline</td></tr>
+  <tr><td>Settlement Window</td><td>15:45–16:00</td><td>MN1 aggressively lifts offers (50–140 lots at a time) to push settlement price up</td></tr>
+  </tbody>
+  </table>
+
+  <h4>Primary Forensic Signals</h4>
+  <div class="formula-block">
+    <div class="formula-label">Close/Mid Volume Rate Ratio</div>
+    <code>closeRate = sessionVolume['close'] / 60            [lots per minute]
+midRate   = sessionVolume['mid']   / 240           [lots per minute]
+ratio     = closeRate / midRate
+
+Anomaly threshold: ratio > 1.5×
+Strong signal:     ratio > 2.0×</code>
+    <div class="formula-note">Comerton-Forde &amp; Putniņš (2011) show manipulative close sessions display volume rates 1.5–3× above the mid-session norm, concentrated at the best offer (for upward manipulation).</div>
+  </div>
+
+  <div class="callout ref"><div class="callout-title">Key References</div>
+  Comerton-Forde &amp; Putniņš (2011). <em>Measuring Closing Price Manipulation.</em> Journal of Financial Intermediation 20(2).<br>
+  Hillion &amp; Suominen (2004). <em>The Manipulation of Closing Prices.</em> Journal of Financial Markets 7(4).<br>
+  CFTC v. Amaranth Advisors (2007) — $7.5M settlement for natural gas settlement price manipulation.
+  </div>
+</div>
+</section>
+
+<section id="frontrun">
+<div class="abuse-card front">
+  <div class="abuse-card-header">
+    <span class="abuse-badge front">Front-Running</span>
+    <h3 style="margin:0">Front-Running — Information Advantage Exploitation</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Trading ahead of a known client order by exploiting advance knowledge of that order, to benefit from the price impact the client's order will cause. Constitutes a breach of fiduciary duty and, where the information is material and non-public, may also constitute insider trading.</p>
+
+  <h4>Information Flow in LOB-SIM</h4>
+  <div class="step-seq">
+    <div class="step-item"><div class="step-num">1</div><div class="step-text"><strong>Private information leak:</strong> MN1 receives advance knowledge of FD2 (Blackrock)'s imminent order — shown in the event log in <em>pink</em> as an INFO LEAK. This represents a private communication channel (phone call, electronic pre-trade disclosure) invisible to all other participants and to the tape.</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text"><strong>Front-run position:</strong> 1 sim-second before FD2 executes, MN1 builds a position in the same direction as FD2's order.</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>Client order executes:</strong> FD2's large order moves the price in the anticipated direction.</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text"><strong>MN1 closes:</strong> MN1 exits into FD2's price impact, capturing the move.</div></div>
+  </div>
+
+  <p><strong>Why market data alone is insufficient for prosecution:</strong> The trade sequence (MN1 fills appearing before FD2 fills) is circumstantially suspicious but not conclusive. A skilled trader could independently develop the same view through legitimate research. Prosecution requires establishing the information channel: who knew, when, and how the information was communicated. This is why the front-running scenario places the INFO LEAK in the event log separately from the tape — it represents knowledge that no market data system can observe.</p>
+
+  <div class="callout ref"><div class="callout-title">Key Cases</div>
+  US v. Mark Johnson (2017) — HSBC Global Head of FX; first criminal conviction of a senior banker for front-running a client FX order. Key evidence: recorded phone call ("ohhhh f***ing Christmas").<br>
+  FCA Final Notice: HSBC Bank Plc (2016) — £40M settlement for front-running Cairn Energy's $3.5bn FX order.<br>
+  MiFID II Articles 27–28: Best execution obligations that front-running structurally violates.
+  </div>
+</div>
+</section>
+
+<section id="wash">
+<div class="abuse-card wash">
+  <div class="abuse-card-header">
+    <span class="abuse-badge wash">Wash Trading</span>
+    <h3 style="margin:0">Wash Trading — Artificial Volume Inflation</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Executing trades in which the same beneficial owner appears on both sides of the transaction, generating the appearance of market activity without any genuine transfer of risk or change in ownership.</p>
+
+  <h4>Purpose and Economic Logic</h4>
+  <p>Volume is a price signal: high volume is interpreted by algorithmic traders as confirmation of price direction and used in liquidity models and market impact estimates. Wash trading inflates reported volume with no genuine activity, creating a false impression of interest that may attract other participants to an otherwise illiquid instrument — historically used to inflate apparent interest in new listings, crypto tokens, or thinly traded products.</p>
+
+  <h4>The Detection Limit</h4>
+  <div class="callout warn">
+    <div class="callout-title">Invisible from Public Data</div>
+    A wash trade is <strong>identical to a genuine trade</strong> on the public tape — same price, same time, same size. Detection requires identifying that buyer and seller share beneficial ownership. This requires exchange-level or regulatory-level cross-account data that is not available from any public market data feed. Gen-1 and Gen-2 surveillance systems cannot detect wash trading without privileged cross-account access. This is the key forensic lesson from the wash trading scenario.
+  </div>
+
+  <div class="callout ref"><div class="callout-title">Key Cases</div>
+  CFTC v. Coinbase (2021) — documents wash trading in perpetual futures markets; highlights the beneficial ownership detection challenge.<br>
+  SEC v. Lek Securities Corp (2017) — systematic wash trading in equities; volume inflation of 30–40% of reported volume documented.
+  </div>
+</div>
+</section>
+
+<section id="insider">
+<div class="abuse-card insider">
+  <div class="abuse-card-header">
+    <span class="abuse-badge insider">Insider Trading</span>
+    <h3 style="margin:0">Insider Trading — Material Non-Public Information</h3>
+  </div>
+
+  <p><strong>Definition:</strong> Trading in a financial instrument on the basis of material, non-public information (MNPI) obtained through a position of trust or confidence, or through misappropriation.</p>
+
+  <h4>MNPI in LOB-SIM</h4>
+  <div class="step-seq">
+    <div class="step-item"><div class="step-num">1</div><div class="step-text"><strong>Private information event:</strong> After 30 sim-minutes, IN1 receives a private signal (e.g. forthcoming Fed Governor speech direction). This appears in the event log in <em>pink</em> — it is not visible to any other agent, not on the tape, and not in any market data feed.</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text"><strong>Accumulation:</strong> IN1 quietly builds a position in the anticipated direction. Position size = 80% of capital / margin per contract. Adds 10–30 lots every 60 sim-seconds.</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text"><strong>Public announcement:</strong> 10–20 sim-minutes later, news breaks publicly. All participants see it simultaneously. Price moves sharply.</div></div>
+    <div class="step-item"><div class="step-num">4</div><div class="step-text"><strong>Exit:</strong> IN1 closes entire position at the new price level, capturing the full announcement move.</div></div>
+  </div>
+
+  <div class="formula-block">
+    <div class="formula-label">Meulbroek (1992) Empirical Finding</div>
+    <code>On insider trading days, prices run up 40–50% of the total
+announcement effect BEFORE the public announcement.
+
+In LOB-SIM: pre-announcement price drift from IN1's accumulation
+is visible in the candlestick chart — a subtle directional move
+before the pink INFO LEAK event fires publicly.</code>
+    <div class="formula-note">This pre-announcement price run-up is the primary statistical signal used by surveillance systems to identify potential insider trading. However, it is circumstantial: a skilled fundamental analyst could independently develop the same view.</div>
+  </div>
+
+  <div class="callout ref"><div class="callout-title">Key References</div>
+  Meulbroek (1992). <em>An Empirical Analysis of Illegal Insider Trading.</em> Journal of Finance 47(5).<br>
+  Bhattacharya &amp; Daouk (2002). <em>The World Price of Insider Trading.</em> Journal of Finance 57(1).<br>
+  PP v. Soh Chee Wen [2023] SGHC 299 — Singapore BAL case: 187 accounts, systematic pre-announcement accumulation.
+  </div>
+</div>
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ FORENSICS -->
+<section id="forensics">
+<h2>Forensic Detection Methods</h2>
+
+<p>The Forensics tab in LOB-SIM updates every 3 seconds and shows mode-specific detection metrics. The following table summarises all primary signals, their normal ranges, anomaly thresholds, and the source literature.</p>
+
+<table>
+<thead><tr><th>Manipulation</th><th>Primary Signal</th><th>Normal</th><th>Anomaly</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>Spoofing</td><td>Cancel ratio (manip agents only)</td><td>20–40%</td><td>&gt;70%</td><td>CFTC v. Sarao (2015)</td></tr>
+<tr><td>Spoofing</td><td>Order size vs resting depth</td><td>1–3×</td><td>&gt;5×</td><td>CRA (2020)</td></tr>
+<tr><td>Layering</td><td>Simultaneous multi-level cancel after opposite fill</td><td>Rare</td><td>Consistent pattern</td><td>FCA v. Coscia (2013)</td></tr>
+<tr><td>Mark Close</td><td>Close/Mid volume rate ratio</td><td>&lt;1.2×</td><td>&gt;1.5× amber, &gt;2× red</td><td>Comerton-Forde (2011)</td></tr>
+<tr><td>Mark Close</td><td>Single-agent settlement window share</td><td>&lt;5%</td><td>&gt;15%</td><td>Putniņš (2012)</td></tr>
+<tr><td>Front-Running</td><td>Agent fill timing delta vs client order</td><td>&gt;30s</td><td>&lt;3s consistent</td><td>FCA/HSBC (2016)</td></tr>
+<tr><td>Wash Trading</td><td>Beneficial ownership overlap</td><td>0</td><td>Any self-cross</td><td>SEC v. Lek (2017)</td></tr>
+<tr><td>Insider Trading</td><td>Pre-announcement price run-up %</td><td>&lt;10%</td><td;&gt;40–50% of move</td><td>Meulbroek (1992)</td></tr>
+</tbody>
+</table>
+
+<h3>Generation-1, 2, and 3 Surveillance Systems</h3>
+<table>
+<thead><tr><th>Generation</th><th>Approach</th><th>Can Detect</th><th>Cannot Detect</th></tr></thead>
+<tbody>
+<tr><td>Gen-1</td><td>Rule-based thresholds (cancel ratio &gt; 70%, order size &gt; 5×)</td><td>Obvious spoofing, large mark-close</td><td>Adaptive spoofers, cross-account wash, insider trading</td></tr>
+<tr><td>Gen-2</td><td>Pattern matching: place→fill→cancel sequence</td><td>Layering, coordinated spoofing</td><td>Beneficial ownership, MNPI channel</td></tr>
+<tr><td>Gen-3</td><td>ML behavioural profiling: each agent benchmarked against their own historical baseline</td><td>Below-threshold spoofers, insider-like accumulation patterns</td><td>Wash trading (requires cross-account), comms-only front-running</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ═══════════════════════════════════ ETF ARB -->
+<section id="etf-arb">
+<h2>ETF Arbitrage Mechanics</h2>
+
+<div class="callout def">
+  <div class="callout-title">SPY / ES Relationship</div>
+  SPY (SPDR S&amp;P 500 ETF) tracks the S&amp;P 500 index at approximately 1/10th the index level (SPY ≈ $589 when S&amp;P 500 ≈ 5890). ES futures have a $50/point multiplier. The theoretical "fair value" relationship: <em>SPY × 10 ≈ ES mid price</em>. Any persistent deviation between the two creates an arbitrage opportunity.
+</div>
+
+<h3>Cash-and-Carry Arbitrage Direction</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Direction: Buy Low, Sell High</div>
+  The correct arbitrage direction is always to <strong>buy the cheap instrument and sell the expensive one</strong>. When SPY is rich vs ES, <strong>sell SPY + buy ES futures</strong>. When ES is rich vs SPY, <strong>buy SPY + sell ES futures</strong>. The simulation models only the ES futures leg.
+</div>
+
+<table>
+<thead><tr><th>Condition</th><th>SPY vs ES</th><th>ES Leg (simulated)</th><th>SPY Leg (off-sim)</th></tr></thead>
+<tbody>
+<tr><td>ETF Premium (+)</td><td>SPY expensive, ES cheap</td><td><strong>BUY ES (bid)</strong></td><td>Short SPY shares</td></tr>
+<tr><td>ETF Discount (−)</td><td>SPY cheap, ES expensive</td><td><strong>SELL ES (ask)</strong></td><td>Long SPY shares</td></tr>
+</tbody>
+</table>
+
+<h3>SPY Synthetic Price Model</h3>
+<div class="formula-block">
+  <div class="formula-label">SPY Price Evolution (per sim-step)</div>
+  <code>spyFair    = midPrice / 10                    [fair value, perfectly tracking ES]
+spyPremium × 0.9943                           [mean-revert; half-life ≈ 120 steps]
+spyPremium += shock if rand() &lt; 0.01          [ETF flow shock: ±2 ticks max]
+spyPremium  = clamp(spyPremium, −3t, +3t)     [arb bounds creation/redemption costs]
+spyPrice    = round(spyFair + spyPremium/10)  [actual SPY price displayed in top bar]
+
+spyPremiumTicks = spyPremium / tick           [signal for ETA agent entry]</code>
+  <div class="formula-note">The ±3 tick bound reflects the real-world creation/redemption mechanism: authorised participants can create or redeem ETF shares at NAV (approximately), bounding the premium/discount. The 0.01 per step flow shock models independent ETF market events (dividend adjustments, large passive rebalancing flows that hit SPY directly).</div>
+</div>
+
+<div class="callout ref"><div class="callout-title">Reference</div>
+Madhavan, A. (2012). <em>Exchange-Traded Funds, Market Structure, and the Flash Crash.</em> Financial Analysts Journal 68(4).
+</div>
+</section>
+
+<hr class="section-rule heavy">
+
+<!-- ═══════════════════════════════════ GLOSSARY -->
+<section id="glossary">
+<h2>Glossary of Technical Terms</h2>
+
+<div class="glossary-term">
+  <div class="term-word">Adverse Selection</div>
+  <div class="term-def">The risk that a passive limit order is filled only when the informed trader on the other side knows the price will subsequently move against the passive trader. A market maker's ask is hit by an informed buyer who knows prices will rise — the MM sold just before a rally. Measured by the adverse selection ratio: proportion of fills where price moved against the passive side after execution. <em>Used by: MM1, MM2 to dynamically widen spreads.</em></div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Agency Execution</div>
+  <div class="term-def">A trading arrangement where the desk acts as an agent for a client, executing orders on the client's behalf. The client bears all economic risk (inventory, P&amp;L); the desk earns only a commission. Contrast with principal trading where the desk takes risk onto its own book. <em>Agents: D1A, PBX. P&amp;L = commission − exchange fee only. No agentPos accumulation.</em></div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Avellaneda-Stoikov</div>
+  <div class="term-def">A stochastic control framework for optimal market making. The key insight: the market maker's optimal quote spread is not fixed but adapts based on inventory risk (the more inventory the MM holds, the more it should skew quotes to reduce that inventory) and adverse selection (toxic flow widens spreads). In LOB-SIM this is simplified to: track adverse fill ratio and dynamically adjust spreadMult.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Best Bid / Best Ask</div>
+  <div class="term-def">The highest resting buy order price (best bid) and the lowest resting sell order price (best ask). Together they define the <em>inside market</em> or <em>touch</em>. Any order that crosses the spread (buyer willing to pay ask, seller willing to accept bid) results in an immediate fill.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Cancel Ratio</div>
+  <div class="term-def">The proportion of placed orders that are subsequently cancelled rather than filled. For directional traders, a normal cancel ratio is 20–40% (orders cancelled because the market moved away from the target price). A cancel ratio above 70% for large orders is the primary statistical signature of spoofing. Note: market maker cancel ratios are legitimately very high (80–99%) because they refresh quotes constantly — MMs are excluded from forensic cancel ratio accounting.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Confidence Score</div>
+  <div class="term-def">An internal parameter (range 0.1–1.0) used by AR1, RTM1-3 agents to scale position sizes and gate new entries based on recent performance. Degrades on losses (× 0.80–0.85 per loss), recovers on wins (+0.10–0.12 per win). Below 0.3: agent sits out entirely. Below 0.5 after 3 consecutive losses: cooldown triggers.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Donchian Channel</div>
+  <div class="term-def">A technical indicator showing the highest high and lowest low over the past N price bars. Used by RTM3 (BrkOut-C): when price breaks above the N-bar high, go long; when it breaks below the N-bar low, go short. The original "Turtle Traders" strategy. LOB-SIM uses an 8-bar lookback.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Effective Equity</div>
+  <div class="term-def">The total economic value of an agent's account: <em>starting capital + realised P&amp;L + unrealised P&amp;L</em>. Used for margin call checks (effective equity &lt; |position| × maintenance margin triggers force-close) and bankruptcy checks (effective equity ≤ 0).</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Fixed Fractional</div>
+  <div class="term-def">A position sizing method that risks a fixed percentage of current equity on each trade. Key property: position size grows with winning equity (compounding) and shrinks with losing equity (automatic de-leveraging). Used by CTA1. Risk% = 2%. Size = ⌊(equity × 2%) / (stop × tick_value)⌋.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Fixed Ratio</div>
+  <div class="term-def">A position sizing method developed by Ryan Jones where position units increase by one for every $delta of equity growth. More aggressive compounding than Fixed Fractional in winning periods; more destructive in drawdowns. Used by CTA2. Delta = $5,000.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">High-Water Mark</div>
+  <div class="term-def">The peak equity ever achieved by an agent (equivalent to the NAV peak in a fund). Used for drawdown measurement: drawdown = (HWM − currentEquity) / HWM. CTA agents shut down if drawdown exceeds 15% from the HWM. This prevents deep loss accumulation and mimics real fund risk management protocols.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Iceberg Order</div>
+  <div class="term-def">A large order that is deliberately broken into small visible tranches (the "tip") while the full order size remains hidden. Used by PBX to conceal the true mandate size. The visible slice (10–30 lots) is a fraction of the full order (500–1,500 lots). The regular, consistent small fills that result are the forensic signature of institutional iceberg execution.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Kelly Criterion</div>
+  <div class="term-def">A formula for optimal bet sizing derived by John Kelly (1956): f* = W − (1−W)/R, where W = win probability, R = average reward:risk ratio. The Kelly fraction f* maximises long-run capital growth. In practice, "fractional Kelly" (25–50% of f*) is used to reduce variance. Used by CTA3.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Limit Order Book (LOB)</div>
+  <div class="term-def">The complete record of all outstanding buy and sell limit orders at each price level, sorted by price-time priority. The central data structure of modern electronic markets. All orders in LOB-SIM rest in the LOB until matched, cancelled, or withdrawn by the agent.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Maker / Taker</div>
+  <div class="term-def">A distinction in fee schedules. <em>Makers</em> post passive limit orders that rest in the book and provide liquidity — rewarded with a rebate (−$0.25/contract in LOB-SIM). <em>Takers</em> place aggressive orders that cross the spread and consume resting liquidity — charged a fee ($1.00/contract). Market makers are predominantly makers; retail traders and momentum agents are typically takers.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">MNPI</div>
+  <div class="term-def">Material Non-Public Information. Information that (1) has not been disclosed to the general public, and (2) if disclosed, would reasonably affect the price of the security or instrument. Trading on MNPI constitutes insider trading under most jurisdictions' securities laws. In LOB-SIM, the pink INFO LEAK entries in the event log represent MNPI events.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Participation Rate</div>
+  <div class="term-def">The proportion of total market volume that an agent's fills represent, measured over a rolling period. Large institutional orders are typically executed with a participation rate constraint (e.g. 12–15%) to limit market impact. D1A and PBX both enforce participation rate caps. If filling faster than target: pause until rate normalises.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Price-Time Priority</div>
+  <div class="term-def">The standard order matching rule: orders at a better price are filled first; among orders at the same price, the earlier-arriving order is filled first. LOB-SIM implements strict price-time priority in matchBook(). Aggressive orders hit the best price first; if that level is cleared, they "walk the book" to the next level.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Realised vs Unrealised P&amp;L</div>
+  <div class="term-def"><em>Realised P&amp;L</em> is locked in — it comes from trades that have been completed (a position opened and then closed). <em>Unrealised P&amp;L</em> is the mark-to-market value of an open position: position × (current mid − average entry) × $50. Total P&amp;L = realised + unrealised. The agent card displays total P&amp;L; realised P&amp;L reduces the capital account.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Settlement Price</div>
+  <div class="term-def">The official price used to value futures positions at the end of the trading day. For ES futures: the Special Opening Quotation (SOQ) of the S&amp;P 500 index on expiry day, or the closing price on non-expiry days. The settlement price is the reference for: daily mark-to-market margining, expiry cash settlement, and many derivative and ETF NAV calculations — making it a target for marking-the-close manipulation.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">Spread</div>
+  <div class="term-def">The difference between best ask and best bid: <em>spread = bestAsk − bestBid</em>. In a one-tick market (the normal state in LOB-SIM): spread = $0.25. The spread represents the immediate cost of trading: a market buyer pays the ask and could immediately sell at the bid, losing the spread. Market makers earn the spread; aggressive traders pay it.</div>
+</div>
+
+<div class="glossary-term">
+  <div class="term-word">TWAP / VWAP</div>
+  <div class="term-def"><em>Time-Weighted Average Price (TWAP)</em>: the average price over a period, weighted equally by time. Execution benchmark for funds with large orders to execute by end of session. <em>Volume-Weighted Average Price (VWAP)</em>: the average price weighted by volume traded at each price. More representative of the "true" market price during a session. Deviations of the closing price from intraday VWAP are a forensic signal for marking-the-close.</div>
+</div>
+
+</section>
+
+<hr class="section-rule">
+
+<!-- ═══════════════════════════════════ BIBLIOGRAPHY -->
+<section id="bibliography">
+<h2>Bibliography</h2>
+
+<table>
+<thead><tr><th>Authors / Authority</th><th>Title &amp; Source</th><th>Relevance</th></tr></thead>
+<tbody>
+<tr><td>Almgren &amp; Chriss (2001)</td><td>Optimal Execution of Portfolio Transactions. <em>Journal of Risk</em> 3(2).</td><td>TWAP/VWAP execution; D1A, PBX, FD1/FD2</td></tr>
+<tr><td>Attari, Lynch, Chhabra &amp; Fazilet (2020)</td><td>Primer on Futures Markets and Spoofing Allegations. <em>CRA Insights: Finance</em>.</td><td>Spoofing mechanics; cancel ratio thresholds</td></tr>
+<tr><td>Avellaneda &amp; Stoikov (2008)</td><td>High-Frequency Trading in a Limit Order Book. <em>Quantitative Finance</em> 8(3).</td><td>MM1/MM2 adaptive spread model</td></tr>
+<tr><td>Balsara (1992)</td><td>Money Management Strategies for Futures Traders. <em>John Wiley &amp; Sons.</em></td><td>Anti-martingale sizing; CTA4</td></tr>
+<tr><td>Bhattacharya &amp; Daouk (2002)</td><td>The World Price of Insider Trading. <em>Journal of Finance</em> 57(1).</td><td>IN1 model; global insider trading deterrence</td></tr>
+<tr><td>CFTC Order 19-15 (2019)</td><td>In re Flaum et al. / Bank of Nova Scotia. CFTC Enforcement.</td><td>245-lot spoof order; size asymmetry threshold</td></tr>
+<tr><td>CFTC v. Navinder Sarao (2015)</td><td>CFTC Complaint &amp; DOJ Indictment.</td><td>E-mini spoofing; linked to Flash Crash 2010</td></tr>
+<tr><td>CFTC v. Amaranth Advisors (2007)</td><td>CFTC Order imposing $7.5M civil monetary penalty.</td><td>Settlement price manipulation; gas futures</td></tr>
+<tr><td>Collin-Dufresne &amp; Fos (2015)</td><td>Do Prices Reveal the Presence of Informed Trading? <em>Journal of Finance</em> 70(4).</td><td>FD2 front-running vulnerability</td></tr>
+<tr><td>Comerton-Forde &amp; Putniņš (2011)</td><td>Measuring Closing Price Manipulation. <em>Journal of Financial Intermediation</em> 20(2).</td><td>Close/Mid ratio; settlement window forensics</td></tr>
+<tr><td>DOJ v. JPMorgan Chase (2020)</td><td>Deferred Prosecution Agreement; $920M resolution.</td><td>Institutional multi-trader spoofing; MN1/MN2</td></tr>
+<tr><td>Donchian, R.D. (1960)</td><td>High Finance in Copper. <em>Commodities Journal.</em></td><td>RTM3 Donchian channel breakout</td></tr>
+<tr><td>EU Regulation 596/2014 (MAR)</td><td>Market Abuse Regulation. Article 12: market manipulation.</td><td>Effects-based standard; layering; spoofing</td></tr>
+<tr><td>Faber, M. (2007)</td><td>A Quantitative Approach to Tactical Asset Allocation. <em>Journal of Wealth Management.</em></td><td>RTM2 MA crossover</td></tr>
+<tr><td>FCA Final Notice: Coscia (2013)</td><td>Final Notice — Michael Coscia. FCA Enforcement.</td><td>First European layering prosecution</td></tr>
+<tr><td>FCA Final Notice: HSBC (2016)</td><td>Final Notice — HSBC Bank Plc. FCA Enforcement.</td><td>Front-running; best execution obligation</td></tr>
+<tr><td>Gatev, Goetzmann &amp; Rouwenhorst (2006)</td><td>Pairs Trading. <em>Review of Financial Studies</em> 19(3).</td><td>AR1 VWAP mean-reversion strategy</td></tr>
+<tr><td>Glosten &amp; Milgrom (1985)</td><td>Bid, Ask and Transaction Prices. <em>Journal of Financial Economics</em> 14(1).</td><td>MM2 adverse selection model</td></tr>
+<tr><td>Hillion &amp; Suominen (2004)</td><td>The Manipulation of Closing Prices. <em>Journal of Financial Markets</em> 7(4).</td><td>Marking-the-close detection</td></tr>
+<tr><td>Jones, R. (1999)</td><td>The Trading Game. <em>John Wiley &amp; Sons.</em></td><td>CTA2 fixed ratio sizing</td></tr>
+<tr><td>Kelly, J.L. (1956)</td><td>A New Interpretation of Information Rate. <em>Bell System Technical Journal.</em></td><td>CTA3 Kelly criterion</td></tr>
+<tr><td>Keown &amp; Pinkerton (1981)</td><td>Merger Announcements and Insider Trading Activity. <em>Journal of Finance</em> 36(4).</td><td>Pre-announcement accumulation pattern</td></tr>
+<tr><td>Kissell, R. (2006)</td><td>The Expanded Implementation Shortfall. <em>Journal of Portfolio Management.</em></td><td>PBX iceberg algorithm design</td></tr>
+<tr><td>Kyle (1985)</td><td>Continuous Auctions and Insider Trading. <em>Econometrica</em> 53(6).</td><td>NT1-3 noise trader theory; information role</td></tr>
+<tr><td>Madhavan (2012)</td><td>ETFs, Market Structure, and the Flash Crash. <em>Financial Analysts Journal</em> 68(4).</td><td>ETA ETF arbitrage mechanics</td></tr>
+<tr><td>Meulbroek (1992)</td><td>An Empirical Analysis of Illegal Insider Trading. <em>Journal of Finance</em> 47(5).</td><td>IN1 pre-announcement accumulation signal</td></tr>
+<tr><td>MiFID II (Directive 2014/65/EU)</td><td>Articles 27–28: Best Execution.</td><td>Front-running as best-execution breach</td></tr>
+<tr><td>Moskowitz, Ooi &amp; Pedersen (2012)</td><td>Time Series Momentum. <em>Journal of Financial Economics</em> 104(2).</td><td>RTM1 momentum strategy</td></tr>
+<tr><td>PP v. Soh Chee Wen [2023] SGHC 299</td><td>Singapore BAL case. Supreme Court of Singapore.</td><td>IN1 model; 187 accounts; SG enforcement</td></tr>
+<tr><td>Putniņš (2012)</td><td>Market Manipulation: A Survey. <em>Journal of Economic Surveys</em> 26(5).</td><td>Settlement window agent concentration metric</td></tr>
+<tr><td>Vince, R. (1992)</td><td>The Mathematics of Money Management. <em>John Wiley &amp; Sons.</em></td><td>CTA1 fixed fractional sizing</td></tr>
+</tbody>
+</table>
+
+<div class="footnote">
+  <p>LOB-SIM is a simulation for educational purposes within the NTU MH6822 RegTech course. All agents, prices, fills, and events are synthetic. The simulation does not connect to any live market data feed or exchange. References are provided for scholarly verification; the simulation's implementation may simplify or abstract aspects of the cited methodologies for pedagogical clarity.</p>
+</div>
+</section>
+
+</main>
+</div>
+
+<script>
+// Scroll progress bar
+window.addEventListener('scroll', () => {
+  const winScroll = document.documentElement.scrollTop;
+  const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+  document.getElementById('scroll-bar').style.width = (winScroll / height * 100) + '%';
+});
+
+// Active nav link on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-link');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

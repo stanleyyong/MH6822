@@ -1003,6 +1003,15 @@ canvas#price-chart.panning { cursor: grabbing; }
     <span class="tb-stat-value" id="tb-vwap">5,892.50</span>
   </div>
   <div class="tb-sep"></div>
+  <div class="tb-stat" title="Synthetic SPY ETF price (ES/10 equivalent)">
+    <span class="tb-stat-label">SPY</span>
+    <span class="tb-stat-value" id="tb-spy">589.25</span>
+  </div>
+  <div class="tb-stat" title="ETF premium vs ES fair value in ticks. +ve = ETF rich. -ve = ETF cheap.">
+    <span class="tb-stat-label">ETF Prem</span>
+    <span class="tb-stat-value" id="tb-etf-prem" style="color:var(--text2)">+0.0t</span>
+  </div>
+  <div class="tb-sep"></div>
   <div class="speed-wrap">
     <span class="speed-label">Speed</span>
     <button class="speed-btn" data-speed="1" onclick="setSpeed(1)">1×</button>
@@ -1169,12 +1178,20 @@ canvas#price-chart.panning { cursor: grabbing; }
   <div class="panel" id="agent-panel">
     <div class="panel-header">
       <span class="panel-title">Agent Positioning</span>
-      <span class="panel-badge" id="agent-count">0 AGENTS</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="panel-badge" id="agent-count">0 AGENTS</span>
+        <div style="display:flex;align-items:center;gap:3px;">
+          <span style="font-size:9px;color:var(--text3);">Pool:</span>
+          <button class="skip-btn" style="padding:1px 6px;font-size:9px;" onclick="resizePool(-100)" title="Remove 100 pool agents">−100</button>
+          <span id="pool-size-display" style="font-size:9px;color:var(--amber);font-weight:600;min-width:28px;text-align:center;">100</span>
+          <button class="skip-btn" style="padding:1px 6px;font-size:9px;" onclick="resizePool(100)"  title="Add 100 pool agents">+100</button>
+        </div>
+      </div>
     </div>
     <!-- RETAIL POOL PINNED STATS -->
     <div class="pool-panel" id="pool-panel">
       <div class="pool-header">
-        <span class="pool-title">Retail Pool (100 agents)</span>
+        <span class="pool-title" id="pool-panel-title">Retail Pool (100 agents)</span>
         <span class="pool-badge" id="pool-badge">NOT STARTED</span>
       </div>
       <div class="pool-stats-grid">
@@ -1221,6 +1238,8 @@ const TICK_VAL   = 12.50;  // $12.50 per tick
 const FEE_TAKER  = 1.00;   // $ per contract — aggressive (market) orders
 const FEE_MAKER  = -0.25;  // $ per contract — passive (limit) rebate (negative = revenue)
 const FEE_WASH   = 2.00;   // $ per contract — wash traders pay double (both sides)
+const FEE_EXEC_COMMISSION = 0.50; // $ per contract — execution desk charges client
+const FEE_EXEC_NET = FEE_TAKER - FEE_EXEC_COMMISSION; // net cost to desk after commission
 
 // ── Firm-wide capital pool ───────────────────────────────────────────
 const TOTAL_MARKET_CAPITAL = 5_000_000;  // $ — total pool allocated across all non-manip agents
@@ -1252,6 +1271,13 @@ const WASH_CAPITAL_MIN   = 50_000;    // wash trader — only needs fee float
 const WASH_CAPITAL_MAX   = 150_000;
 const INSIDER_CAPITAL_MIN= 100_000;   // insider — needs position capital
 const INSIDER_CAPITAL_MAX= 500_000;
+// Institutional desk capital (bank desk allocated capital slices)
+const D1_CAPITAL_MIN    = 2_000_000;   // delta-one desk
+const D1_CAPITAL_MAX    = 8_000_000;
+const ETFARB_CAPITAL_MIN= 500_000;    // ETF arb desk
+const ETFARB_CAPITAL_MAX= 2_000_000;
+const PBEXEC_CAPITAL_MIN= 1_000_000;  // prime brokerage execution
+const PBEXEC_CAPITAL_MAX= 4_000_000;
 // Derived: max position from capital = floor(capital / MARGIN_INITIAL)
 // e.g. $15k → 1 contract, $23k → 2, $34k → 2-3, $50k → 4
 const BASE_PRICE = 5892.50;
@@ -1305,6 +1331,12 @@ let bids = [];  // [{price, qty, agentId, tag}]  descending
 // Price history for chart
 let priceHistory = [];   // {t, price, vol, session}
 let candles      = [];   // OHLC candles: {t, o, h, l, c, vol, session}
+// SPY synthetic price
+let spyPrice = BASE_PRICE / 10;
+let spyFair  = BASE_PRICE / 10;
+let spyPremium      = 0;  // index points
+let spyPremiumTicks = 0;  // ES tick equivalents
+let spyHistory      = [];  // {t, spy, fair, premium}
 let currentCandle = null; // candle being built
 let chartPeriod  = 30;   // sim-seconds per candle (default 30s)
 // Zoom/pan state
@@ -1323,6 +1355,9 @@ const AGENT_TYPES = {
   arb:     { label:'Arbitrageur',  color:'#7c3aed',  manip: false },
   cta:     { label:'CTA / Trend',    color:'#0891b2',  manip: false },
   rtm:     { label:'Retail Momentum', color:'#d97706',  manip: false },
+  d1:      { label:'Delta-One Desk',  color:'#0e7490',  manip: false },
+  etfarb:  { label:'ETF Arb Desk',    color:'#0369a1',  manip: false },
+  pbexec:  { label:'PB Execution',    color:'#4338ca',  manip: false },
   manip:   { label:'Manipulator',  color:'#dc2626',  manip: true  },
   wash:    { label:'Wash Trader',  color:'#db2777',  manip: true  },
   insider: { label:'Insider',      color:'#8b5cf6',  manip: true  },
@@ -1342,7 +1377,7 @@ let pendingRebirths = []; // [{id, spawnAt, gen}]
 // ── 100-agent retail pool ────────────────────────────────────────
 // Lightweight: no order book entries; fills simulated at mid ± half-spread.
 // Each agent: capital ($8k-$20k), pos (−1/0/+1 only), avgEntry, bias, nextActTime
-const POOL_SIZE        = 100;
+let POOL_SIZE          = 100;  // configurable — default 100, adjustable in increments of 100
 const POOL_CAP_MIN     = 8_000;
 const POOL_CAP_MAX     = 20_000;
 const POOL_ACT_FREQ    = 720;  // act at most once per 720 sim-seconds (once per ~12 min at 1×)
@@ -1488,6 +1523,9 @@ function buildAgents() {
     { id:'CTA2', type:'cta',     name:'Jones-FR',   active:true  },
     { id:'CTA3', type:'cta',     name:'Winton-KC',  active:true  },
     { id:'CTA4', type:'cta',     name:'MAN-AM',     active:true  },
+    { id:'D1A',  type:'d1',      name:'GS-DeltaOne', active:true },
+    { id:'ETA',  type:'etfarb',  name:'ETF-Arb',    active:true },
+    { id:'PBX',  type:'pbexec',  name:'PB-Exec',    active:true },
     { id:'MN1',  type:'manip',   name:'???-Alpha',  active:false },
     { id:'MN2',  type:'manip',   name:'???-Beta',   active:false },
     { id:'WS1',  type:'wash',    name:'???-Wash',   active:false },
@@ -1512,6 +1550,15 @@ function buildAgents() {
     // CTA agents — each implements a different bet sizing strategy
     // Common fields: capital, peakEquity (HWM), tradeHistory, creditUsed, shutdown
     // Retail momentum / trend agents: small capital, retail-sized positions
+    // Institutional desk agents
+    D1A: { blockSize:0, blockSide:'bid', blockFilled:0, blockTarget:0,
+           sliceInterval:0, nextSliceT:0, posLimit:200, participationRate:0.15,
+           rebalanceCycle:0, dailyLossLimit:50000, dailyLoss:0 },
+    ETA: { premium:0, spreadThresh:1.5, posLimit:80, flipCooldown:0,
+           longFutures:0, shortFutures:0, dailyLossLimit:20000, dailyLoss:0 },
+    PBX: { clientOrder:null, sliceQty:0, slicesFilled:0, totalFilled:0,
+           participationPct:0.12, nextSliceT:0, posLimit:300,
+           vwapTarget:0, dailyLossLimit:30000, dailyLoss:0 },
     RTM1: { strategy:'timeseries_momentum', lookback:10, posLimit:8,
             wins:0, losses:0, confidence:1.0, cooldownUntil:0,
             dailyLossLimit:800, dailyLoss:0 },
@@ -1551,6 +1598,9 @@ function buildAgents() {
       fund:    [FUND_CAPITAL_MIN,    FUND_CAPITAL_MAX],
       arb:     [ARB_CAPITAL_MIN,     ARB_CAPITAL_MAX],
       manip:   [MANIP_CAPITAL_MIN,   MANIP_CAPITAL_MAX],
+      d1:      [D1_CAPITAL_MIN,      D1_CAPITAL_MAX],
+      etfarb:  [ETFARB_CAPITAL_MIN,  ETFARB_CAPITAL_MAX],
+      pbexec:  [PBEXEC_CAPITAL_MIN,  PBEXEC_CAPITAL_MAX],
       wash:    [WASH_CAPITAL_MIN,    WASH_CAPITAL_MAX],
       insider: [INSIDER_CAPITAL_MIN, INSIDER_CAPITAL_MAX],
     };
@@ -1589,7 +1639,11 @@ function buildAgents() {
       a.state.capitalBudget = capital;  // spoofer's total risk budget
     }
     if (a.type === 'wash') {
-      a.state.feeBudget = Math.min(1500, capital * 0.03); // 3% of capital in fees
+      a.state.feeBudget = Math.min(1500, capital * 0.03);
+    }
+    if (a.type === 'd1' || a.type === 'etfarb' || a.type === 'pbexec') {
+      a.state.peakEquity = capital;
+      a.state.capitalFloor = capital * 0.25;  // 25% floor before mandate pauses
     }
     if (a.type === 'insider') {
       a.state.posLimit = Math.max(1, Math.floor(capital * 0.80 / MARGIN_INITIAL)); // use 80% of capital for position
@@ -2180,7 +2234,7 @@ function ctaTrendSignal() {
 // Position size = floor(riskAmount / (stopLoss_ticks * TICK_VAL))
 // Stop: 3 ticks. Pure trend entry when signal > threshold.
 function cta1Step() {
-  if (Math.random() > 0.06) return;
+  if (Math.random() > 0.02) return;
   const id = 'CTA1';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2229,7 +2283,7 @@ function cta1Step() {
 // Position size = units × baseSize contracts.
 // More aggressive compounding — good in trends, devastating in drawdowns.
 function cta2Step() {
-  if (Math.random() > 0.06) return;
+  if (Math.random() > 0.02) return;
   const id = 'CTA2';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2275,7 +2329,7 @@ function cta2Step() {
 // Position = kellyFrac × (W - (1-W)/R) × maxContractsFromEquity
 // Uses 25% Kelly (fractional) to control variance.
 function cta3Step() {
-  if (Math.random() > 0.06) return;
+  if (Math.random() > 0.02) return;
   const id = 'CTA3';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2332,7 +2386,7 @@ function cta3Step() {
 // Reset to baseSize on any loss.
 // Best strategy for sustained trends — maximises profits during winning streaks.
 function cta4Step() {
-  if (Math.random() > 0.06) return;
+  if (Math.random() > 0.02) return;
   const id = 'CTA4';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2590,6 +2644,214 @@ function rtm3Step() {
     addNews(`BREAKOUT: ${id} short ${qty} at ${fmt(price)} — broke ${fmt(chanLow)} (${st.lookbackBars}-bar low).`, 'event-order');
 }
 
+// ── DELTA-ONE DESK ─────────────────────────────────────────────
+// GS Delta One: executes index replication / basket hedge orders for clients.
+// Behaviour: receives a "block order" at irregular intervals (client hedge flow),
+// then systematically breaks it into slices. Participation rate constrained:
+// never more than 15% of current market volume per period.
+// Also runs periodic index rebalancing (quarter-end style) on a cycle.
+// Capital: $2M-$8M. Daily loss limit: $50k.
+function d1Step() {
+  const id = 'D1A';
+  const a  = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  const st = a.state;
+  if (st.dailyLoss >= st.dailyLossLimit) return;
+  if (effectiveEquity(id) < (st.capitalFloor||0)) return;
+
+  // Generate new block order if none active (random client flow arrival)
+  if (st.blockTarget === 0) {
+    // Arrives with ~2% probability per step (roughly every 50 steps = ~50 sim-sec)
+    if (Math.random() > 0.00033) return;  // ~1 call per 50 sim-min on avg
+    const sess = currentSession();
+    if (sess.id === 'pre') return;
+
+    st.blockSide   = Math.random() < 0.5 ? 'bid' : 'ask';
+    st.blockTarget = randInt(500, 2000);  // 500-2000 lot realistic hedge
+    st.blockFilled = 0;
+    // Slice size: target 12% participation rate — so slice = 12% × current est vol rate
+    // Estimate ~40 lots/min market volume in mid-session
+    const mktVolRate = totalVol > 0 ? (totalVol / Math.max(1, simTime/60)) : 40;
+    st.sliceSize = Math.max(3, Math.floor(mktVolRate * st.participationRate * 0.5));
+    st.nextSliceT = simTime + randInt(5, 15);  // first slice in 5-15 sim-seconds
+    addNews(
+      `DELTA-ONE: GS client block ${st.blockTarget}-lot ${st.blockSide.toUpperCase()} received. `
+      + `Slice size ${st.sliceSize} lots at ${(st.participationRate*100).toFixed(0)}% participation.`,
+      'event-order');
+    return;
+  }
+
+  // Execute next slice of active block order
+  if (simTime < st.nextSliceT) return;
+  if (st.blockFilled >= st.blockTarget) {
+    addNews(
+      `DELTA-ONE: Block complete — ${st.blockFilled} lots ${st.blockSide.toUpperCase()} executed. `
+      + `VWAP execution quality: ${Math.random() > 0.5 ? 'within' : 'slightly above'} benchmark.`,
+      'event-order');
+    st.blockTarget = 0; st.blockFilled = 0;
+    return;
+  }
+
+  const remaining = st.blockTarget - st.blockFilled;
+  const qty = Math.min(st.sliceSize, remaining, Math.floor(availableCapital(id)/MARGIN_INITIAL));
+  if (qty <= 0) { st.blockTarget = 0; return; }
+
+  // Passive limit order — use best price, never cross spread aggressively
+  const side  = st.blockSide;
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(side, price, qty, id, 'fund');  // tagged 'fund' so tape shows FUND
+  st.blockFilled += qty;
+  st.dailyLoss   += qty * FEE_TAKER;  // count fees toward daily limit
+
+  // 60-180 sim-second slicing interval (realistic phone-call-driven execution)
+  const mktVol2 = totalVol > 0 ? Math.max(1, totalVol / Math.max(1, simTime/60)) : 40;
+  const liqAdj  = Math.min(1.5, mktVol2 / 40);
+  const sliceInterval2 = Math.max(60, Math.round(120 / liqAdj));
+  st.nextSliceT = simTime + randInt(Math.floor(sliceInterval2*0.7), sliceInterval2);
+}
+
+// ── ETF ARBITRAGE DESK ─────────────────────────────────────────
+// ETF Arb: exploits premium/discount between ETF NAV and futures fair value.
+// When ES futures appear cheap vs estimated NAV, buy futures / short ETF.
+// When futures appear expensive, short futures / long ETF.
+// In this simulation: approximated by tracking mid vs VWAP divergence — a
+// persistent divergence signals a relative mispricing that the desk will trade.
+// Orders are small, frequent, and flip direction based on the spread signal.
+// Capital: $500k-$2M. Daily loss limit: $20k.
+function etaStep() {
+  const id = 'ETA';
+  if (Math.random() > 0.08) return;
+  const a  = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  const st = a.state;
+  if (st.dailyLoss >= st.dailyLossLimit) return;
+  if (effectiveEquity(id) < (st.capitalFloor||0)) return;
+  if (simTime < st.flipCooldown) return;
+  if (currentSession().id === 'pre') return;
+
+  const pos    = agentPos[id] || 0;
+  const entry  = agentAvgEntry[id] || midPrice;
+  const upnl   = unrealisedPnl(id);
+
+  // Exit condition: arbitrage spread has closed (or stop/profit)
+  if (pos !== 0) {
+    if (upnl > 4*TICK_VAL*Math.abs(pos)) {
+      // Arb closed profitably
+      const side = pos > 0 ? 'ask' : 'bid';
+      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'etfarb');
+      st.flipCooldown = simTime + randInt(20, 60);  // cooldown before re-entering
+      return;
+    }
+    if (upnl < -6*TICK_VAL*Math.abs(pos)) {
+      // Stop
+      const side = pos > 0 ? 'ask' : 'bid';
+      addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'etfarb');
+      st.dailyLoss += Math.abs(upnl);
+      st.flipCooldown = simTime + randInt(60, 120);
+      return;
+    }
+    return;  // hold until exit triggered
+  }
+  if (Math.abs(pos) >= st.posLimit) return;
+
+  // ETF PREMIUM/DISCOUNT SIGNAL — correct cash-and-carry arbitrage direction
+  // SPY RICH (positive premium): SPY expensive, ES cheap
+  //   → BUY the cheap leg (ES futures = bid), short SPY shares (off-sim)
+  //   → ES price rises to close the gap → long futures position profits
+  // SPY CHEAP (negative premium): SPY cheap, ES expensive
+  //   → SELL the expensive leg (ES futures = ask), buy SPY shares (off-sim)
+  //   → ES price falls to close the gap → short futures position profits
+  const spread = spyPremiumTicks;
+  if (Math.abs(spread) < st.spreadThresh) return;
+  const side  = spread > 0 ? 'bid' : 'ask';  // BUY ES when SPY rich, SELL ES when SPY cheap
+  const marginCap = Math.floor(availableCapital(id) / MARGIN_INITIAL);
+  const qty   = Math.max(1, Math.min(randInt(5, 20), st.posLimit, marginCap));
+  const price = side === 'ask' ? round(bestAsk()) : round(bestBid());
+  addOrUpdate(side, price, qty, id, 'etfarb');
+}
+
+// ── PRIME BROKERAGE EXECUTION (Iceberg / Smart Order Routing) ─────
+// PBX simulates a prime brokerage execution desk running a client's large
+// block order through an iceberg/smart-routing algorithm.
+// Key features:
+//   - New client order arrives periodically (large, 500-1500 lots)
+//   - Broken into small "iceberg" slices (visible qty 10-30, hidden rest)
+//   - Participation rate enforced: target ~12% of market volume
+//   - VWAP benchmark tracked: slows down if execution is consistently poor
+//   - Order visible on tape as small consistent fills — the iceberg pattern
+//   - Direction alternates with randomised client mandate
+// Capital: $1M-$4M.
+function pbxStep() {
+  const id = 'PBX';
+  const a  = agents.find(x => x.id === id);
+  if (!a || a.state.dead) return;
+  const st = a.state;
+  if (st.dailyLoss >= st.dailyLossLimit) return;
+  if (effectiveEquity(id) < (st.capitalFloor||0)) return;
+  if (currentSession().id === 'pre') return;
+
+  // Generate new client order if none active
+  if (!st.clientOrder) {
+    if (Math.random() > 0.008) return;  // arrives rarely (~1 per 125 steps)
+    const side   = Math.random() < 0.5 ? 'bid' : 'ask';
+    const target = randInt(500, 1500);
+    const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+    st.clientOrder  = { side, target, filled: 0, startT: simTime, benchmarkVwap: vwapNow };
+    st.vwapTarget   = vwapNow;
+    st.nextSliceT   = simTime + randInt(3, 10);
+    // Iceberg visible size: 10-30 lots (the "tip" — hides the true order size)
+    st.sliceQty     = randInt(10, 30);
+    addNews(
+      `PB-EXEC: Iceberg order — ${target}-lot ${side.toUpperCase()} client mandate. `
+      + `Visible slice: ${st.sliceQty} lots. Benchmark VWAP: ${fmt(vwapNow)}.`,
+      'event-order');
+    return;
+  }
+
+  const order = st.clientOrder;
+  if (order.filled >= order.target) {
+    const dur = ((simTime - order.startT)/60).toFixed(1);
+    const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+    const slippage = order.side === 'bid'
+      ? ((vwapNow - order.benchmarkVwap)/TICK).toFixed(1)
+      : ((order.benchmarkVwap - vwapNow)/TICK).toFixed(1);
+    addNews(
+      `PB-EXEC: Order complete — ${order.filled} lots ${order.side.toUpperCase()} in ${dur} min. `
+      + `Slippage vs benchmark VWAP: ${slippage > 0 ? '+' : ''}${slippage} ticks.`,
+      'event-order');
+    st.clientOrder = null;
+    return;
+  }
+
+  if (simTime < st.nextSliceT) return;
+
+  // VWAP discipline: pause if mid has moved adversely by >4 ticks vs benchmark
+  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const slip = order.side === 'bid' ? midPrice - st.vwapTarget : st.vwapTarget - midPrice;
+  if (slip > 4*TICK) { st.nextSliceT = simTime + randInt(10, 30); return; }
+
+  // Participation rate enforcement: estimate market vol rate
+  const elapsed   = Math.max(1, simTime - order.startT);
+  const mktRate   = (totalVol / (elapsed/60));
+  const targetRate = st.participationPct * mktRate;
+  const fillRate   = (order.filled / (elapsed/60));
+  // If filling faster than target participation, slow down
+  if (fillRate > targetRate * 1.2) { st.nextSliceT = simTime + randInt(15, 40); return; }
+
+  const remaining = order.target - order.filled;
+  const qty       = Math.min(st.sliceQty, remaining, Math.floor(availableCapital(id)/MARGIN_INITIAL));
+  if (qty <= 0) { st.clientOrder = null; return; }
+
+  const price = order.side === 'bid' ? round(bestBid()) : round(bestAsk());
+  addOrUpdate(order.side, price, qty, id, 'fund');
+  order.filled    += qty;
+  st.dailyLoss    += qty * FEE_TAKER;
+
+  // Randomise next slice timing: more aggressive in liquid markets
+  const liquidityScore = Math.min(2, mktRate / 40);
+  st.nextSliceT = simTime + Math.max(5, Math.round(randInt(8, 25) / liquidityScore));
+}
+
 // ── MAIN AGENT STEP (replaces old noiseAgentStep) ────────────────
 function noiseAgentStep() {
   const sess = currentSession();
@@ -2611,6 +2873,11 @@ function noiseAgentStep() {
 
   // Arbitrageur — VWAP mean-reversion
   arbStep('AR1');
+
+  // Institutional desks
+  d1Step();
+  etaStep();
+  pbxStep();
 
   // Retail momentum / systematic strategies
   rtm1Step();
@@ -3057,6 +3324,25 @@ function renderAgents() {
 // ═══════════════════════════════════════════════════════
 //  CHART
 // ═══════════════════════════════════════════════════════
+// ── SPY synthetic price ──────────────────────────────────────────
+function stepSpy() {
+  const sess = currentSession();
+  spyFair = midPrice / 10;
+  spyPremium *= 0.9943;  // mean-revert toward 0 (half-life ~120 steps)
+  if (Math.random() < 0.01 && sess.id !== 'pre') {
+    const shock = (Math.random() - 0.5) * 4 * TICK;
+    spyPremium += shock;
+  }
+  if (sess.id === 'close') spyPremium *= 0.99;
+  spyPremium = Math.max(-3*TICK, Math.min(3*TICK, spyPremium));
+  spyPrice = Math.round((spyFair + spyPremium/10) * 100) / 100;
+  spyPremiumTicks = spyPremium / TICK;
+  if (simTime % 10 === 0) {
+    spyHistory.push({ t: simTime, spy: spyPrice, fair: spyFair, premium: spyPremiumTicks });
+    if (spyHistory.length > 1200) spyHistory.shift();
+  }
+}
+
 // ── Candle building ────────────────────────────────────────────
 function buildCandle(price, cumVol) {
   const periodStart = Math.floor(simTime / chartPeriod) * chartPeriod;
@@ -3201,6 +3487,49 @@ function renderChart() {
       ctx.strokeRect(x - halfBW, bodyTop, halfBW*2, bodyH);
     }
   });
+
+  // SPY fair-value line (dashed teal) and premium shading
+  if (spyHistory.length >= 2) {
+    const visT0 = vis[0].t, visTN = vis[vis.length-1].t;
+    const spyVis = spyHistory.filter(s => s.t >= visT0 && s.t <= visTN);
+    if (spyVis.length >= 2) {
+      // Fair-value line: spyFair*10 = implied ES level
+      ctx.strokeStyle = 'rgba(14,116,144,0.65)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2,3]);
+      ctx.beginPath();
+      spyVis.forEach((s,i) => {
+        const tFrac = (s.t - visT0) / Math.max(1, visTN - visT0);
+        const x = LEFT_PAD + tFrac * chartW;
+        const y = toY(s.fair * 10);
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(14,116,144,0.8)';
+      ctx.font = '8px IBM Plex Mono';
+      ctx.textAlign = 'left';
+      const lastSpy = spyVis[spyVis.length-1];
+      ctx.fillText('SPY×10', LEFT_PAD + 2, toY(lastSpy.fair * 10) - 3);
+
+      // Premium shading between lines
+      spyVis.forEach((s,i) => {
+        if (i === 0) return;
+        const prev = spyVis[i-1];
+        const x0 = LEFT_PAD + ((prev.t-visT0)/Math.max(1,visTN-visT0))*chartW;
+        const x1 = LEFT_PAD + ((s.t   -visT0)/Math.max(1,visTN-visT0))*chartW;
+        const yF0 = toY(prev.fair*10), yF1 = toY(s.fair*10);
+        const yE0 = toY(prev.fair*10 + prev.premium*TICK);
+        const yE1 = toY(s.fair*10   + s.premium*TICK);
+        ctx.fillStyle = s.premium > 0
+          ? 'rgba(232,64,64,0.06)' : 'rgba(0,201,122,0.06)';
+        ctx.beginPath();
+        ctx.moveTo(x0,yF0); ctx.lineTo(x1,yF1);
+        ctx.lineTo(x1,yE1); ctx.lineTo(x0,yE0);
+        ctx.closePath(); ctx.fill();
+      });
+    }
+  }
 
   // Current price horizontal line
   const cy = toY(lastPrice);
@@ -3364,6 +3693,14 @@ function updateTopBar() {
   document.getElementById('tb-vol').textContent  = fmtComma(totalVol);
   const vwap = totalVol>0 ? vwapSum/totalVol : lastPrice;
   document.getElementById('tb-vwap').textContent = fmt(vwap);
+  const spyEl = document.getElementById('tb-spy');
+  if (spyEl) spyEl.textContent = spyPrice.toFixed(2);
+  const premEl = document.getElementById('tb-etf-prem');
+  if (premEl) {
+    const pt = spyPremiumTicks;
+    premEl.textContent = (pt >= 0 ? '+' : '') + pt.toFixed(1) + 't';
+    premEl.style.color = Math.abs(pt) < 0.5 ? 'var(--text2)' : pt > 0 ? 'var(--red2)' : 'var(--green)';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -3373,6 +3710,7 @@ function simStep() {
   simTime += 1;  // 1 sim-second per tick
   if (simTime >= daySeconds) { stopSim(); return; }
 
+  stepSpy();
   // Build OHLC candles every sim step; also keep priceHistory for compat
   buildCandle(lastPrice, totalVol);
   if (simTime % 10 === 0) {
@@ -3597,6 +3935,7 @@ function skipTo(targetSec) {
     dayOpen = midPrice; dayHigh = midPrice; dayLow = midPrice;
     totalVol = 0; vwapSum = 0; tapeCount = 0;
     priceHistory = []; candles = []; currentCandle = null; chartEventPins = [];
+    spyPrice = BASE_PRICE/10; spyFair = BASE_PRICE/10; spyPremium = 0; spyPremiumTicks = 0; spyHistory = [];
     document.getElementById('tape-body').innerHTML = '<div class="agent-list-header"><span></span><span>Time</span><span>Qty</span><span>Agent</span></div>';
     document.getElementById('news-body').innerHTML = '';
     document.getElementById('agent-list').innerHTML = '';
@@ -3882,7 +4221,12 @@ matchBook = function() {
       if (f.buyerId)  agentRealised[f.buyerId]  = (agentRealised[f.buyerId]  || 0) - FEE_WASH * f.qty;
       if (f.sellerId) agentRealised[f.sellerId] = (agentRealised[f.sellerId] || 0) - FEE_WASH * f.qty;
     } else {
-      // Normal fills — inventory + fee model
+      // Normal fills — agent-type-aware P&L model
+      // AGENCY EXECUTION DESKS (D1A, PBX): act as intermediaries for clients.
+      //   They do NOT take inventory risk. P&L = commission earned − exchange fees.
+      //   Position is the CLIENT's, not the desk's → agentPos stays zero for desk.
+      const AGENCY_TYPES = new Set(['d1', 'pbexec']);
+
       [
         { id: f.buyerId,  sign: +1, type: buyerType,  isPassive: f.buyTag === 'mm' },
         { id: f.sellerId, sign: -1, type: sellerType, isPassive: f.sellTag === 'mm' },
@@ -3890,38 +4234,44 @@ matchBook = function() {
         if (!id || agentPos[id] === undefined) return;
         const qty   = f.qty;
         const price = f.price;
-        const fee   = isPassive ? FEE_MAKER : FEE_TAKER;  // rebate or cost per contract
+
+        // ── AGENCY DESKS: commission − exchange fee, no inventory ──
+        if (AGENCY_TYPES.has(type)) {
+          // Desk earns $0.50 commission, pays $1.00 exchange fee → net −$0.50/contract
+          // This is realistic: execution desks run at slight loss on fees, make money
+          // on rebates, crossing spreads, and ancillary client relationships.
+          // Net P&L per contract: commission − taker_fee = $0.50 − $1.00 = −$0.50
+          agentRealised[id] = (agentRealised[id] || 0) + (FEE_EXEC_COMMISSION - FEE_TAKER) * qty;
+          // No position accumulation — client holds the risk, not the desk
+          return;
+        }
+
+        const fee = isPassive ? FEE_MAKER : FEE_TAKER;
 
         // Fee component (always realised immediately)
         agentRealised[id] = (agentRealised[id] || 0) - fee * qty;
 
-        // Market makers: earn spread capture on fills, don't track directional inventory
-        // Their P&L is purely: (fill price vs mid) * qty * D * sign — spread income
+        // ── MARKET MAKERS: spread capture, no directional inventory ──
         if (type === 'mm') {
-          // Seller fills above mid = earned spread; buyer fills below mid = earned spread
-          const spreadCapture = (price - midPrice) * (-sign); // positive when filling passively
+          const spreadCapture = (price - midPrice) * (-sign);
           agentRealised[id] = (agentRealised[id] || 0) + spreadCapture * qty * D;
-          return; // no inventory position for MMs
+          return;
         }
 
-        // Directional agents: inventory model
+        // ── DIRECTIONAL AGENTS: inventory model ──
         const oldPos = agentPos[id];
         const newPos = oldPos + sign * qty;
 
         if (oldPos === 0) {
           agentAvgEntry[id] = price;
         } else if (Math.sign(oldPos) === Math.sign(sign) || oldPos === 0) {
-          // Adding to position — VWAP entry
           agentAvgEntry[id] = (agentAvgEntry[id] * Math.abs(oldPos) + price * qty)
                               / (Math.abs(oldPos) + qty);
         } else {
-          // Reducing or flipping — crystallise realised P&L
-          const closingQty = Math.min(Math.abs(oldPos), qty);
+          const closingQty  = Math.min(Math.abs(oldPos), qty);
           const pnlPerPoint = (price - agentAvgEntry[id]) * Math.sign(oldPos);
           agentRealised[id] = (agentRealised[id] || 0) + pnlPerPoint * closingQty * D;
-          if (qty > Math.abs(oldPos)) {
-            agentAvgEntry[id] = price;  // flip — new avg entry
-          }
+          if (qty > Math.abs(oldPos)) agentAvgEntry[id] = price;
         }
         agentPos[id] = newPos;
       });
@@ -3986,10 +4336,20 @@ renderAgents = function() {
     const bidPct = totalExp > 0 ? (bidV/maxExposure*100).toFixed(0) : 0;
     const askPct = totalExp > 0 ? (askV/maxExposure*100).toFixed(0) : 0;
 
-    const pnlStr   = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
-    const pnlClass = pnl > 50 ? 'pos' : pnl < -50 ? 'neg' : 'dim';
-    const posStr   = pos === 0 ? '—' : (pos > 0 ? '+' : '') + pos;
-    const posClass = pos > 0 ? 'pos' : pos < 0 ? 'neg' : 'dim';
+    // Agency desks: show execution metrics, not trading P&L
+    const isAgency = (a.type === 'd1' || a.type === 'pbexec');
+    const pnlStr   = isAgency
+      ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0) + ' (net)'
+      : (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
+    const pnlClass = pnl > 10 ? 'pos' : pnl < -50 ? 'neg' : 'dim';
+    const posStr   = isAgency
+      ? (a.state.blockTarget > 0
+          ? (a.state.blockFilled||0) + '/' + a.state.blockTarget
+          : a.state.clientOrder
+            ? (a.state.clientOrder.filled||0) + '/' + a.state.clientOrder.target
+            : '—')
+      : (pos === 0 ? '—' : (pos > 0 ? '+' : '') + pos);
+    const posClass = isAgency ? 'gold' : pos > 0 ? 'pos' : pos < 0 ? 'neg' : 'dim';
     const cxlClass = cancelPct > 60 ? 'neg' : cancelPct > 30 ? 'gold' : 'dim';
 
     // Capital bar — all agents
@@ -4061,7 +4421,7 @@ renderAgents = function() {
           <span class="agent-stat-val gold">${fills}</span>
         </div>
         <div class="agent-stat">
-          <span class="agent-stat-label">Pos</span>
+          <span class="agent-stat-label">${isAgency ? 'Order' : 'Pos'}</span>
           <span class="agent-stat-val ${posClass}">${posStr}</span>
         </div>
         <div class="agent-stat">
@@ -4621,6 +4981,51 @@ function openResearch(mode) {
   document.getElementById('research-modal').classList.add('open');
 }
 
+// ═══════════════════════════════════════════════════════
+//  POOL RESIZE
+// ═══════════════════════════════════════════════════════
+function resizePool(delta) {
+  const newSize = Math.max(0, Math.min(1000, POOL_SIZE + delta));
+  if (newSize === POOL_SIZE) return;
+
+  const oldSize = POOL_SIZE;
+  POOL_SIZE = newSize;
+
+  // Update display
+  const disp = document.getElementById('pool-size-display');
+  if (disp) disp.textContent = POOL_SIZE;
+  const title = document.getElementById('pool-panel-title');
+  if (title) title.textContent = `Retail Pool (${POOL_SIZE} agents)`;
+
+  if (!running && simTime === 0) {
+    // Pre-start: just resize the pool array without consequences
+    initPool();
+    addNews(`Pool resized to ${POOL_SIZE} agents. Start simulation to activate.`, '');
+    return;
+  }
+
+  if (delta > 0) {
+    // Add agents: spawn with fresh capital
+    for (let i = oldSize; i < POOL_SIZE; i++) {
+      pool.push({
+        id:       'P' + String(i).padStart(3,'0'),
+        capital:  randInt(POOL_CAP_MIN, POOL_CAP_MAX),
+        realised: 0, pos: 0, avgEntry: 0,
+        bias:     Math.random() < 0.5 ? 1 : -1,
+        nextAct:  simTime + randInt(0, POOL_ACT_FREQ),
+        dead:     false, trades: 0, wins: 0,
+      });
+    }
+    addNews(`Pool expanded to ${POOL_SIZE} agents (+${delta} new accounts added).`, 'event-order');
+  } else {
+    // Remove agents: trim from the end (remove most recently added)
+    pool = pool.slice(0, POOL_SIZE);
+    addNews(`Pool reduced to ${POOL_SIZE} agents (${Math.abs(delta)} accounts removed).`, 'event-order');
+  }
+  updatePoolPanel();
+}
+
+
 function closeResearch() {
   document.getElementById('research-modal').classList.remove('open');
 }
@@ -4854,6 +5259,53 @@ const AGENT_PROFILES = {
     edge: 'Pure information asymmetry. P&L = (price move at announcement x position x $50) minus fees. Typically several thousand dollars per episode.',
     ref: 'Meulbroek (1992). An Empirical Analysis of Illegal Insider Trading. Journal of Finance 47(5). Pre-announcement price run-up of 40-50% of total move is the forensic signature.',
   },
+  D1A: {
+    fullName: 'GS Delta-One Desk',
+    role: 'Delta-One / Index Replication — client block execution with participation rate control',
+    tags: ['blue:Institutional','green:Block Execution','amber:15% Participation Cap','grey:Iceberg-style Slicing'],
+    overview: 'GS Delta-One simulates the execution desk that processes client requests for index hedging, basket trades, and synthetic replication. When a client wants to hedge a $100M equity portfolio, this desk transacts in ES futures to provide the hedge. The block arrives as a single large mandate (200-800 lots) which is systematically sliced into small passive orders. Participation rate is capped at 15% of estimated market volume — the desk slows down in thin markets to avoid market impact.',
+    rules: [
+      ['Block arrival',  'A new client block arrives with ~2% probability per sim-step (roughly every 50 seconds). Size: 200-800 lots. Direction: random (client buys hedge, or client unwinds hedge).'],
+      ['Slice sizing',   'Slice = 12% × estimated market vol rate × 0.5. Adapts to current market pace — smaller slices in thin markets, larger in liquid periods.'],
+      ['Timing',         'Slice interval = 30 / (mktVolRate / 40 baseline). Faster execution in high-volume periods, slower in low-volume. Never more than 15% of observed market volume per period.'],
+      ['Price discipline','Always posts passive limit orders at best bid or best ask. Never crosses the spread. Accepts maker rebate on all fills.'],
+      ['Daily loss',     '$50,000 cap. Fees counted toward this limit.'],
+    ],
+    edge: 'This desk does not trade for P&L — it executes client mandates. Its "edge" is execution quality: low slippage vs VWAP benchmark. Poorly timed execution (buying into a rising market) generates adverse P&L that counts as execution cost, not trading loss.',
+    ref: 'Almgren & Chriss (2001). Optimal Execution of Portfolio Transactions. Journal of Risk 3(2). The D1 desk implements the key insight: participation rate constraints limit market impact at the cost of execution speed.',
+  },
+  ETA: {
+    fullName: 'ETF Arbitrage Desk',
+    role: 'ETF Arbitrage — exploits premium/discount between ETF NAV and futures fair value',
+    tags: ['blue:Institutional','purple:Statistical Arb','amber:VWAP Signal','green:Mean-Reversion'],
+    overview: 'The ETF Arb desk exploits temporary mispricings between the S&P 500 ETF (e.g. SPY/IVV) and ES futures fair value. In practice: when ETFs trade at a premium to NAV, the desk shorts ETFs and buys the cheaper ES futures (creation/redemption arb). In this simulation, the premium/discount is proxied by the divergence of mid-price from session VWAP — a persistent divergence signals that one leg is mispriced vs fair value. Orders are small, frequent, and self-liquidating when the spread closes.',
+    rules: [
+      ['Entry signal',   'Enter when |mid - VWAP| > 1.5 ticks. Buy futures (bid) when futures cheap vs VWAP; sell (ask) when futures rich. Minimum 20-second cooldown between trades.'],
+      ['Position size',  '5-20 lots per trade. Capped by capital and position limit (80 contracts).'],
+      ['Profit exit',    'Close when unrealised P&L > 4 ticks × contracts. The arb spread has closed.'],
+      ['Stop-loss',      'Close when unrealised P&L < -6 ticks × contracts. Spread widened further — exit and wait.'],
+      ['Cooldown',       '20-60 second cooldown after each profitable exit; 60-120 seconds after a stop.'],
+      ['Daily loss',     '$20,000 cap.'],
+    ],
+    edge: 'In normal markets, ETF arbitrage is extremely reliable — the spread is bounded by creation/redemption costs (~1-2 ticks). In this simulation, it competes with the arb agent (AR1) as a mean-reversion participant. During marking-the-close, the artificial price push creates persistent divergence that the ETF arb desk can exploit — it will repeatedly sell the artificial premium.',
+    ref: 'Madhavan, A. (2012). Exchange-Traded Funds, Market Structure, and the Flash Crash. Financial Analysts Journal 68(4). Documents how ETF arbitrage mechanisms interact with futures markets.',
+  },
+  PBX: {
+    fullName: 'PB-Exec (Prime Brokerage Iceberg)',
+    role: 'Prime Brokerage Execution — iceberg algorithm for large client orders',
+    tags: ['blue:Institutional','purple:Iceberg Order','amber:VWAP Benchmark','green:Participation Rate 12%'],
+    overview: 'PB-Exec simulates a prime brokerage execution desk running a client\u2019s large block order through an iceberg/smart-order-routing algorithm. The hallmark of iceberg execution is that the visible order size (10-30 lots) is a fraction of the true order size (500-1500 lots), deliberately concealing the full mandate to prevent front-running and adverse price impact. The desk enforces a 12% participation rate — it will never consume more than 12% of observed market volume in any period.',
+    rules: [
+      ['Order arrival',  'New client mandate arrives with ~0.8% probability per step (roughly every 125 seconds). Size: 500-1,500 lots. Direction: random client mandate.'],
+      ['Iceberg slice',  'Visible/submitted quantity: 10-30 lots only (the iceberg tip). True mandate is hidden. Slices posted as passive limit orders at best bid/ask.'],
+      ['Participation',  'Enforces 12% of market volume rate. If fill rate exceeds 120% of target participation, pauses 15-40 seconds before next slice.'],
+      ['VWAP discipline','Pauses if mid has moved adversely by >4 ticks vs benchmark VWAP at order start. Protects from chasing a running market.'],
+      ['Completion log', 'When order is complete, logs execution duration, total fills, and slippage vs benchmark VWAP in the event log.'],
+      ['Daily loss',     '$30,000 cap on fees + adverse execution costs.'],
+    ],
+    edge: 'No directional P&L objective — this is purely execution cost minimisation for the client. The iceberg pattern is forensically significant: a series of consistent small fills at the same price, regularly spaced, with the same agent ID, indicates a large hidden order. This is the pattern surveillance systems use to detect institutional presence before large price moves.',
+    ref: 'Kissell, R. (2006). The Expanded Implementation Shortfall: Understanding Transaction Cost Components. Journal of Portfolio Management. The definitive practitioner reference for iceberg execution algorithm design.',
+  },
   RTM1: {
     fullName: 'MomAlgo-A (Time-Series Momentum)',
     role: 'Retail Systematic Trader — Time-Series Momentum strategy',
@@ -5010,6 +5462,15 @@ function openAgentDetail(agentId) {
     if (st.volDone     !== undefined) entries.push(['Volume crossed', st.volDone + ' lots']);
     if (st.feeBudget   !== undefined) entries.push(['Fee budget used', '$' + Math.min(st.feeBudget, (st.volDone||0)*4).toFixed(0) + ' / $' + st.feeBudget]);
     if (st.pauseUntil  !== undefined) entries.push(['Strategy status', simTime > 0 && simTime < st.pauseUntil ? 'SUSPENDED until t='+st.pauseUntil : 'ACTIVE']);
+    // Execution desk state
+    if (st.blockTarget !== undefined && st.blockTarget > 0)
+      entries.push(['Active block order', (st.blockFilled||0) + ' / ' + st.blockTarget + ' lots ' + (st.blockSide||'').toUpperCase()]);
+    if (st.clientOrder) {
+      const co = st.clientOrder;
+      entries.push(['Client mandate', (co.filled||0) + ' / ' + co.target + ' lots ' + co.side.toUpperCase()]);
+      entries.push(['Mandate VWAP benchmark', fmt(co.benchmarkVwap || 0)]);
+      entries.push(['Elapsed', ((simTime - co.startT)/60).toFixed(1) + ' sim-min']);
+    }
     if (st.entryThresh !== undefined) entries.push(['Entry threshold', (st.entryThresh/TICK).toFixed(0) + ' ticks from VWAP']);
     // Capital state — all agents
     const capV  = agentCapital[agentId] || 0;
@@ -5064,7 +5525,23 @@ function updateAgentDetailStrip(agentId) {
 
   const el = id => document.getElementById(id);
   if (el('aml-pnl')) { el('aml-pnl').textContent = pnlStr; el('aml-pnl').style.color = pnl>50?'var(--green)':pnl<-50?'var(--red2)':'var(--text2)'; }
-  if (el('aml-pos')) { el('aml-pos').textContent = posStr;  el('aml-pos').style.color = pos>0?'var(--green)':pos<0?'var(--red2)':'var(--text2)'; }
+  const isAgencyAgent = a && (a.type === 'd1' || a.type === 'pbexec');
+  if (el('aml-pos')) {
+    if (isAgencyAgent) {
+      // Show current order progress for execution desks
+      const st2 = a.state;
+      const orderStr = st2.blockTarget > 0
+        ? (st2.blockFilled||0) + '/' + st2.blockTarget + ' lots'
+        : st2.clientOrder
+          ? (st2.clientOrder.filled||0) + '/' + st2.clientOrder.target + ' lots'
+          : 'No order';
+      el('aml-pos').textContent = orderStr;
+      el('aml-pos').style.color = 'var(--amber)';
+    } else {
+      el('aml-pos').textContent = posStr;
+      el('aml-pos').style.color = pos>0?'var(--green)':pos<0?'var(--red2)':'var(--text2)';
+    }
+  }
   if (el('aml-fills')) el('aml-fills').textContent = fills;
   if (el('aml-bid'))   el('aml-bid').textContent   = bidV + ' lots';
   if (el('aml-ask'))   el('aml-ask').textContent   = askV + ' lots';
