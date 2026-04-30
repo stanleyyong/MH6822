@@ -1538,14 +1538,15 @@ function buildAgents() {
     NT1:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:4*TICK, posLimit:20, lastSignalT:0 },
     NT2:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:3*TICK, posLimit:15, lastSignalT:0 },
     NT3:  { bias: Math.random()<0.5?'bull':'bear', signal: randFloat(-1,1), stopLoss:5*TICK, posLimit:25, lastSignalT:0 },
-    FD1:  { mandate:'buy',  target:randInt(200,600), filled:0, vwapTarget:0, sliceSize:randInt(15,40),
-            execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
-    FD2:  { mandate:Math.random()<0.5?'buy':'sell', target:randInt(150,500), filled:0, vwapTarget:0,
-            sliceSize:randInt(10,30), execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
+    FD1:  { mandate:'buy',  target:randInt(200,600), filled:0, filledActual:0, vwapTarget:0, sliceSize:randInt(15,40),
+            execCost:0, slicesFilled:0, paused:false, pauseUntil:0, nextActT:0 },
+    FD2:  { mandate:Math.random()<0.5?'buy':'sell', target:randInt(150,500), filled:0, filledActual:0, vwapTarget:0,
+            sliceSize:randInt(10,30), execCost:0, slicesFilled:0, paused:false, pauseUntil:0, nextActT:0 },
     AR1:  { fairValue:BASE_PRICE, posLimit:30, entryThresh:3*TICK, exitThresh:TICK,
             active:false, wins:0, losses:0, confidence:1.0,
             cooldownUntil:0, dailyLossLimit:2000, dailyLoss:0,
-            rollingMean:0, rollingStd:1, stdEntryMult:2.0 },  // enter only at 2σ deviations
+            rollingMean:0, rollingStd:1, stdEntryMult:2.0,
+            nextActT:0 },
     MN1:  { budgetUsed:0, budgetLimit:500, pauseUntil:0, realQtyFilled:0 },
     MN2:  { budgetUsed:0, budgetLimit:300, pauseUntil:0 },
     WS1:  { volTarget: randInt(800,2000), volDone:0, feeBudget:1500 },
@@ -1576,13 +1577,17 @@ function buildAgents() {
             dailyLossLimit:500, dailyLoss:0 },
     CTA1: { sizingMethod:'fixedFractional', riskPct:0.02,
             posLimit:40, peakEquity:0, tradeWin:0, tradeLoss:0,
-            creditUsed:false, shutdown:false, consecutiveWins:0 },
+            creditUsed:false, shutdown:false, consecutiveWins:0,
+            entryCooldownUntil:0 },
     CTA2: { sizingMethod:'fixedRatio',     delta:5000, baseUnits:1, units:1,
-            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false },
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false,
+            entryCooldownUntil:0 },
     CTA3: { sizingMethod:'kelly',          kellyFrac:0.25, tradeHistory:[],
-            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false },
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false,
+            entryCooldownUntil:0 },
     CTA4: { sizingMethod:'antiMartingale', baseSize:3, currentMult:1, maxMult:4,
-            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false, consecutiveWins:0 },
+            posLimit:40, peakEquity:0, creditUsed:false, shutdown:false, consecutiveWins:0,
+            entryCooldownUntil:0 },
   };
   agents.forEach(a => {
     agentPnl[a.id]        = 0;
@@ -1988,18 +1993,16 @@ function ntStep(id) {
       st.trailStop = newTrail;
       const hitTrail = pos > 0 ? midPrice <= st.trailStop : midPrice >= st.trailStop;
       if (hitTrail) {
-        const side = pos > 0 ? 'ask' : 'bid';
-        addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'noise');
+        closePosition(id, round(st.trailStop), 'taker');
         st.trailActive = false; st.trailStop = 0;
         return;
       }
     }
   }
-  // STOP-LOSS: flatten if loss exceeds threshold
+  // STOP-LOSS: direct close at stop level
   if (pos !== 0 && Math.abs(entry - midPrice) >= st.stopLoss) {
-    const side       = pos > 0 ? 'ask' : 'bid';
-    const closePrice = side === 'ask' ? round(midPrice - TICK) : round(midPrice + TICK);
-    addOrUpdate(side, closePrice, Math.abs(pos), id, 'noise');
+    const stopLevel = round(entry - Math.sign(pos) * st.stopLoss);
+    closePosition(id, stopLevel, 'taker');
     st.trailActive = false; st.trailStop = 0;
     return;
   }
@@ -2045,62 +2048,88 @@ function ntStep(id) {
 // Price limit: won't pay more than VWAP + 2 ticks (buy) or sell below VWAP - 2 ticks.
 // Pauses if market is moving against mandate.
 function fundStep(id) {
-  if (Math.random() > 0.025) return;
+  // TIMER-BASED: only acts at scheduled times, never random fire
   const a  = agents.find(x => x.id === id);
   const st = a.state;
   if (st.dead) return;
-  // Capital floor: if equity < 30% of starting capital, suspend mandate
+  if (simTime < (st.nextActT || 0)) return;   // not yet scheduled to act
+
+  // Capital floor check
   const fundEquity = effectiveEquity(id);
   if (fundEquity < (st.capitalFloor || 0)) {
     if (!st.capitalPaused) {
       st.capitalPaused = true;
-      addNews(`FUND CAPITAL FLOOR: ${a.name} equity $${fundEquity.toFixed(0)} below 30% capital floor. Mandate suspended.`, 'event-manip');
+      addNews(`FUND CAPITAL FLOOR: ${a.name} equity $${fundEquity.toFixed(0)} below floor. Mandate suspended.`, 'event-manip');
     }
     checkMarginAndCapital(id);
+    st.nextActT = simTime + 60;
     return;
   }
   st.capitalPaused = false;
-  if (st.filled >= st.target) return;  // mandate complete
 
-  // EXECUTION QUALITY PAUSE: if recent slices have been too expensive, pause briefly
-  if (st.paused && simTime < st.pauseUntil) return;
-  if (st.paused && simTime >= st.pauseUntil) { st.paused = false; }
+  // Use filledActual (updated by fills, not placements) to track mandate progress
+  if ((st.filledActual || 0) >= st.target) {
+    // Mandate complete — log once and stop
+    if (!st.mandateComplete) {
+      st.mandateComplete = true;
+      const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+      const slipTicks = st.mandate === 'buy'
+        ? ((st.execCost / Math.max(1, st.slicesFilled))).toFixed(1)
+        : ((st.execCost / Math.max(1, st.slicesFilled))).toFixed(1);
+      addNews(`MANDATE COMPLETE: ${a.name} — ${st.filledActual} lots ${st.mandate.toUpperCase()} done. Avg slippage vs VWAP: ${slipTicks} ticks.`, 'event-order');
+    }
+    return;
+  }
 
-  // Detect deteriorating execution: if slicesFilled > 5 and average exec cost
-  // vs VWAP is worsening, pause for a period (risk manager intervention)
-  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  // Execution quality pause
+  if (st.paused && simTime < st.pauseUntil) {
+    st.nextActT = st.pauseUntil;
+    return;
+  }
+  st.paused = false;
+
+  const vwapNow   = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const isBuy     = st.mandate === 'buy';
+  const tolerance = 3 * TICK;
+  const priceOK   = isBuy ? midPrice <= vwapNow + tolerance
+                           : midPrice >= vwapNow - tolerance;
+
+  if (!priceOK) {
+    // Market not favourable — wait 20-40 seconds and check again
+    st.nextActT = simTime + randInt(20, 40);
+    return;
+  }
+
+  // Exec quality degradation check
   if (st.slicesFilled > 5) {
-    const avgExecCost = st.execCost / st.slicesFilled;
-    const isBuy_ = st.mandate === 'buy';
-    // Bad execution: buying above VWAP+3 or selling below VWAP-3 consistently
-    if ((isBuy_ && avgExecCost > 3*TICK) || (!isBuy_ && avgExecCost < -3*TICK)) {
-      st.paused = true;
-      st.pauseUntil = simTime + randInt(30, 90);  // pause 30-90 sim-seconds
+    const avgCost = st.execCost / st.slicesFilled;
+    if ((isBuy && avgCost > 3*TICK) || (!isBuy && avgCost < -3*TICK)) {
+      st.paused     = true;
+      st.pauseUntil = simTime + randInt(30, 90);
+      st.nextActT   = st.pauseUntil;
       return;
     }
   }
 
-  const remaining = st.target - st.filled;
-  const isBuy = st.mandate === 'buy';
-  const tolerance = 3 * TICK;
-  const priceOK = isBuy
-    ? midPrice <= vwapNow + tolerance
-    : midPrice >= vwapNow - tolerance;
-  if (!priceOK) return;
+  const remaining = st.target - (st.filledActual || 0);
+  const sliceQty  = Math.min(st.sliceSize, remaining, randInt(10, 35));
+  const side      = isBuy ? 'bid' : 'ask';
+  // Post at competitive best — passive, earns maker rebate
+  const price     = isBuy ? round(bestBid()) : round(bestAsk());
 
-  const sliceQty = Math.min(st.sliceSize, remaining, randInt(10, 35));
-  const offset   = randInt(1, 3);
-  const side     = isBuy ? 'bid' : 'ask';
-  const price    = isBuy
-    ? round(bestBid() + (offset === 1 ? TICK : 0))
-    : round(bestAsk() - (offset === 1 ? TICK : 0));
-
-  // Track execution cost vs VWAP for quality monitoring
-  const execCostThisSlice = isBuy ? (price - vwapNow)/TICK : (vwapNow - price)/TICK;
-  st.execCost   += execCostThisSlice;
+  const execCostThis = isBuy ? (price - vwapNow)/TICK : (vwapNow - price)/TICK;
+  st.execCost    += execCostThis;
   st.slicesFilled++;
-  st.filled     += sliceQty;
+  // NOTE: do NOT increment filledActual here — it gets incremented in matchBook on actual fill
   addOrUpdate(side, price, sliceQty, id, 'fund');
+
+  // Schedule next slice: TWAP means roughly equally spaced over session
+  // Remaining session time / remaining slices = target interval
+  const sessionEnd     = 36000;  // 16:00
+  const timeRemaining  = Math.max(60, sessionEnd - simTime);
+  const slicesLeft     = Math.max(1, Math.ceil(remaining / Math.max(1, st.sliceSize)));
+  const targetInterval = Math.min(300, Math.max(30, Math.floor(timeRemaining / slicesLeft)));
+  st.nextActT = simTime + randInt(Math.floor(targetInterval * 0.7), targetInterval);
 }
 
 // ── ARBITRAGEUR ──────────────────────────────────────────────────
@@ -2110,7 +2139,10 @@ function fundStep(id) {
 // This is more selective than pure tick-threshold, avoiding false entries
 // on normal random-walk drift.
 function arbStep(id) {
-  if (Math.random() > 0.04) return;
+  // TIMER-BASED: arb desk re-evaluates every 15-30 sim-seconds
+  const st2 = agents.find(x=>x.id===id)?.state;
+  if (st2 && simTime < (st2.nextActT||0)) return;
+  if (st2) st2.nextActT = simTime + randInt(15, 30);
   const a   = agents.find(x => x.id === id);
   const st  = a.state;
 
@@ -2132,10 +2164,9 @@ function arbStep(id) {
   // STOP-LOSS: 4 ticks
   const entry = agentAvgEntry[id] || midPrice;
   if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
-    const side  = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'arb');
+    closePosition(id, round(entry - Math.sign(pos)*4*TICK), 'taker');
     st.losses++;
-    st.dailyLoss += Math.abs(upnl);
+    st.dailyLoss += 4*TICK_VAL*(agentPos[id]||1);  // note: pos already zeroed by closePosition
     st.confidence = Math.max(0.1, st.confidence * 0.85);
     if (st.losses >= 3 && st.confidence < 0.5) {
       st.cooldownUntil = simTime + randInt(120, 240);
@@ -2144,19 +2175,15 @@ function arbStep(id) {
     return;
   }
 
-  // TAKE PROFIT: price reverts back within 1 std of rolling mean
-  // (the anomaly has closed — this is the natural arb exit)
   if (pos !== 0) {
     const devFromMean = Math.abs(midPrice - st.rollingMean);
-    if (devFromMean < st.rollingStd * 0.5) {  // back to "normal" range
-      const side  = pos > 0 ? 'ask' : 'bid';
-      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK),
-                  Math.abs(pos), id, 'arb');
+    if (devFromMean < st.rollingStd * 0.5) {
+      closePosition(id, round(midPrice), 'maker');  // passive exit at mid — earn rebate
       st.wins++;
       st.confidence = Math.min(1.0, st.confidence + 0.1);
       return;
     }
-    return;  // hold — deviation hasn't closed yet
+    return;
   }
 
   if (Math.abs(pos) >= st.posLimit) return;
@@ -2252,49 +2279,242 @@ function ctaTrendSignal() {
   return (fast - slow) / TICK;
 }
 
+// CTA ATR: rolling volatility measure for adaptive stops
+// Returns stop distance in ticks (1-8 tick range)
+function ctaATR(lookback) {
+  const n = priceHistory.length;
+  if (n < 4) return 4;  // default 4 ticks if insufficient history
+  const lb = Math.min(lookback || 20, n - 1);
+  const recent = priceHistory.slice(n - lb - 1);
+  let atr = 0;
+  for (let i = 1; i < recent.length; i++) {
+    atr += Math.abs(recent[i].price - recent[i-1].price);
+  }
+  atr /= (recent.length - 1);
+  // Return in ticks, clamped to 1-8 tick range
+  return Math.max(1, Math.min(8, Math.round(atr / TICK)));
+}
+
+
+// ── Market order execution (stop / limit trigger) ────────────────
+// When a stop-loss or profit target fires, the agent submits a MARKET ORDER.
+// This sweeps actual resting book depth at whatever prices are available,
+// prints fills to the tape, updates lastPrice/totalVol/VWAP (real market impact),
+// and crystallises P&L through the standard inventory accounting path.
+//
+// This is how exchange-native stop orders actually work on CME Globex:
+//   1. Trigger price trades in the market
+//   2. Stop is converted to a market order
+//   3. Market order sweeps the book at available prices (may have slippage)
+//   4. All fills appear on the public tape — visible to all participants
+//   5. Market impact is real — a large stop moving through thin depth moves price
+//
+// The "broker internalisation" version (where the broker nets internally at mid)
+// is modelled for passive exits (profit targets in calm conditions) by using
+// mid-price fills — the broker's internal book absorbs the other side.
+// In either case the AGENT bears the full economic result; the broker earns
+// only its commission (already captured in FEE_TAKER / FEE_MAKER).
+//
+// slippage: 'aggressive' = sweep book depth from best (stop-loss)
+//           'passive'    = fill at mid, no market impact (limit/profit target)
+function executeMarketOrder(id, qty, side, tag, slippage) {
+  if (qty <= 0 || !id) return 0;
+  // Remove any stale resting orders for this agent first
+  removeAllByAgent(id);
+
+  let filled  = 0;
+  let totalCost = 0;  // sum(price × qty) for VWAP avg fill calc
+
+  if (slippage === 'passive') {
+    // LIMIT / PROFIT TARGET EXIT: fill at mid-price (broker internalisation)
+    // No book depth consumed, no market impact — but pays maker rebate
+    const fillPx = round(midPrice);
+    filled    = qty;
+    totalCost = fillPx * qty;
+    // Directly settle via inventory model
+    const entry = agentAvgEntry[id] || fillPx;
+    const pnlPerPt = (fillPx - entry) * Math.sign(agentPos[id] || (side === 'ask' ? 1 : -1));
+    agentRealised[id] = (agentRealised[id] || 0)
+      + pnlPerPt * qty * 50   // directional P&L
+      - FEE_MAKER * qty;       // maker rebate (negative = revenue)
+    agentPos[id]      = 0;
+    agentAvgEntry[id] = 0;
+    // Tape print — passive, mid-price
+    addTape({ price: fillPx, qty, buyId: side==='bid'?id:'MM1',
+              sellId: side==='ask'?id:'MM1', buyTag: tag, sellTag: tag });
+    totalVol += qty;
+    vwapSum  += fillPx * qty;
+    lastPrice = fillPx;
+    return pnlPerPt * qty * 50 - FEE_MAKER * qty;
+  }
+
+  // STOP-LOSS EXIT: sweep actual book depth (real market impact)
+  // Consume resting orders on the opposite side, level by level
+  const depthSide = side === 'ask' ? bids : asks; // agent sells → hits bids; agent buys → hits asks
+  let remaining = qty;
+  const oldPos  = agentPos[id] || 0;
+  const entry   = agentAvgEntry[id] || midPrice;
+
+  while (remaining > 0 && depthSide.length > 0) {
+    const level    = depthSide[0];
+    const fillQty  = Math.min(remaining, level.qty);
+    const fillPx   = level.price;
+
+    // Market impact: update lastPrice
+    lastPrice = fillPx;
+    if (fillPx > dayHigh) dayHigh = fillPx;
+    if (fillPx < dayLow)  dayLow  = fillPx;
+    totalVol += fillQty;
+    vwapSum  += fillPx * fillQty;
+    totalCost += fillPx * fillQty;
+
+    // Tape print — visible to all participants
+    const isSell = side === 'ask';
+    addTape({
+      price: fillPx, qty: fillQty,
+      buyId:    isSell ? level.agentId : id,
+      sellId:   isSell ? id : level.agentId,
+      buyTag:   isSell ? level.tag     : tag,
+      sellTag:  isSell ? tag           : level.tag,
+    });
+
+    // Consume depth
+    level.qty  -= fillQty;
+    remaining  -= fillQty;
+    filled     += fillQty;
+    if (level.qty <= 0) depthSide.shift();
+
+    // Forensics fill tracking
+    if (!forensics.agentFills[id]) forensics.agentFills[id] = 0;
+    forensics.agentFills[id] += fillQty;
+  }
+
+  if (filled === 0) {
+    // No depth available — fall back to mid-price fill (guaranteed execution)
+    const fillPx = round(midPrice);
+    filled    = qty;
+    totalCost = fillPx * qty;
+    lastPrice = fillPx;
+    totalVol += qty;
+    vwapSum  += fillPx * qty;
+    addTape({ price: fillPx, qty, buyId: side==='bid'?id:'MM1',
+              sellId: side==='ask'?id:'MM1', buyTag: tag, sellTag: tag });
+  }
+
+  // Settle P&L for the agent using actual fill prices
+  const avgFillPx   = totalCost / filled;
+  const pnlPerPoint = (avgFillPx - entry) * Math.sign(oldPos);
+  const netPnl      = pnlPerPoint * filled * 50 - FEE_TAKER * filled;
+  agentRealised[id] = (agentRealised[id] || 0) + netPnl;
+  agentPos[id]      = 0;
+  agentAvgEntry[id] = 0;
+
+  // midPrice tracks toward fill price (real price discovery)
+  midPrice = round(avgFillPx);
+
+  return netPnl;
+}
+
+// Convenience alias — same API as old closePosition
+function closePosition(id, triggerPrice, mode) {
+  const pos  = agentPos[id] || 0;
+  if (pos === 0) return 0;
+  const side = pos > 0 ? 'ask' : 'bid';
+  const tag  = agents.find(a=>a.id===id)?.type || 'noise';
+  const slip = mode === 'maker' ? 'passive' : 'aggressive';
+  return executeMarketOrder(id, Math.abs(pos), side, tag, slip);
+}
+
+// Shared CTA position manager — runs every sim step for all CTAs
+// Uses closePosition() for atomic broker-level execution — no LOB round-trip
+function ctaManagePositions() {
+  ['CTA1','CTA2','CTA3','CTA4'].forEach(id => {
+    const a  = agents.find(x => x.id === id);
+    if (!a || a.state.shutdown || a.state.dead) return;
+    const pos = agentPos[id] || 0;
+    if (pos === 0) return;
+
+    const st       = a.state;
+    const entry    = agentAvgEntry[id] || midPrice;
+    const atrTicks = ctaATR(20);
+    const stopTicks   = Math.max(3, Math.round(atrTicks * 1.5));
+    const profitTicks = Math.max(5, Math.round(atrTicks * 2.5));
+    const priceMoved  = Math.abs(midPrice - entry) / TICK;
+
+    let shouldExit = false;
+    let isWin = false;
+    let exitPrice = midPrice;  // price at which to close
+
+    if (pos > 0 && midPrice <= entry - stopTicks * TICK) {
+      shouldExit = true; isWin = false;
+      exitPrice  = entry - stopTicks * TICK;  // stop level
+    } else if (pos < 0 && midPrice >= entry + stopTicks * TICK) {
+      shouldExit = true; isWin = false;
+      exitPrice  = entry + stopTicks * TICK;
+    } else if (pos > 0 && midPrice >= entry + profitTicks * TICK) {
+      shouldExit = true; isWin = true;
+      exitPrice  = entry + profitTicks * TICK;  // limit level
+    } else if (pos < 0 && midPrice <= entry - profitTicks * TICK) {
+      shouldExit = true; isWin = true;
+      exitPrice  = entry - profitTicks * TICK;
+    }
+
+    if (!shouldExit) return;
+
+    // Close directly at trigger price — broker-level atomic execution
+    const pnl = closePosition(id, round(exitPrice), 'taker');
+
+    if (isWin) {
+      st.tradeWin = (st.tradeWin || 0) + 1;
+      st.consecutiveWins = (st.consecutiveWins || 0) + 1;
+      if (st.tradeHistory) {
+        st.tradeHistory.push({ win: true, rr: priceMoved / stopTicks });
+        if (st.tradeHistory.length > 20) st.tradeHistory.shift();
+      }
+    } else {
+      st.tradeLoss = (st.tradeLoss || 0) + 1;
+      st.consecutiveWins = 0;
+      if (st.currentMult !== undefined) st.currentMult = 1;
+      if (st.tradeHistory) {
+        st.tradeHistory.push({ win: false, rr: 0 });
+        if (st.tradeHistory.length > 20) st.tradeHistory.shift();
+      }
+    }
+    st.entryCooldownUntil = simTime + randInt(120, 300);
+  });
+}
+
 // ── CTA1: Fixed Fractional (AHL / Man AHL style) ─────────────────
 // Risk exactly 2% of current equity per trade.
 // Position size = floor(riskAmount / (stopLoss_ticks * TICK_VAL))
 // Stop: 3 ticks. Pure trend entry when signal > threshold.
 function cta1Step() {
-  if (Math.random() > 0.02) return;
+  // ENTRY ONLY — position management (stops/profits) handled by ctaManagePositions()
+  const _ctaSt = agents.find(x=>x.id==='CTA1')?.state;
+  if (_ctaSt && simTime < (_ctaSt.nextActT||0)) return;
+  if (_ctaSt) _ctaSt.nextActT = simTime + randInt(45, 90);
   const id = 'CTA1';
   if (ctaDrawdownCheck(id)) return;
-  const a   = agents.find(x => x.id === id);
-  const st  = a.state;
+  const a  = agents.find(x => x.id === id);
+  const st = a.state;
   const pos = agentPos[id] || 0;
-  const upnl = unrealisedPnl(id);
-  const eq   = effectiveEquity(id);
+  if (pos !== 0) return;  // already in a trade — wait for exit
+  if (simTime < (st.entryCooldownUntil || 0)) return;  // cooling down after last trade
+  const eq     = effectiveEquity(id);
   const maxPos = ctaRiskCeiling(id);
-
-  // STOP-LOSS: 3 ticks
-  const entry = agentAvgEntry[id] || midPrice;
-  if (pos !== 0 && Math.abs(midPrice - entry) >= 3*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
-    st.tradeLoss++;
-    return;
-  }
-  // TAKE PROFIT: 5 ticks
-  if (pos !== 0 && upnl > 5*TICK_VAL*Math.abs(pos)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
-    st.tradeWin++;
-    return;
-  }
-  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
-
-  // FIXED FRACTIONAL SIZING: risk 2% of current equity
-  // Cap by actual available margin so we never exceed what capital supports
-  const riskAmount      = Math.max(0, eq) * st.riskPct;  // 2% of equity
-  const stopLossDollars = 3 * TICK_VAL;                  // $37.50/contract
-  const marginFloor     = Math.floor(availableCapital('CTA1') / MARGIN_INITIAL);
-  const rawSize         = Math.floor(riskAmount / stopLossDollars);
-  // Triple cap: formula size, margin limit, posLimit risk ceiling
-  const sizeQty         = Math.max(1, Math.min(rawSize, marginFloor, maxPos - Math.abs(pos)));
+  if (maxPos === 0) return;
 
   const trend = ctaTrendSignal();
-  if (Math.abs(trend) < 0.4) return;  // insufficient trend conviction
+  if (Math.abs(trend) < 0.4) return;
+
+  // Fixed fractional: risk 2% of equity, sized against ATR-based stop
+  const atrTicks        = ctaATR(20);
+  const stopTicks       = Math.max(3, Math.round(atrTicks * 1.5));
+  const stopLossDollars = stopTicks * TICK_VAL;
+  const riskAmount      = Math.max(0, eq) * st.riskPct;
+  const marginFloor     = Math.floor(availableCapital(id) / MARGIN_INITIAL);
+  const rawSize         = Math.floor(riskAmount / stopLossDollars);
+  const sizeQty         = Math.max(1, Math.min(rawSize, marginFloor, maxPos));
 
   const side  = trend > 0 ? 'bid' : 'ask';
   const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
@@ -2306,7 +2526,10 @@ function cta1Step() {
 // Position size = units × baseSize contracts.
 // More aggressive compounding — good in trends, devastating in drawdowns.
 function cta2Step() {
-  if (Math.random() > 0.02) return;
+  // TIMER-BASED: CTA re-evaluates every 45-90 sim-seconds
+  const _ctaSt = agents.find(x=>x.id==='CTA2')?.state;
+  if (_ctaSt && simTime < (_ctaSt.nextActT||0)) return;
+  if (_ctaSt) _ctaSt.nextActT = simTime + randInt(45, 90);
   const id = 'CTA2';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2321,27 +2544,19 @@ function cta2Step() {
   const equityGain = Math.max(0, eq - cap);
   st.units = Math.max(1, Math.min(8, 1 + Math.floor(equityGain / st.delta)));
 
-  // STOP-LOSS: 4 ticks (wider — fixed ratio can absorb more volatility)
-  const entry = agentAvgEntry[id] || midPrice;
-  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
-    // Drawdown in units: Ryan Jones says reduce units on loss
-    st.units = Math.max(1, st.units - 1);
-    return;
-  }
-  // PROFIT TARGET: 8 ticks
-  if (pos !== 0 && upnl > 8*TICK_VAL*Math.abs(pos)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
-    return;
-  }
-  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+  // ENTRY ONLY — stops/profits handled by ctaManagePositions()
+  if (pos !== 0) return;
+  if (simTime < (st.entryCooldownUntil || 0)) return;
+  if (maxPos === 0) return;
 
   const trend = ctaTrendSignal();
   if (Math.abs(trend) < 0.4) return;
 
-  const sizeQty = Math.max(1, Math.min(st.units * 2, maxPos - Math.abs(pos)));
+  // Fixed ratio: units grow with equity; size = units × 2 contracts
+  const equityGainNow = Math.max(0, eq - (agentCapital[id] || eq));
+  st.units = Math.max(1, Math.min(8, 1 + Math.floor(equityGainNow / st.delta)));
+  const marginFloor2 = Math.floor(availableCapital(id) / MARGIN_INITIAL);
+  const sizeQty = Math.max(1, Math.min(st.units * 2, maxPos, marginFloor2));
   const side    = trend > 0 ? 'bid' : 'ask';
   const price   = side === 'bid' ? round(bestBid()) : round(bestAsk());
   addOrUpdate(side, price, sizeQty, id, 'cta');
@@ -2352,7 +2567,10 @@ function cta2Step() {
 // Position = kellyFrac × (W - (1-W)/R) × maxContractsFromEquity
 // Uses 25% Kelly (fractional) to control variance.
 function cta3Step() {
-  if (Math.random() > 0.02) return;
+  // TIMER-BASED: CTA re-evaluates every 45-90 sim-seconds
+  const _ctaSt = agents.find(x=>x.id==='CTA3')?.state;
+  if (_ctaSt && simTime < (_ctaSt.nextActT||0)) return;
+  if (_ctaSt) _ctaSt.nextActT = simTime + randInt(45, 90);
   const id = 'CTA3';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2362,42 +2580,26 @@ function cta3Step() {
   const eq   = effectiveEquity(id);
   const maxPos = ctaRiskCeiling(id);
 
-  // STOP-LOSS: 4 ticks
-  const entry = agentAvgEntry[id] || midPrice;
-  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    // Record trade outcome for Kelly estimate
-    st.tradeHistory.push({ win: false, rr: 0 });
-    if (st.tradeHistory.length > 20) st.tradeHistory.shift();
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
-    return;
-  }
-  // PROFIT TARGET: 6 ticks
-  if (pos !== 0 && upnl > 6*TICK_VAL*Math.abs(pos)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    const entryP = agentAvgEntry[id] || midPrice;
-    const rr = Math.abs(midPrice - entryP) / (4*TICK);  // reward:risk ratio
-    st.tradeHistory.push({ win: true, rr });
-    if (st.tradeHistory.length > 20) st.tradeHistory.shift();
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
-    return;
-  }
-  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+  // ENTRY ONLY — stops/profits handled by ctaManagePositions()
+  if (pos !== 0) return;
+  if (simTime < (st.entryCooldownUntil || 0)) return;
+  if (maxPos === 0) return;
 
-  // KELLY SIZING
-  let W = 0.5, R = 1.5;  // default priors before enough data
+  const trend = ctaTrendSignal();
+  if (Math.abs(trend) < 0.4) return;
+
+  // Kelly sizing from trade history
+  let W = 0.5, R = 1.5;
   if (st.tradeHistory.length >= 5) {
     const wins = st.tradeHistory.filter(t=>t.win);
     W = wins.length / st.tradeHistory.length;
     const avgRR = wins.length > 0 ? wins.reduce((s,t)=>s+t.rr,0)/wins.length : 1.5;
     R = Math.max(0.5, avgRR);
   }
-  const kellyRaw = W - (1-W)/R;                          // full Kelly fraction
-  const kellyF   = Math.max(0, st.kellyFrac * kellyRaw); // fractional (25%) Kelly
-  const sizeQty  = Math.max(1, Math.min(Math.floor(kellyF * maxPos), maxPos - Math.abs(pos)));
-
-  const trend = ctaTrendSignal();
-  if (Math.abs(trend) < 0.4) return;
+  const kellyRaw = W - (1-W)/R;
+  const kellyF   = Math.max(0, st.kellyFrac * kellyRaw);
+  const marginFloor3 = Math.floor(availableCapital(id) / MARGIN_INITIAL);
+  const sizeQty  = Math.max(1, Math.min(Math.floor(kellyF * maxPos), maxPos, marginFloor3));
 
   const side  = trend > 0 ? 'bid' : 'ask';
   const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
@@ -2409,7 +2611,10 @@ function cta3Step() {
 // Reset to baseSize on any loss.
 // Best strategy for sustained trends — maximises profits during winning streaks.
 function cta4Step() {
-  if (Math.random() > 0.02) return;
+  // TIMER-BASED: CTA re-evaluates every 45-90 sim-seconds
+  const _ctaSt = agents.find(x=>x.id==='CTA4')?.state;
+  if (_ctaSt && simTime < (_ctaSt.nextActT||0)) return;
+  if (_ctaSt) _ctaSt.nextActT = simTime + randInt(45, 90);
   const id = 'CTA4';
   if (ctaDrawdownCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2419,35 +2624,20 @@ function cta4Step() {
   const eq   = effectiveEquity(id);
   const maxPos = ctaRiskCeiling(id);
 
-  // STOP-LOSS: 3 ticks — tight stop, relies on trend persistence
-  const entry = agentAvgEntry[id] || midPrice;
-  if (pos !== 0 && Math.abs(midPrice - entry) >= 3*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'cta');
-    // LOSS → reset multiplier to 1
-    st.currentMult = 1;
-    st.consecutiveWins = 0;
-    return;
-  }
-  // PROFIT TARGET: 4 ticks — take profit and potentially scale up next trade
-  if (pos !== 0 && upnl > 4*TICK_VAL*Math.abs(pos)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'cta');
-    // WIN → double multiplier (up to maxMult)
-    st.consecutiveWins++;
-    st.currentMult = Math.min(st.maxMult, 1 << Math.min(st.consecutiveWins, 3)); // 1→2→4→8 capped at maxMult
-    return;
-  }
-  if (Math.abs(pos) >= maxPos || maxPos === 0) return;
+  // ENTRY ONLY — stops/profits handled by ctaManagePositions()
+  if (pos !== 0) return;
+  if (simTime < (st.entryCooldownUntil || 0)) return;
+  if (maxPos === 0) return;
 
   const trend = ctaTrendSignal();
-  if (Math.abs(trend) < 0.4) return;  // enter on any meaningful trend
+  if (Math.abs(trend) < 0.4) return;
 
-  // Anti-martingale: size = baseSize × currentMult, capped by risk ceiling
-  const targetSize = Math.min(st.baseSize * st.currentMult, maxPos);
-  const sizeQty    = Math.max(1, Math.min(targetSize, maxPos - Math.abs(pos)));
-  const side       = trend > 0 ? 'bid' : 'ask';
-  const price      = side === 'bid' ? round(bestBid()) : round(bestAsk());
+  // Anti-martingale: size doubles on consecutive wins
+  const marginFloor4 = Math.floor(availableCapital(id) / MARGIN_INITIAL);
+  const targetSize   = Math.min(st.baseSize * (st.currentMult || 1), maxPos, marginFloor4);
+  const sizeQty      = Math.max(1, targetSize);
+  const side         = trend > 0 ? 'bid' : 'ask';
+  const price        = side === 'bid' ? round(bestBid()) : round(bestAsk());
   addOrUpdate(side, price, sizeQty, id, 'cta');
 }
 
@@ -2495,7 +2685,10 @@ function rtmRecordWin(id) {
 // Signal: is price above its rolling average over last `lookback` bars?
 // Sizing: fixed-fraction style using confidence × capital fraction.
 function rtm1Step() {
-  if (Math.random() > 0.08) return;
+  // TIMER-BASED: retail systematic re-evaluates every 20-60 sim-seconds
+  const _rtmSt = agents.find(x=>x.id==='RTM1')?.state;
+  if (_rtmSt && simTime < (_rtmSt.nextActT||0)) return;
+  if (_rtmSt) _rtmSt.nextActT = simTime + randInt(20, 60);
   const id = 'RTM1';
   if (!rtmRiskCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2507,18 +2700,12 @@ function rtm1Step() {
 
   // STOP-LOSS: 4 ticks
   if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    closePosition(id, round(entry - Math.sign(pos)*4*TICK), 'taker');
     rtmRecordLoss(id, upnl);
-    // Feed back to capital model
-    agentRealised[id] = (agentRealised[id]||0) + pos*(midPrice-entry)*50;
-    agentPos[id] = 0;
     return;
   }
-  // TAKE PROFIT: 7 ticks (1.75:1 RR — momentum traders ride winners)
   if (pos !== 0 && upnl > 7*TICK_VAL*(Math.abs(pos)||1)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+    closePosition(id, round(entry + Math.sign(pos)*7*TICK), 'taker');
     rtmRecordWin(id);
     return;
   }
@@ -2552,7 +2739,10 @@ function rtm1Step() {
 // Buy when fast MA crosses above slow MA; sell when it crosses below.
 // Uses 5-bar and 15-bar moving averages. Anti-trend if position on wrong side.
 function rtm2Step() {
-  if (Math.random() > 0.08) return;
+  // TIMER-BASED: retail systematic re-evaluates every 20-60 sim-seconds
+  const _rtmSt = agents.find(x=>x.id==='RTM2')?.state;
+  if (_rtmSt && simTime < (_rtmSt.nextActT||0)) return;
+  if (_rtmSt) _rtmSt.nextActT = simTime + randInt(20, 60);
   const id = 'RTM2';
   if (!rtmRiskCheck(id)) return;
   const a   = agents.find(x => x.id === id);
@@ -2564,8 +2754,7 @@ function rtm2Step() {
 
   // STOP-LOSS: 5 ticks (quant systems use wider stops to avoid noise)
   if (pos !== 0 && Math.abs(midPrice - entry) >= 5*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    closePosition(id, round(entry - Math.sign(pos)*5*TICK), 'taker');
     rtmRecordLoss(id, upnl);
     return;
   }
@@ -2578,12 +2767,12 @@ function rtm2Step() {
     const crossDown = fast < slow - 0.5*TICK;
     // Exit if position is against current signal
     if (pos > 0 && crossDown) {
-      addOrUpdate('ask', round(bestBid()+TICK), Math.abs(pos), id, 'rtm');
-      rtmRecordWin(id);  // MA system: exits on signal, counts as win if voluntary
+      closePosition(id, round(midPrice), 'maker');
+      rtmRecordWin(id);
       return;
     }
     if (pos < 0 && crossUp) {
-      addOrUpdate('bid', round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+      closePosition(id, round(midPrice), 'maker');
       rtmRecordWin(id);
       return;
     }
@@ -2624,15 +2813,12 @@ function rtm3Step() {
 
   // STOP-LOSS: 6 ticks (breakout systems need wide stops — noise inside channel)
   if (pos !== 0 && Math.abs(midPrice - entry) >= 6*TICK) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'rtm');
+    closePosition(id, round(entry - Math.sign(pos)*6*TICK), 'taker');
     rtmRecordLoss(id, upnl);
     return;
   }
-  // PROFIT TARGET: 10 ticks (2:1+ on breakout trades)
   if (pos !== 0 && upnl > 10*TICK_VAL*(Math.abs(pos)||1)) {
-    const side = pos > 0 ? 'ask' : 'bid';
-    addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'rtm');
+    closePosition(id, round(entry + Math.sign(pos)*10*TICK), 'taker');
     rtmRecordWin(id);
     return;
   }
@@ -2697,6 +2883,7 @@ function d1Step() {
     const mktVolRate = totalVol > 0 ? (totalVol / Math.max(1, simTime/60)) : 40;
     st.sliceSize = Math.max(3, Math.floor(mktVolRate * st.participationRate * 0.5));
     st.nextSliceT = simTime + randInt(5, 15);  // first slice in 5-15 sim-seconds
+    st.nextBlockT = simTime + randInt(3600, 7200);  // next block in 1-2 sim-hours
     addNews(
       `DELTA-ONE: GS client block ${st.blockTarget}-lot ${st.blockSide.toUpperCase()} received. `
       + `Slice size ${st.sliceSize} lots at ${(st.participationRate*100).toFixed(0)}% participation.`,
@@ -2743,6 +2930,10 @@ function d1Step() {
 // Capital: $500k-$2M. Daily loss limit: $20k.
 function etaStep() {
   const id = 'ETA';
+  // TIMER-BASED: ETF arb re-evaluates every 8-15 sim-seconds
+  const _etaSt = agents.find(x=>x.id===id)?.state;
+  if (_etaSt && simTime < (_etaSt.nextActT||0)) return;
+  if (_etaSt) _etaSt.nextActT = simTime + randInt(8, 15);
   const a  = agents.find(x => x.id === id);
   if (!a || a.state.dead) return;
   const st = a.state;
@@ -2756,23 +2947,18 @@ function etaStep() {
   const spread = spyPremiumTicks;
 
   if (pos !== 0) {
-    // PRIMARY EXIT: premium has reverted past the entry sign — arb has closed
-    // e.g. entered long (SPY was rich, premium > 0), now premium <= 0.3 ticks → exit
+    // PRIMARY EXIT: premium has reverted — close directly at current mid
     const premiumReverted = (st.entryPremiumSign > 0 && spread <= 0.3)
                          || (st.entryPremiumSign < 0 && spread >= -0.3);
     if (premiumReverted) {
-      const side = pos > 0 ? 'ask' : 'bid';
-      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK),
-                  Math.abs(pos), id, 'etfarb');
+      closePosition(id, round(midPrice), 'maker');  // passive close, earn rebate
       st.flipCooldown = simTime + randInt(15, 45);
       return;
     }
-    // STOP: if underlying price has moved hard against us (2 ticks max loss per contract)
+    // STOP: price moved 2 ticks against us — exit at mid
     if (upnl < -2*TICK_VAL*Math.abs(pos)) {
-      const side = pos > 0 ? 'ask' : 'bid';
-      addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()),
-                  Math.abs(pos), id, 'etfarb');
-      st.dailyLoss += Math.abs(upnl);
+      closePosition(id, round(midPrice - (pos>0?TICK:-TICK)), 'taker');
+      st.dailyLoss += 2*TICK_VAL*Math.abs(pos);
       st.flipCooldown = simTime + randInt(30, 90);
       return;
     }
@@ -2826,13 +3012,16 @@ function pbxStep() {
 
   // Generate new client order if none active
   if (!st.clientOrder) {
-    if (Math.random() > 0.008) return;  // arrives rarely (~1 per 125 steps)
+    // Order arrival timer — no random gate
+    if (!st.nextOrderT) st.nextOrderT = simTime + randInt(600, 1800);
+    if (simTime < st.nextOrderT) return;
     const side   = Math.random() < 0.5 ? 'bid' : 'ask';
     const target = randInt(500, 1500);
     const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
     st.clientOrder  = { side, target, filled: 0, startT: simTime, benchmarkVwap: vwapNow };
     st.vwapTarget   = vwapNow;
     st.nextSliceT   = simTime + randInt(3, 10);
+    st.nextOrderT   = simTime + randInt(2400, 4800);  // next client order in 40-80 min
     // Iceberg visible size: 10-30 lots (the "tip" — hides the true order size)
     st.sliceQty     = randInt(10, 30);
     addNews(
@@ -2918,17 +3107,28 @@ function noiseAgentStep() {
   rtm2Step();
   rtm3Step();
 
-  // CTAs — professional trend followers with different bet sizing strategies
+  // CTA position management — runs every step (stops/profits need continuous monitoring)
+  ctaManagePositions();
+
+  // CTA entry evaluation — timer-based, only when no position
   cta1Step();
   cta2Step();
   cta3Step();
   cta4Step();
 
-  // Price drift — random walk with session volatility
-  const drift = (Math.random()-0.495) * TICK * (sess.id==='open' ? 3 : 1.5);
+  // Price drift — mean-reverting random walk with occasional trend episodes
+  // Pure random walk is 0-drift by construction; add a small persistent
+  // momentum component so trend-following agents can occasionally profit.
+  const baseVol  = (sess.id === 'open' ? 3 : 1.5) * TICK;
+  const noise    = (Math.random() - 0.495) * baseVol;
+  // Momentum: 5% weight on recent 3-bar direction — creates short trend bursts
+  const recentMomentum = priceHistory.length >= 3
+    ? (priceHistory[priceHistory.length-1].price - priceHistory[Math.max(0,priceHistory.length-3)].price) * 0.05
+    : 0;
+  const drift = noise + recentMomentum;
   midPrice = round(midPrice + drift);
-  midPrice = Math.max(midPrice, BASE_PRICE - 30);
-  midPrice = Math.min(midPrice, BASE_PRICE + 30);
+  midPrice = Math.max(midPrice, BASE_PRICE - 40);
+  midPrice = Math.min(midPrice, BASE_PRICE + 40);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4261,9 +4461,12 @@ matchBook = function() {
       //   Position is the CLIENT's, not the desk's → agentPos stays zero for desk.
       const AGENCY_TYPES = new Set(['d1', 'pbexec']);
 
+      // isPassive: agent posted a resting limit order (provides liquidity)
+      // Passive agents earn maker REBATE (−$0.25); aggressive agents pay TAKER fee ($1.00)
+      const PASSIVE_TAGS = new Set(['mm','fund','cta','arb','rtm','etfarb']);
       [
-        { id: f.buyerId,  sign: +1, type: buyerType,  isPassive: f.buyTag === 'mm' },
-        { id: f.sellerId, sign: -1, type: sellerType, isPassive: f.sellTag === 'mm' },
+        { id: f.buyerId,  sign: +1, type: buyerType,  isPassive: PASSIVE_TAGS.has(f.buyTag) },
+        { id: f.sellerId, sign: -1, type: sellerType, isPassive: PASSIVE_TAGS.has(f.sellTag) },
       ].forEach(({ id, sign, type, isPassive }) => {
         if (!id || agentPos[id] === undefined) return;
         const qty   = f.qty;
@@ -4293,6 +4496,8 @@ matchBook = function() {
         }
 
         // ── DIRECTIONAL AGENTS: inventory model ──
+        // Funds handled separately above (execution slippage model)
+        if (type === 'fund') return;
         const oldPos = agentPos[id];
         const newPos = oldPos + sign * qty;
 
@@ -4311,6 +4516,28 @@ matchBook = function() {
       });
     }
 
+    // Track actual fills for mandate agents
+    // Fund P&L = execution slippage vs VWAP (not mark-to-market inventory)
+    ['FD1','FD2'].forEach(fundId => {
+      const isBuyer  = f.buyerId  === fundId;
+      const isSeller = f.sellerId === fundId;
+      if (!isBuyer && !isSeller) return;
+      const fa = agents.find(x=>x.id===fundId);
+      if (!fa || !fa.state) return;
+      fa.state.filledActual = (fa.state.filledActual||0) + f.qty;
+      // Execution cost vs VWAP: positive = slippage (bad), negative = improvement (good)
+      const vwapRef = totalVol > 0 ? vwapSum / totalVol : midPrice;
+      const execSlipTicks = isBuyer
+        ? (f.price - vwapRef) / TICK   // buying above VWAP = cost
+        : (vwapRef - f.price) / TICK;  // selling below VWAP = cost
+      const slipDollars = execSlipTicks * TICK_VAL * f.qty;
+      // Fund P&L = -slippage (paying more than VWAP = loss; better than VWAP = gain)
+      agentRealised[fundId] = (agentRealised[fundId] || 0) - slipDollars
+                             - (isBuyer ? FEE_MAKER : FEE_MAKER) * f.qty;
+      // agentPos tracks mandate progress (shows how much bought/sold)
+      // sign: buyer accumulates positive pos, seller accumulates negative
+      agentPos[fundId] = (agentPos[fundId] || 0) + (isBuyer ? f.qty : -f.qty);
+    });
     // Session volume bucketing
     const sessId = currentSession().id;
     forensics.sessionVolume[sessId] = (forensics.sessionVolume[sessId]||0) + f.qty;
@@ -4371,17 +4598,21 @@ renderAgents = function() {
     const askPct = totalExp > 0 ? (askV/maxExposure*100).toFixed(0) : 0;
 
     // Agency desks: show execution metrics, not trading P&L
-    const isAgency = (a.type === 'd1' || a.type === 'pbexec');
-    const pnlStr   = isAgency
-      ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0) + ' (net)'
-      : (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
+    const isAgency = (a.type === 'd1' || a.type === 'pbexec' || a.type === 'fund');
+    const pnlStr   = a.type === 'fund'
+      ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0) + ' slip'
+      : isAgency
+        ? (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0) + ' (net)'
+        : (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(0);
     const pnlClass = pnl > 10 ? 'pos' : pnl < -50 ? 'neg' : 'dim';
     const posStr   = isAgency
-      ? (a.state.blockTarget > 0
-          ? (a.state.blockFilled||0) + '/' + a.state.blockTarget
-          : a.state.clientOrder
-            ? (a.state.clientOrder.filled||0) + '/' + a.state.clientOrder.target
-            : '—')
+      ? (a.type === 'fund'
+          ? (a.state.filledActual||0) + '/' + (a.state.target||0)
+          : a.state.blockTarget > 0
+            ? (a.state.blockFilled||0) + '/' + a.state.blockTarget
+            : a.state.clientOrder
+              ? (a.state.clientOrder.filled||0) + '/' + a.state.clientOrder.target
+              : '—')
       : (pos === 0 ? '—' : (pos > 0 ? '+' : '') + pos);
     const posClass = isAgency ? 'gold' : pos > 0 ? 'pos' : pos < 0 ? 'neg' : 'dim';
     const cxlClass = cancelPct > 60 ? 'neg' : cancelPct > 30 ? 'gold' : 'dim';
@@ -4455,7 +4686,7 @@ renderAgents = function() {
           <span class="agent-stat-val gold">${fills}</span>
         </div>
         <div class="agent-stat">
-          <span class="agent-stat-label">${isAgency ? 'Order' : 'Pos'}</span>
+          <span class="agent-stat-label">${a.type==='fund' ? 'Filled' : isAgency ? 'Order' : 'Pos'}</span>
           <span class="agent-stat-val ${posClass}">${posStr}</span>
         </div>
         <div class="agent-stat">
