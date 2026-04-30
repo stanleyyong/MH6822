@@ -1102,10 +1102,7 @@ body {
   <div class="tb-logo">AMM-SIM · UNI V3</div>
   <div class="tb-sep"></div>
   <select class="pool-select" id="pool-select" onchange="switchPool(this.value)">
-    <option value="USDC_WETH">USDC / WETH · 0.05%</option>
-    <option value="WBTC_WETH">WBTC / WETH · 0.30%</option>
-    <option value="WBTC_USDC">WBTC / USDC · 0.30%</option>
-    <option value="USDC_USDT">USDC / USDT · 0.01%</option>
+    <!-- options populated dynamically by syncPoolSelect() based on loaded spec -->
   </select>
   <div style="display:flex;flex-direction:column;">
     <span style="font-size:9px;color:var(--text3);letter-spacing:0.1em;">PRICE</span>
@@ -1176,6 +1173,7 @@ body {
   <button class="manip-btn small-btn"        id="oracle-twap-btn" onclick="setLendingOracle('twap')">TWAP-30</button>
   <span style="width:14px;"></span>
   <button class="manip-btn small-btn" onclick="loadMainnetCalibration()" title="Load TVL/depth from a snapshot of mainnet (Apr 2026)">↻ MAINNET</button>
+  <button class="manip-btn small-btn" onclick="openSpecModal()" title="Load a custom scenario spec" style="border-color:var(--amber);color:var(--amber);">⚙ SPEC</button>
 </div>
 
 <!-- BLOCK PROGRESS -->
@@ -1353,12 +1351,674 @@ body {
 //   Uniswap V3 Ethereum exchange page.
 
 // ── Reference prices and pool fee tiers ──────────────────────────────
-const REF = {
-  WETH:  3400,   // USD per WETH
-  WBTC:  95000,  // USD per WBTC
-  USDC:  1,
-  USDT:  1,
+// ════════════════════════════════════════════════════════════════
+//  SCENARIO SPEC SYSTEM
+// ════════════════════════════════════════════════════════════════
+// A scenario spec describes the simulator's starting conditions in a
+// compact YAML-style format. It controls reference prices, pools, LP
+// positions, agent populations, the lending pool, and which builders
+// compete. Specs can be loaded from preset names or pasted as text
+// via the Load Spec dialog.
+//
+// Schema (all fields optional except `pools` and `reference_prices`):
+//
+//   name: string              — human-readable scenario name
+//   description: string       — for the UI
+//   reference_prices:         — token symbol → USD price
+//     WETH: 3400
+//     USDC: 1
+//   pools:                    — list of pool configs
+//     - id: USDC_WETH
+//       token0: USDC          — must be the smaller-USD-value side
+//       token1: WETH
+//       fee_bps: 5
+//       tick_spacing: 10
+//       initial_price: 0.000294117  — V3 internal (token1/token0)
+//       invert_display: true        — flip for human-readable
+//       tvl_usd: 120000000          — optional if `lps` are listed individually
+//   lps:                      — explicit named LPs (overrides default 70/25/5 split)
+//     - id: ANCHOR_BAHAMAS
+//       pool: SD_USDC
+//       range: [0.998, 1.002]   — display-price bounds
+//       usd: 500000
+//       tag: anchor-bank
+//   retail:
+//     count: 10
+//     trade_size_usd: [500, 5000]
+//     interval_sec: [20, 180]
+//   funds:                    — list of funds (each with strategy + params)
+//     - id: FD1
+//       strategy: flippy        — flippy | momentum | meanrev | info | whale
+//       pool: USDC_WETH
+//       size_usd: [200000, 800000]
+//   searchers:
+//     sandwich: true            — enable sandwich agents
+//     jit: true
+//     toxic: true
+//     oracle: true
+//     stat_arb: true
+//   lending:                  — null/false to disable
+//     enabled: true
+//     oracle_mode: spot         — spot | twap
+//     twap_blocks: 30
+//     borrowers:
+//       - id: BR1
+//         coll_weth: 200
+//         ltv: 0.50
+//   builders:                 — which builders compete
+//     - flashbots-classic
+//     - protect-builder
+//     - searcher-aligned
+//     - neutral
+//   sim:
+//     mev_mode: none           — none | sandwich | jit | toxic | oracle | protected | rollup
+//     block_time_sec: 12
+//     diurnal_flow: true
+//     start_hour_utc: 13
+//
+// Authors typically only specify what differs from the default.
+
+let currentSpec = null;   // populated by loadSpec()
+
+// ── Minimal YAML subset parser ────────────────────────────────────
+// Handles: indented block-style mappings, sequences with leading "-",
+// flow sequences [a, b, c], scalars (string/number/bool/null), comments
+// (# to end of line), quoted strings. Does NOT handle: multi-line strings,
+// anchors, flow mappings, multi-document streams. Sufficient for our
+// scenario format.
+function parseYaml(text) {
+  // Strip comments
+  const lines = text.split('\n').map(line => {
+    // Don't strip # inside quoted strings
+    let inSingle = false, inDouble = false, out = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"' && !inSingle) inDouble = !inDouble;
+      else if (c === "'" && !inDouble) inSingle = !inSingle;
+      else if (c === '#' && !inSingle && !inDouble) break;
+      out += c;
+    }
+    return out.replace(/\s+$/, '');  // rtrim
+  }).filter(l => l.trim().length > 0);
+
+  let pos = 0;
+
+  function indentOf(line) {
+    let n = 0;
+    while (n < line.length && line[n] === ' ') n++;
+    return n;
+  }
+
+  function parseScalar(s) {
+    s = s.trim();
+    if (s === '' || s === 'null' || s === '~') return null;
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    // Quoted string
+    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+      return s.slice(1, -1);
+    }
+    // Flow mapping { a: 1, b: 2 } — used inline for compact records
+    if (s.startsWith('{') && s.endsWith('}')) {
+      const inner = s.slice(1, -1).trim();
+      if (!inner) return {};
+      const obj = {};
+      // Split on top-level commas (no nested flow needed for our schema)
+      const parts = splitFlowEntries(inner);
+      for (const part of parts) {
+        const colonIdx = part.indexOf(':');
+        if (colonIdx < 0) continue;
+        const k = part.slice(0, colonIdx).trim();
+        const v = part.slice(colonIdx + 1).trim();
+        obj[k] = parseScalar(v);
+      }
+      return obj;
+    }
+    // Flow sequence [a, b, c]
+    if (s.startsWith('[') && s.endsWith(']')) {
+      const inner = s.slice(1, -1).trim();
+      if (!inner) return [];
+      return splitFlowEntries(inner).map(x => parseScalar(x));
+    }
+    // Number — including underscores like 1_000_000 and scientific notation
+    const cleaned = s.replace(/_/g, '');
+    if (/^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(cleaned)) return Number(cleaned);
+    // Otherwise treat as plain string
+    return s;
+  }
+
+  // Split a flow-style sequence/mapping body on commas, respecting nested
+  // brackets, braces, and quotes.
+  function splitFlowEntries(s) {
+    const out = [];
+    let depth = 0, inSingle = false, inDouble = false, cur = '';
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (c === '"' && !inSingle) inDouble = !inDouble;
+      else if (c === "'" && !inDouble) inSingle = !inSingle;
+      else if (!inSingle && !inDouble) {
+        if (c === '[' || c === '{') depth++;
+        else if (c === ']' || c === '}') depth--;
+        else if (c === ',' && depth === 0) { out.push(cur); cur = ''; continue; }
+      }
+      cur += c;
+    }
+    if (cur.trim()) out.push(cur);
+    return out;
+  }
+
+  // Recursive parse of a block at given indent level
+  function parseBlock(baseIndent) {
+    // Detect: is this a sequence (lines start with "-") or mapping?
+    if (pos >= lines.length) return null;
+    const firstLine = lines[pos];
+    const firstIndent = indentOf(firstLine);
+    if (firstIndent < baseIndent) return null;
+    const isSeq = firstLine.slice(firstIndent).startsWith('- ') || firstLine.slice(firstIndent) === '-';
+
+    if (isSeq) {
+      const arr = [];
+      while (pos < lines.length) {
+        const line = lines[pos];
+        const indent = indentOf(line);
+        if (indent < baseIndent) break;
+        const stripped = line.slice(indent);
+        if (!stripped.startsWith('- ') && stripped !== '-') break;
+        const after = stripped === '-' ? '' : stripped.slice(2);
+        if (after.startsWith('{') || after.startsWith('[')) {
+          // Flow-style mapping or sequence as the entire item
+          arr.push(parseScalar(after));
+          pos++;
+        } else if (after.includes(':')) {
+          // First key of an indented mapping starts on this line
+          lines[pos] = ' '.repeat(indent + 2) + after;
+          arr.push(parseBlock(indent + 2));
+        } else if (after === '') {
+          pos++;
+          arr.push(parseBlock(indent + 2));
+        } else {
+          arr.push(parseScalar(after));
+          pos++;
+        }
+      }
+      return arr;
+    } else {
+      // Mapping
+      const obj = {};
+      while (pos < lines.length) {
+        const line = lines[pos];
+        const indent = indentOf(line);
+        if (indent < baseIndent) break;
+        if (indent > baseIndent) {
+          // Should have been consumed by recursive call; skip
+          pos++;
+          continue;
+        }
+        const stripped = line.slice(indent);
+        if (stripped.startsWith('- ')) break;  // sequence item, hand back up
+        const colonIdx = stripped.indexOf(':');
+        if (colonIdx < 0) {
+          throw new Error(`YAML parse error at line ${pos + 1}: expected "key:" but got "${stripped}"`);
+        }
+        const key = stripped.slice(0, colonIdx).trim();
+        const valPart = stripped.slice(colonIdx + 1).trim();
+        pos++;
+        if (valPart === '') {
+          // Nested block
+          obj[key] = parseBlock(indent + 2);
+        } else {
+          obj[key] = parseScalar(valPart);
+        }
+      }
+      return obj;
+    }
+  }
+
+  return parseBlock(0) || {};
+}
+
+// ── Default scenario (mirrors current Uniswap mainnet behavior) ─────
+const DEFAULT_SPEC_YAML = `
+name: Uniswap Mainnet (Default)
+description: Standard 4-pool Uniswap V3 setup with public mempool and full MEV agents.
+
+reference_prices:
+  WETH: 3400
+  WBTC: 95000
+  USDC: 1
+  USDT: 1
+
+pools:
+  - id: USDC_WETH
+    token0: USDC
+    token1: WETH
+    fee_bps: 5
+    tick_spacing: 10
+    initial_price: 0.0002941176
+    invert_display: true
+    tvl_usd: 120_000_000
+  - id: WBTC_WETH
+    token0: WETH
+    token1: WBTC
+    fee_bps: 30
+    tick_spacing: 60
+    initial_price: 0.0357894
+    invert_display: true
+    tvl_usd: 30_000_000
+  - id: WBTC_USDC
+    token0: USDC
+    token1: WBTC
+    fee_bps: 30
+    tick_spacing: 60
+    initial_price: 0.0000105263
+    invert_display: true
+    tvl_usd: 18_000_000
+  - id: USDC_USDT
+    token0: USDC
+    token1: USDT
+    fee_bps: 1
+    tick_spacing: 1
+    initial_price: 1.0
+    invert_display: false
+    tvl_usd: 60_000_000
+
+# Default LP layout: 70/25/5 split (tight ±2% / mid ±10% / wide ±50%) per pool.
+# Leave \`lps\` empty to use this default; specify explicitly to override.
+lps: []
+
+retail:
+  count: 10
+  trade_size_usd: [500, 5000]
+  interval_sec: [20, 180]
+
+funds:
+  - { id: FD1, strategy: flippy,   pool: USDC_WETH, size_usd: [200000, 800000] }
+  - { id: FD2, strategy: momentum, pool: USDC_WETH, size_usd: [300000, 1000000] }
+  - { id: FD3, strategy: meanrev,  pool: WBTC_USDC, size_usd: [250000, 900000] }
+  - { id: FD4, strategy: info,     pool: USDC_WETH, size_usd: [400000, 1500000] }
+  - { id: FD5, strategy: whale,    pool: WBTC_USDC, size_usd: [3000000, 12000000] }
+
+searchers:
+  sandwich: true
+  jit: true
+  toxic: true
+  oracle: true
+  stat_arb: true
+
+lending:
+  enabled: true
+  oracle_mode: spot
+  twap_blocks: 30
+  borrowers:
+    - { id: BR1, coll_weth: 200,  ltv: 0.50 }
+    - { id: BR2, coll_weth: 300,  ltv: 0.55 }
+    - { id: BR3, coll_weth: 150,  ltv: 0.60 }
+    - { id: BR4, coll_weth: 500,  ltv: 0.75 }
+    - { id: BR5, coll_weth: 800,  ltv: 0.78 }
+    - { id: BR6, coll_weth: 100,  ltv: 0.80 }
+    - { id: BR7, coll_weth: 1200, ltv: 0.55 }
+    - { id: BR8, coll_weth: 250,  ltv: 0.81 }
+
+builders:
+  - flashbots-classic
+  - protect-builder
+  - searcher-aligned
+  - neutral
+
+sim:
+  mev_mode: none
+  block_time_sec: 12
+  diurnal_flow: true
+  start_hour_utc: 13
+`;
+
+// ── Movmint FX scenario ────────────────────────────────────────────
+const MOVMINT_FX_SPEC_YAML = `
+name: Movmint SD/USDC Corridor — Phase 1
+description: |
+  Sand Dollar to USDC remittance corridor with two anchor LPs (a partner
+  Bahamian bank and Movmint treasury). Tiny pool by Uniswap standards,
+  no MEV searchers, no lending coupling, single permissioned builder.
+
+reference_prices:
+  USDC: 1.00
+  SD:   1.00
+
+pools:
+  - id: SD_USDC
+    token0: USDC
+    token1: SD
+    fee_bps: 5
+    tick_spacing: 1
+    initial_price: 1.00
+    invert_display: false
+    tvl_usd: 800_000
+
+# Two named anchor LPs in tight ranges. The SD/USDC pair is meant to
+# trade tight to par; LPs concentrate ±20bps.
+lps:
+  - id: ANCHOR_BANK_BAHAMAS
+    pool: SD_USDC
+    range: [0.998, 1.002]
+    usd: 500_000
+    tag: anchor-bank
+  - id: ANCHOR_MOVMINT
+    pool: SD_USDC
+    range: [0.99, 1.01]
+    usd: 300_000
+    tag: anchor-treasury
+
+retail:
+  count: 4
+  trade_size_usd: [50, 2000]
+  interval_sec: [60, 600]
+
+# No directional funds in a remittance corridor.
+funds: []
+
+# Permissioned environment — no MEV searchers.
+searchers:
+  sandwich: false
+  jit: false
+  toxic: false
+  oracle: false
+  stat_arb: false
+
+# Stable-pair, no oracle exposure to model.
+lending:
+  enabled: false
+
+# Single permissioned builder.
+builders:
+  - flashbots-classic
+
+sim:
+  mev_mode: none
+  block_time_sec: 2
+  diurnal_flow: false
+  start_hour_utc: 13
+`;
+
+// ── Protocol V2 scenario ───────────────────────────────────────────
+const PROTOCOL_V2_SPEC_YAML = `
+name: Mid-Size DeFi Protocol — V2 Launch
+description: |
+  $5M TVL launch pool for a mid-size protocol. One concentrated LP
+  (the protocol treasury), three smaller community LPs, full MEV
+  exposure, no lending coupling. Useful for thinking about MEV
+  economics on smaller pools.
+
+reference_prices:
+  WETH: 3400
+  USDC: 1
+
+pools:
+  - id: TKN_USDC
+    token0: USDC
+    token1: WETH    # using WETH as a stand-in for any volatile token
+    fee_bps: 30
+    tick_spacing: 60
+    initial_price: 0.0002941176
+    invert_display: true
+    tvl_usd: 5_000_000
+
+lps:
+  - id: TREASURY_LP
+    pool: TKN_USDC
+    range: [3200, 3600]
+    usd: 3_000_000
+    tag: protocol-treasury
+  - id: COMMUNITY_LP_1
+    pool: TKN_USDC
+    range: [3000, 3800]
+    usd: 800_000
+    tag: community
+  - id: COMMUNITY_LP_2
+    pool: TKN_USDC
+    range: [2800, 4000]
+    usd: 700_000
+    tag: community
+  - id: WIDE_LP
+    pool: TKN_USDC
+    range: [2000, 5000]
+    usd: 500_000
+    tag: wide
+
+retail:
+  count: 6
+  trade_size_usd: [200, 5000]
+  interval_sec: [30, 240]
+
+funds:
+  - { id: FD1, strategy: momentum, pool: TKN_USDC, size_usd: [50000, 250000] }
+  - { id: FD2, strategy: info,     pool: TKN_USDC, size_usd: [100000, 400000] }
+
+searchers:
+  sandwich: true
+  jit: true
+  toxic: true
+  oracle: false
+  stat_arb: false
+
+lending:
+  enabled: false
+
+builders:
+  - flashbots-classic
+  - searcher-aligned
+  - neutral
+
+sim:
+  mev_mode: sandwich
+  block_time_sec: 12
+  diurnal_flow: true
+  start_hour_utc: 13
+`;
+
+// ── CBDC Pilot scenario ────────────────────────────────────────────
+const CBDC_PILOT_SPEC_YAML = `
+name: CBDC Pilot — Permissioned Settlement
+description: |
+  Central bank digital currency pilot. The central bank is the sole
+  liquidity provider; designated commercial dealers are the only flow.
+  No public mempool, no MEV, single permissioned operator builds blocks.
+  Two-second blocks (typical of permissioned chain).
+
+reference_prices:
+  CBDC: 1.00
+  USDC: 1.00
+
+pools:
+  - id: CBDC_USDC
+    token0: USDC
+    token1: CBDC
+    fee_bps: 1
+    tick_spacing: 1
+    initial_price: 1.00
+    invert_display: false
+    tvl_usd: 5_000_000
+
+# Central bank holds all the inventory in a tight ±5bp range.
+# Dealers transact against this single pool.
+lps:
+  - id: CENTRAL_BANK
+    pool: CBDC_USDC
+    range: [0.9995, 1.0005]
+    usd: 5_000_000
+    tag: central-bank
+
+# "Retail" here represents 6 designated commercial dealers, larger sizes
+# than typical retail and longer intervals (institutional batch flow).
+retail:
+  count: 6
+  trade_size_usd: [10_000, 100_000]
+  interval_sec: [120, 600]
+
+# No directional funds — speculation is not a use case in a CBDC pilot.
+funds: []
+
+# Permissioned environment. No MEV searchers exist.
+searchers:
+  sandwich: false
+  jit: false
+  toxic: false
+  oracle: false
+  stat_arb: false
+
+# No coupled lending in this pilot.
+lending:
+  enabled: false
+
+# Single permissioned block builder (the operator).
+builders:
+  - flashbots-classic
+
+sim:
+  mev_mode: none
+  block_time_sec: 2
+  diurnal_flow: false
+  start_hour_utc: 13
+`;
+
+const PRESET_SPECS = {
+  'uniswap-mainnet': DEFAULT_SPEC_YAML,
+  'movmint-fx':      MOVMINT_FX_SPEC_YAML,
+  'protocol-v2':     PROTOCOL_V2_SPEC_YAML,
+  'cbdc-pilot':      CBDC_PILOT_SPEC_YAML,
 };
+
+// ── Spec validation + normalization ────────────────────────────────
+// Takes a parsed spec object and fills in defaults, validates required
+// fields, and returns a fully-populated spec ready for use.
+function normalizeSpec(spec) {
+  if (!spec || typeof spec !== 'object') throw new Error('Spec must be a YAML/JSON object');
+  const out = {
+    name: spec.name || 'Custom Scenario',
+    description: spec.description || '',
+    reference_prices: spec.reference_prices || { WETH: 3400, WBTC: 95000, USDC: 1, USDT: 1 },
+    pools: spec.pools || [],
+    lps: spec.lps || [],
+    retail: spec.retail || { count: 10, trade_size_usd: [500, 5000], interval_sec: [20, 180] },
+    funds: spec.funds || [],
+    searchers: spec.searchers || { sandwich: true, jit: true, toxic: true, oracle: true, stat_arb: true },
+    lending: spec.lending || { enabled: false },
+    builders: spec.builders && spec.builders.length ? spec.builders : ['flashbots-classic'],
+    sim: spec.sim || {},
+  };
+  // Fill sim defaults
+  out.sim = {
+    mev_mode: out.sim.mev_mode || 'none',
+    block_time_sec: out.sim.block_time_sec || 12,
+    diurnal_flow: out.sim.diurnal_flow !== false,
+    start_hour_utc: out.sim.start_hour_utc != null ? out.sim.start_hour_utc : 13,
+  };
+  if (!out.pools.length) throw new Error('Spec must define at least one pool');
+  // Validate each pool
+  for (const p of out.pools) {
+    if (!p.id || !p.token0 || !p.token1 || p.initial_price == null) {
+      throw new Error(`Pool "${p.id || '?'}" missing required fields (id, token0, token1, initial_price)`);
+    }
+    p.fee_bps = p.fee_bps != null ? p.fee_bps : 30;
+    p.tick_spacing = p.tick_spacing || 60;
+    p.tvl_usd = p.tvl_usd || 1_000_000;
+    p.invert_display = !!p.invert_display;
+  }
+  return out;
+}
+
+// Convert a normalized spec into the legacy POOLS, REF, etc. shape that
+// the existing init functions consume. This is the bridge from spec-world
+// to the existing engine.
+function applySpecToGlobals(spec) {
+  // 1. Reference prices
+  for (const k of Object.keys(REF)) delete REF[k];
+  for (const [tok, px] of Object.entries(spec.reference_prices)) REF[tok] = px;
+
+  // 2. POOLS dictionary
+  for (const k of Object.keys(POOLS)) delete POOLS[k];
+  for (const p of spec.pools) {
+    POOLS[p.id] = {
+      name: p.id.replace(/_/g, ' / '),
+      token0: p.token0,
+      token1: p.token1,
+      decimals0: tokenDecimals(p.token0),
+      decimals1: tokenDecimals(p.token1),
+      feeBps: p.fee_bps,
+      tickSpacing: p.tick_spacing,
+      initialPrice: p.initial_price,
+      invertDisplay: p.invert_display,
+      tvlUsd: p.tvl_usd,
+      // Carry through optional concentration overrides
+      _tightSharePct: p.tight_share_pct,
+      _midSharePct: p.mid_share_pct,
+      // Carry through explicit LPs for this pool, if any
+      _explicitLps: spec.lps.filter(lp => lp.pool === p.id),
+    };
+  }
+
+  // 3. Sim parameters
+  if (typeof BLOCK_TIME !== 'undefined') BLOCK_TIME = spec.sim.block_time_sec;
+  if (typeof simMode !== 'undefined') simMode = spec.sim.mev_mode;
+  if (typeof wallclockSec !== 'undefined') wallclockSec = (spec.sim.start_hour_utc || 13) * 3600;
+  // Diurnal flow: if disabled, override flowMultiplier to always return 1
+  __diurnalEnabled = spec.sim.diurnal_flow;
+
+  // 4. Builders
+  __activeBuilders = spec.builders.slice();
+
+  // 5. Searcher activation flags (consumed by buildAgents and setMevActive)
+  __searchersEnabled = spec.searchers;
+
+  // 6. Retail and fund configs (consumed by buildAgents)
+  __retailConfig = spec.retail;
+  __fundsConfig = spec.funds;
+
+  // 7. Lending config (consumed by initLending)
+  __lendingConfig = spec.lending;
+}
+
+// Token decimals lookup. Reasonable defaults for common tokens; falls back to 18.
+function tokenDecimals(sym) {
+  const map = { USDC: 6, USDT: 6, DAI: 18, WETH: 18, WBTC: 8, SD: 6 };
+  return map[sym] != null ? map[sym] : 18;
+}
+
+// Globals set by applySpecToGlobals — read by the engine
+let __diurnalEnabled = true;
+let __activeBuilders = ['flashbots-classic', 'protect-builder', 'searcher-aligned', 'neutral'];
+let __searchersEnabled = { sandwich: true, jit: true, toxic: true, oracle: true, stat_arb: true };
+let __retailConfig = { count: 10, trade_size_usd: [500, 5000], interval_sec: [20, 180] };
+let __fundsConfig = null;  // null = use built-in defaults
+let __lendingConfig = { enabled: true, oracle_mode: 'spot', twap_blocks: 30, borrowers: null };
+
+// Master entry point: load a spec from a YAML string OR a JS object.
+// On success, sets currentSpec and returns the normalized spec.
+// Caller is responsible for re-bootstrapping the simulator afterward.
+function loadSpec(input) {
+  let raw;
+  if (typeof input === 'string') {
+    // Could be a preset name or YAML/JSON text
+    if (PRESET_SPECS[input]) {
+      raw = parseYaml(PRESET_SPECS[input]);
+    } else {
+      // Try YAML first; if it produces a non-object or fails, try JSON
+      try { raw = parseYaml(input); }
+      catch (e) {
+        try { raw = JSON.parse(input); }
+        catch (e2) { throw new Error('Could not parse as YAML or JSON: ' + e.message); }
+      }
+    }
+  } else if (typeof input === 'object' && input !== null) {
+    raw = input;
+  } else {
+    throw new Error('loadSpec expects a string or object');
+  }
+  const normalized = normalizeSpec(raw);
+  applySpecToGlobals(normalized);
+  currentSpec = normalized;
+  return normalized;
+}
+
 
 // Fee tiers (in basis-points-of-basis-points: 500 = 0.05%, 3000 = 0.30%, 100 = 0.01%)
 // Tick spacing per Uniswap V3 spec.
@@ -1371,53 +2031,10 @@ const REF = {
 //
 // All swap math operates in internal V3 space. Display conversion is centralized
 // in displayPrice() and tokenUsdPrice(); priceHistory stores display prices for charting.
-const POOLS = {
-  USDC_WETH: {
-    name: 'WETH / USDC',
-    token0: 'USDC', token1: 'WETH',
-    decimals0: 6, decimals1: 18,
-    feeBps: 5,            // 0.05%
-    tickSpacing: 10,
-    initialPrice: 1 / REF.WETH,           // V3 internal: WETH/USDC ≈ 1/3400
-    displayPrice: REF.WETH,                // shown to user: USDC per WETH
-    invertDisplay: true,
-    tvlUsd: 120_000_000,
-    notional: { token0: 'USDC', token1: 'WETH' },
-  },
-  WBTC_WETH: {
-    name: 'WBTC / WETH',
-    token0: 'WETH', token1: 'WBTC',
-    decimals0: 18, decimals1: 8,
-    feeBps: 30,           // 0.30%
-    tickSpacing: 60,
-    initialPrice: REF.WETH / REF.WBTC,    // V3 internal: WETH/WBTC ≈ 1/28
-    displayPrice: REF.WBTC / REF.WETH,    // shown: WETH per WBTC ≈ 28
-    invertDisplay: true,
-    tvlUsd: 30_000_000,
-  },
-  WBTC_USDC: {
-    name: 'WBTC / USDC',
-    token0: 'USDC', token1: 'WBTC',
-    decimals0: 6, decimals1: 8,
-    feeBps: 30,
-    tickSpacing: 60,
-    initialPrice: 1 / REF.WBTC,           // V3 internal: WBTC/USDC ≈ 1/95000
-    displayPrice: REF.WBTC,                // shown: USDC per WBTC
-    invertDisplay: true,
-    tvlUsd: 18_000_000,
-  },
-  USDC_USDT: {
-    name: 'USDC / USDT',
-    token0: 'USDC', token1: 'USDT',
-    decimals0: 6, decimals1: 6,
-    feeBps: 1,            // 0.01%
-    tickSpacing: 1,
-    initialPrice: 1.0,
-    displayPrice: 1.0,
-    invertDisplay: false,
-    tvlUsd: 60_000_000,
-  },
-};
+// REF and POOLS are populated by applySpecToGlobals(loadSpec(...)).
+// We declare them as const empty containers; their *contents* are mutated.
+const REF = {};
+const POOLS = {};
 
 // ── Block / network parameters ──────────────────────────────────────
 let BLOCK_TIME       = 12;     // seconds per block (Ethereum mainnet)
@@ -1824,11 +2441,30 @@ function seedLiquidity() {
     const p = poolPrice(pool);
     const tokenUsd0 = tokenUsdPrice(pool.token0);
     const tokenUsd1 = tokenUsdPrice(pool.token1);
-
-    // Liquidity distribution: defaults are 70/25/5 (tight/mid/wide) of TVL.
-    // If a mainnet calibration was loaded, use its specific shares — real
-    // pools concentrate even more aggressively in the tight band.
     const cfg = POOLS[poolId] || {};
+
+    // If the spec specified explicit named LPs for this pool, seed those
+    // and skip the default 70/25/5 layout entirely.
+    if (cfg._explicitLps && cfg._explicitLps.length) {
+      for (const lp of cfg._explicitLps) {
+        // The LP's `range` is in DISPLAY units (human-readable price). Convert
+        // to internal units before passing to seedRange (which works internally).
+        let rangeLoDisp = lp.range[0], rangeHiDisp = lp.range[1];
+        // Internal price: if invertDisplay, internal = 1/display
+        let rangeLoInt, rangeHiInt;
+        if (pool.invertDisplay) {
+          rangeLoInt = 1 / rangeHiDisp;
+          rangeHiInt = 1 / rangeLoDisp;
+        } else {
+          rangeLoInt = rangeLoDisp;
+          rangeHiInt = rangeHiDisp;
+        }
+        seedRange(pool, rangeLoInt, rangeHiInt, lp.usd, lp.id, lp.tag || 'lp', tokenUsd0, tokenUsd1);
+      }
+      continue;
+    }
+
+    // Default 70/25/5 (tight/mid/wide) layout.
     const tightPct = (cfg._tightSharePct ?? 70) / 100;
     const midPct   = (cfg._midSharePct   ?? 25) / 100;
     const widePct  = Math.max(0.01, 1 - tightPct - midPct);
@@ -2005,17 +2641,19 @@ function buildAgents() {
     });
   }
 
-  // --- Retail swappers (10 agents acting infrequently)
-  for (let i = 1; i <= 10; i++) {
+  // --- Retail swappers
+  const retailCount = (__retailConfig && __retailConfig.count) || 10;
+  const livePoolIds = Object.keys(POOLS);
+  for (let i = 1; i <= retailCount; i++) {
     const id = 'RT' + i;
     const cap = randInt(RETAIL_CAP_MIN, RETAIL_CAP_MAX);
     agents.push({
       id, name: id, type: 'retail', active: true,
       state: {
         cap,
-        nextActAt: randFloat(2, 30),  // first action soon after start
-        slippageBps: randInt(50, 300),  // 0.5%-3% slippage tolerance
-        biasPool: pickRandom(['USDC_WETH','WBTC_WETH','WBTC_USDC','USDC_USDT']),
+        nextActAt: randFloat(2, 30),
+        slippageBps: randInt(50, 300),
+        biasPool: livePoolIds.length > 0 ? pickRandom(livePoolIds) : null,
       },
     });
     agentCapital[id] = cap;
@@ -2032,72 +2670,103 @@ function buildAgents() {
   //
   // IMPORTANT: lookback windows and cooldowns are in SIM-SECONDS, not blocks,
   // so behavior is consistent across mainnet (12s blocks) and rollup (1s blocks).
-  const fundConfigs = [
-    { id: 'FD1', strategy: 'flippy',   pool: 'USDC_WETH', sizeMin: 200_000, sizeMax: 800_000,    init: { bias:'long-eth',  flipEverySec: randInt(60,180), lastFlipSec: 0 } },
-    { id: 'FD2', strategy: 'momentum', pool: 'USDC_WETH', sizeMin: 300_000, sizeMax: 1_000_000,  init: { lookbackSec: 60, triggerBps: 50, lastDir: 0, cooldownSec: 0 } },
-    { id: 'FD3', strategy: 'meanrev',  pool: 'WBTC_USDC', sizeMin: 250_000, sizeMax: 900_000,    init: { lookbackSec: 120, sigmaThreshold: 2.0, cooldownSec: 0 } },
-    { id: 'FD4', strategy: 'info',     pool: 'USDC_WETH', sizeMin: 400_000, sizeMax: 1_500_000,  init: { signal: 0, signalKappa: 0.05, signalSigma: 0.15, threshold: 0.6, cooldownSec: 0 } },
-    { id: 'FD5', strategy: 'whale',    pool: 'WBTC_USDC', sizeMin: 3_000_000, sizeMax: 12_000_000, init: { nextFireSec: randInt(1200, 3000) } },
+  // The default fund roster — used when the spec doesn't provide its own funds list.
+  const defaultFundConfigs = [
+    { id: 'FD1', strategy: 'flippy',   pool: 'USDC_WETH', size_usd: [200_000, 800_000] },
+    { id: 'FD2', strategy: 'momentum', pool: 'USDC_WETH', size_usd: [300_000, 1_000_000] },
+    { id: 'FD3', strategy: 'meanrev',  pool: 'WBTC_USDC', size_usd: [250_000, 900_000] },
+    { id: 'FD4', strategy: 'info',     pool: 'USDC_WETH', size_usd: [400_000, 1_500_000] },
+    { id: 'FD5', strategy: 'whale',    pool: 'WBTC_USDC', size_usd: [3_000_000, 12_000_000] },
   ];
-  for (const cfg of fundConfigs) {
-    const cap = randInt(FUND_CAP_MIN, FUND_CAP_MAX);
-    agents.push({
-      id: cfg.id, name: cfg.id, type: 'fund', active: true,
-      state: {
-        cap,
-        strategy: cfg.strategy,
-        biasPool: cfg.pool,
-        sizeMin: cfg.sizeMin, sizeMax: cfg.sizeMax,
-        nextActAt: randFloat(15, 90),
-        ...cfg.init,
-      },
-    });
-    agentCapital[cfg.id] = cap;
-    agentPnl[cfg.id] = 0;
+  // Spec funds use the same shape (id, strategy, pool, size_usd: [min,max]).
+  // An empty array in the spec means "no funds in this scenario".
+  const specFunds = __fundsConfig;
+  const fundsToBuild = (specFunds === null || specFunds === undefined) ? defaultFundConfigs : specFunds;
+
+  // Per-strategy default init params (applied whenever a fund's strategy needs them).
+  function strategyInit(strategy) {
+    switch (strategy) {
+      case 'flippy':   return { bias: 'long-eth', flipEverySec: randInt(60, 180), lastFlipSec: 0 };
+      case 'momentum': return { lookbackSec: 60,  triggerBps: 50, lastDir: 0, cooldownSec: 0 };
+      case 'meanrev':  return { lookbackSec: 120, sigmaThreshold: 2.0, cooldownSec: 0 };
+      case 'info':     return { signal: 0, signalKappa: 0.05, signalSigma: 0.15, threshold: 0.6, cooldownSec: 0 };
+      case 'whale':    return { nextFireSec: randInt(1200, 3000) };
+      default:         return {};
+    }
   }
 
-  // --- Statistical arbitrageur (cross-pool)
-  agents.push({
-    id: 'AR1', name: 'AR1', type: 'arb', active: true,
-    state: {
-      cap: randInt(ARB_CAP_MIN, ARB_CAP_MAX),
-      thresholdBps: 25,   // act only if dislocation >25bps
-      lastActBlock: -1,
-      poolsWatched: ['WBTC_USDC','WBTC_WETH','USDC_WETH'],
-    },
-  });
-  agentCapital.AR1 = agents.find(a=>a.id==='AR1').state.cap;
-  agentPnl.AR1 = 0;
-
-  // --- MEV searchers (always present; activated by mode)
-  ['SAND1', 'SAND2'].forEach(id => {
+  for (const cfg of fundsToBuild) {
+    // Skip funds whose pool doesn't exist in the current scenario
+    if (cfg.pool && !POOLS[cfg.pool]) continue;
+    const sizeArr = cfg.size_usd || cfg.sizeUsd || [200_000, 800_000];
+    const sizeMin = sizeArr[0], sizeMax = sizeArr[1];
+    const cap = randInt(FUND_CAP_MIN, FUND_CAP_MAX);
+    const id = cfg.id;
     agents.push({
-      id, name: id, type: 'sandwich', active: false,
-      state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), minVictimSizeUsd: 50_000, gasBidBps: 50 },
+      id, name: id, type: 'fund', active: true,
+      state: {
+        cap,
+        strategy: cfg.strategy || 'flippy',
+        biasPool: cfg.pool,
+        sizeMin, sizeMax,
+        nextActAt: randFloat(15, 90),
+        ...strategyInit(cfg.strategy || 'flippy'),
+      },
     });
-    agentCapital[id] = agents.find(a=>a.id===id).state.cap;
+    agentCapital[id] = cap;
     agentPnl[id] = 0;
-  });
-  agents.push({
-    id: 'JIT1', name: 'JIT1', type: 'jit', active: false,
-    state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), minVictimSizeUsd: 100_000, openPosition: null },
-  });
-  agentCapital.JIT1 = agents.find(a=>a.id==='JIT1').state.cap;
-  agentPnl.JIT1 = 0;
+  }
 
-  agents.push({
-    id: 'TX1', name: 'TX1', type: 'toxic', active: false,
-    state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), thresholdBps: 30 },
-  });
-  agentCapital.TX1 = agents.find(a=>a.id==='TX1').state.cap;
-  agentPnl.TX1 = 0;
+  // --- Statistical arbitrageur (cross-pool). Only meaningful with multiple pools.
+  if ((__searchersEnabled.stat_arb !== false) && Object.keys(POOLS).length >= 2) {
+    agents.push({
+      id: 'AR1', name: 'AR1', type: 'arb', active: true,
+      state: {
+        cap: randInt(ARB_CAP_MIN, ARB_CAP_MAX),
+        thresholdBps: 25,
+        lastActBlock: -1,
+        poolsWatched: Object.keys(POOLS),
+      },
+    });
+    agentCapital.AR1 = agents.find(a=>a.id==='AR1').state.cap;
+    agentPnl.AR1 = 0;
+  }
 
-  agents.push({
-    id: 'ORC1', name: 'ORC1', type: 'oracle', active: false,
-    state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), targetTwapBps: 100, sizeUsd: 50_000_000 },
-  });
-  agentCapital.ORC1 = agents.find(a=>a.id==='ORC1').state.cap;
-  agentPnl.ORC1 = 0;
+  // --- MEV searchers (created only if enabled by spec; activated by mode)
+  if (__searchersEnabled.sandwich !== false) {
+    ['SAND1', 'SAND2'].forEach(id => {
+      agents.push({
+        id, name: id, type: 'sandwich', active: false,
+        state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), minVictimSizeUsd: 50_000, gasBidBps: 50 },
+      });
+      agentCapital[id] = agents.find(a=>a.id===id).state.cap;
+      agentPnl[id] = 0;
+    });
+  }
+  if (__searchersEnabled.jit !== false) {
+    agents.push({
+      id: 'JIT1', name: 'JIT1', type: 'jit', active: false,
+      state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), minVictimSizeUsd: 100_000, openPosition: null },
+    });
+    agentCapital.JIT1 = agents.find(a=>a.id==='JIT1').state.cap;
+    agentPnl.JIT1 = 0;
+  }
+  if (__searchersEnabled.toxic !== false) {
+    agents.push({
+      id: 'TX1', name: 'TX1', type: 'toxic', active: false,
+      state: { cap: randInt(SEARCHER_CAP_MIN, SEARCHER_CAP_MAX), thresholdBps: 30 },
+    });
+    agentCapital.TX1 = agents.find(a=>a.id==='TX1').state.cap;
+    agentPnl.TX1 = 0;
+  }
+  if (__searchersEnabled.oracle !== false) {
+    agents.push({
+      id: 'ORC1', name: 'ORC1', type: 'oracle', active: false,
+      state: { cap: randInt(SEARCHER_CAP_MIN*5, SEARCHER_CAP_MAX*5), targetTwapBps: 100, sizeUsd: 50_000_000 },
+    });
+    agentCapital.ORC1 = agents.find(a=>a.id==='ORC1').state.cap;
+    agentPnl.ORC1 = 0;
+  }
 }
 
 function setMevActive() {
@@ -2115,7 +2784,15 @@ function setMevActive() {
   });
   mevProtected = (simMode === 'protected');
   useRollup    = (simMode === 'rollup');
-  if (useRollup) BLOCK_TIME = ROLLUP_BLOCK; else BLOCK_TIME = 12;
+  // Block time priority: rollup mode forces 1s; otherwise honor the spec's
+  // block_time_sec; otherwise fall back to 12s (mainnet default).
+  if (useRollup) {
+    BLOCK_TIME = ROLLUP_BLOCK;
+  } else if (currentSpec && currentSpec.sim && currentSpec.sim.block_time_sec) {
+    BLOCK_TIME = currentSpec.sim.block_time_sec;
+  } else {
+    BLOCK_TIME = 12;
+  }
   document.getElementById('mempool-status').textContent = mevProtected
     ? 'PROTECTED · txs routed through private orderflow (Flashbots-like)'
     : useRollup
@@ -2393,34 +3070,50 @@ let lending = {
 // successfully crosses a borrower's HF below 1, it liquidates and pockets the
 // 8% bonus. This is the actual predator profit.
 function initLending() {
+  // Read from spec; fall back to defaults if no spec.
+  const cfg = __lendingConfig || { enabled: true };
+  lending.enabled = cfg.enabled !== false;
+  lending.oracleMode = cfg.oracle_mode || 'spot';
+  lending.twapBlocks = cfg.twap_blocks || 30;
   lending.borrowers = [];
-  // 8 representative borrowers with varying LTVs. Several have tight margins
-  // that liquidate on a 3-7% WETH drop — these are the targets for an oracle
-  // manipulation attack.
-  const borrowerConfigs = [
-    { id: 'BR1', collWeth: 200,   ltv: 0.50 },  // safe
-    { id: 'BR2', collWeth: 300,   ltv: 0.55 },  // safe
-    { id: 'BR3', collWeth: 150,   ltv: 0.60 },  // moderate
-    { id: 'BR4', collWeth: 500,   ltv: 0.75 },  // tight (≈10% drop liquidates)
-    { id: 'BR5', collWeth: 800,   ltv: 0.78 },  // very tight (≈6% drop)
-    { id: 'BR6', collWeth: 100,   ltv: 0.80 },  // tightest (≈3% drop)
-    { id: 'BR7', collWeth: 1200,  ltv: 0.55 },
-    { id: 'BR8', collWeth: 250,   ltv: 0.81 },  // edge (≈2% drop)
+  lending.totalLiqUsd = 0;
+  lending.totalLiqCount = 0;
+
+  if (!lending.enabled) return;
+
+  // Default borrower roster — 8 representative borrowers with varying LTVs.
+  // Several have tight margins that liquidate on a 3-7% WETH drop.
+  const defaultBorrowers = [
+    { id: 'BR1', coll_weth: 200,   ltv: 0.50 },
+    { id: 'BR2', coll_weth: 300,   ltv: 0.55 },
+    { id: 'BR3', coll_weth: 150,   ltv: 0.60 },
+    { id: 'BR4', coll_weth: 500,   ltv: 0.75 },
+    { id: 'BR5', coll_weth: 800,   ltv: 0.78 },
+    { id: 'BR6', coll_weth: 100,   ltv: 0.80 },
+    { id: 'BR7', coll_weth: 1200,  ltv: 0.55 },
+    { id: 'BR8', coll_weth: 250,   ltv: 0.81 },
   ];
-  // Use REF.WETH as the deposit-time price (debt is denominated in USDC)
-  for (const cfg of borrowerConfigs) {
-    const collUsd = cfg.collWeth * REF.WETH;
-    const debtUsdc = collUsd * cfg.ltv;
+  const borrowerConfigs = (cfg.borrowers && cfg.borrowers.length) ? cfg.borrowers : defaultBorrowers;
+
+  // Use REF.WETH as the deposit-time price (debt is denominated in USDC).
+  // Lending is only meaningful if WETH is in the reference table; otherwise skip.
+  if (!REF.WETH) {
+    lending.enabled = false;
+    return;
+  }
+  for (const b of borrowerConfigs) {
+    const collWeth = b.coll_weth || b.collWeth;
+    const ltv = b.ltv;
+    const collUsd = collWeth * REF.WETH;
+    const debtUsdc = collUsd * ltv;
     lending.borrowers.push({
-      id: cfg.id,
-      collWeth: cfg.collWeth,
-      debtUsdc: debtUsdc,
+      id: b.id,
+      collWeth,
+      debtUsdc,
       depositPriceWeth: REF.WETH,
       liquidatedFraction: 0,
     });
   }
-  lending.totalLiqUsd = 0;
-  lending.totalLiqCount = 0;
 }
 
 // Oracle price for WETH (USD/WETH). 'spot' reads current pool price;
@@ -2630,10 +3323,20 @@ const BUILDERS = [
   { id: 'neutral',           label: 'Neutral (random)',  kickbackBps: 0,   sandwichOK: true,  seesProtected: false, randomize: true },
 ];
 
-let builderForensics = {};  // { builderId: { wins, totalValueUsd, sandwichBlocks } }
+// Returns the subset of BUILDERS active in the current scenario. Specs that
+// list only some builders (e.g. a permissioned chain with one operator)
+// will see a smaller auction.
+function activeBuilderList() {
+  if (!__activeBuilders || !__activeBuilders.length) return BUILDERS;
+  const allow = new Set(__activeBuilders);
+  const filtered = BUILDERS.filter(b => allow.has(b.id));
+  return filtered.length ? filtered : BUILDERS;
+}
+
+let builderForensics = {};
 function resetBuilderForensics() {
   builderForensics = {};
-  for (const b of BUILDERS) builderForensics[b.id] = { wins: 0, totalValueUsd: 0, sandwichBlocks: 0 };
+  for (const b of activeBuilderList()) builderForensics[b.id] = { wins: 0, totalValueUsd: 0, sandwichBlocks: 0 };
 }
 resetBuilderForensics();
 
@@ -2739,15 +3442,11 @@ function buildBlockFor(builder, pending, bundles) {
 // for transparency / forensics.
 function runBuilderAuction(pending) {
   const blocks = [];
-  for (const builder of BUILDERS) {
+  for (const builder of activeBuilderList()) {
     blocks.push({ builder, ...buildBlockFor(builder, pending, null) });
   }
-  // Sort by value desc; proposer picks highest. Tie-break: earlier in BUILDERS list.
   blocks.sort((a, b) => b.valueUsd - a.valueUsd);
-  return {
-    winner: blocks[0],
-    blocks,
-  };
+  return { winner: blocks[0], blocks };
 }
 
 
@@ -2963,21 +3662,25 @@ function reapJitPositions() {
 // ── RETAIL: occasional small swaps with high slippage tolerance
 function retailStep() {
   const flow = flowMultiplier();
+  const poolIds = Object.keys(pools);
+  if (poolIds.length === 0) return;
+  const cfg = __retailConfig || { trade_size_usd: [500, 5000], interval_sec: [20, 180] };
+  const intMin = (cfg.interval_sec || [20,180])[0], intMax = (cfg.interval_sec || [20,180])[1];
+  const sizeMin = (cfg.trade_size_usd || [500,5000])[0], sizeMax = (cfg.trade_size_usd || [500,5000])[1];
   for (const a of agents) {
     if (a.type !== 'retail' || !a.active) continue;
     const st = a.state;
     if (simTime < st.nextActAt) continue;
     // Higher flow → shorter intervals (more frequent retail txs)
-    st.nextActAt = simTime + randFloat(20, 180) / flow;
+    st.nextActAt = simTime + randFloat(intMin, intMax) / flow;
 
-    const poolId = pickRandom(['USDC_WETH','WBTC_WETH','WBTC_USDC','USDC_USDT']);
+    const poolId = pickRandom(poolIds);
     const pool   = pools[poolId];
+    if (!pool) continue;
     const side   = Math.random() < 0.5 ? 'buy' : 'sell';
     const inToken = side === 'buy' ? pool.token0 : pool.token1;
-    // USD value of swap: $500 - $5000 typical retail. During peak hours,
-    // retail trades skew slightly larger (FOMO during rallies, panic during dumps).
     const sizeBoost = flow > 1.15 ? randFloat(1.0, 1.6) : 1.0;
-    const usd = randFloat(500, 5000) * sizeBoost;
+    const usd = randFloat(sizeMin, sizeMax) * sizeBoost;
     const amountIn = usd / tokenUsdPrice(inToken);
 
     submitTx({
@@ -3232,6 +3935,13 @@ function arbStep() {
 }
 
 function updateDislocation() {
+  // Cross-pool dislocation only meaningful if all three pools exist.
+  if (!pools.WBTC_USDC || !pools.WBTC_WETH || !pools.USDC_WETH) {
+    forensics.currentDislocationBps = 0;
+    const val = document.getElementById('dislocation-val');
+    if (val) val.textContent = 'n/a (single-pool scenario)';
+    return;
+  }
   const directWbtcUsdc = displayPrice(pools.WBTC_USDC);
   const synthetic = displayPrice(pools.WBTC_WETH) * displayPrice(pools.USDC_WETH);
   const bps = (synthetic - directWbtcUsdc) / directWbtcUsdc * 10000;
@@ -3525,6 +4235,21 @@ function switchPool(poolId) {
   renderChart();
 }
 
+// Populate the pool dropdown to match the currently-loaded spec.
+function syncPoolSelect() {
+  const select = document.getElementById('pool-select');
+  if (!select) return;
+  const ids = Object.keys(POOLS);
+  select.innerHTML = ids.map(id => {
+    const p = POOLS[id];
+    const feePct = p.feeBps != null ? (p.feeBps/100).toFixed(2) + '%' : '';
+    const label = (id.replace(/_/g, ' / ')) + (feePct ? ' · ' + feePct : '');
+    return `<option value="${id}">${label}</option>`;
+  }).join('');
+  if (ids.length && !ids.includes(activePoolId)) activePoolId = ids[0];
+  select.value = activePoolId;
+}
+
 // ── Lending oracle mode toggle (spot vs N-block TWAP)
 function setLendingOracle(mode) {
   lending.oracleMode = mode;
@@ -3600,6 +4325,95 @@ function loadMainnetCalibration() {
   renderTopBar(); renderBlock(); renderLiquidityPanel(); renderChart(); renderMempool(); renderAgentPanel(); renderForensics();
   addEvent('event-protection', `📊 MAINNET CALIBRATION LOADED — pool TVLs reset to Apr 2026 snapshot. USDC/WETH ${(MAINNET_CALIBRATION.USDC_WETH.tvlUsd/1e6).toFixed(0)}M · WBTC/WETH ${(MAINNET_CALIBRATION.WBTC_WETH.tvlUsd/1e6).toFixed(0)}M · WBTC/USDC ${(MAINNET_CALIBRATION.WBTC_USDC.tvlUsd/1e6).toFixed(0)}M · USDC/USDT ${(MAINNET_CALIBRATION.USDC_USDT.tvlUsd/1e6).toFixed(0)}M.`);
 
+  if (wasRunning) startSim();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  SPEC LOADER MODAL — UI
+// ════════════════════════════════════════════════════════════════
+function openSpecModal() {
+  const overlay = document.getElementById('spec-modal');
+  if (!overlay) return;
+  // Show the currently-loaded scenario name
+  const nameEl = document.getElementById('spec-active-name');
+  if (nameEl && currentSpec) {
+    nameEl.textContent = `Currently loaded: ${currentSpec.name}`;
+  }
+  // Populate editor with the current spec's source if empty
+  const editor = document.getElementById('spec-editor');
+  if (editor && !editor.value.trim()) {
+    // Default to showing the uniswap-mainnet preset YAML for editing
+    editor.value = PRESET_SPECS['uniswap-mainnet'].trim();
+  }
+  document.getElementById('spec-error').textContent = '';
+  overlay.classList.add('open');
+}
+
+function closeSpecModal() {
+  const overlay = document.getElementById('spec-modal');
+  if (overlay) overlay.classList.remove('open');
+}
+
+function loadPresetIntoEditor(presetName) {
+  const yaml = PRESET_SPECS[presetName];
+  if (!yaml) return;
+  const editor = document.getElementById('spec-editor');
+  if (editor) editor.value = yaml.trim();
+  document.getElementById('spec-error').textContent = '';
+}
+
+function applySpecFromEditor() {
+  const editor = document.getElementById('spec-editor');
+  const errorEl = document.getElementById('spec-error');
+  if (!editor) return;
+  const text = editor.value.trim();
+  if (!text) { errorEl.textContent = 'Spec is empty.'; return; }
+  // Pause sim while we re-bootstrap
+  const wasRunning = running;
+  if (wasRunning) pauseSim();
+  try {
+    loadSpec(text);
+  } catch (e) {
+    errorEl.textContent = 'Parse error: ' + e.message;
+    if (wasRunning) startSim();
+    return;
+  }
+  // Reset sim state and re-bootstrap with new config
+  blockNumber = 0;
+  simTime = 0;
+  lastBlockTime = 0;
+  mempool = [];
+  chartEventPins = [];
+  eventLog = [];
+  forensics = {
+    totalSwaps: 0, totalVolumeUsd: 0, totalFeesUsd: 0,
+    sandwichAttempts: 0, sandwichesSuccessful: 0, sandwichVictimLossUsd: 0,
+    jitAttempts: 0, jitFeesCaptured: 0,
+    arbCount: 0, arbProfitUsd: 0,
+    oracleAttacks: 0, totalMevExtractedUsd: 0, protectedTxCount: 0,
+    liquidationsCount: 0, liquidationsValueUsd: 0,
+    blockCount: 0, perBlockSwaps: [],
+    maxDislocationBps: 0, currentDislocationBps: 0,
+    lastBuilderId: null, lastBlockValueUsd: 0,
+  };
+  initPools();
+  seedLiquidity();
+  buildAgents();
+  initLending();
+  resetBuilderForensics();
+  setMevActive();
+  // Sync top-bar pool dropdown to first pool of new scenario
+  const poolIds = Object.keys(POOLS);
+  if (poolIds.length > 0) activePoolId = poolIds[0];
+  syncPoolSelect();
+  // Sync MEV-mode buttons to the spec's mev_mode
+  document.querySelectorAll('.manip-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset && b.dataset.mode === simMode));
+  renderTopBar(); renderBlock(); renderLiquidityPanel(); renderChart();
+  renderMempool(); renderAgentPanel(); renderForensics();
+  addEvent('event-protection',
+    `📋 SCENARIO LOADED: "${currentSpec.name}" — ${Object.keys(pools).length} pools · ${agents.length} agents · ${activeBuilderList().length} builders.`);
+  closeSpecModal();
   if (wasRunning) startSim();
 }
 
@@ -4296,7 +5110,7 @@ function renderForensics() {
   }
   let totalWins = 0;
   for (const id of Object.keys(builderForensics)) totalWins += builderForensics[id].wins;
-  for (const builder of BUILDERS) {
+  for (const builder of activeBuilderList()) {
     const stat = builderForensics[builder.id];
     if (!stat) continue;
     const pct = totalWins > 0 ? (stat.wins / totalWins * 100) : 0;
@@ -4675,12 +5489,18 @@ function downloadEventLog() {
 // BOOTSTRAP — initial render so UI isn't blank before START
 // ======================================================================
 function bootstrap() {
+  // Load the default spec (uniswap-mainnet) which populates REF and POOLS.
+  // Custom scenarios are loaded later via the Load Spec dialog and re-bootstrap.
+  if (!currentSpec) {
+    loadSpec('uniswap-mainnet');
+  }
   initPools();
   seedLiquidity();
   buildAgents();
   initLending();
   resetBuilderForensics();
   setMevActive();
+  syncPoolSelect();
   renderTopBar();
   renderBlock();
   renderLiquidityPanel();
@@ -4689,7 +5509,7 @@ function bootstrap() {
   renderAgentPanel();
   renderForensics();
   attachChartInteraction();
-  addEvent('event-protection', 'Pools initialized. Press START to begin simulation.');
+  addEvent('event-protection', `Loaded scenario: ${currentSpec.name}. Press START to begin simulation.`);
 }
 
 if (document.readyState === 'loading') {
@@ -4739,6 +5559,60 @@ if (document.readyState === 'loading') {
     </div>
     <div class="modal-body">
       <div id="research-body" class="research-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SPEC LOADER MODAL ===================== -->
+<div class="modal-overlay" id="spec-modal">
+  <div class="modal" style="max-width: 900px;">
+    <div class="modal-header">
+      <h2>Load Scenario Spec</h2>
+      <button class="modal-close" onclick="closeSpecModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section">
+        <div class="modal-section-title">Preset</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">
+          Load one of the built-in scenarios. Each preset fully describes pools, LPs, agents, builders, and lending. The YAML is editable below.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="manip-btn small-btn" onclick="loadPresetIntoEditor('uniswap-mainnet')">uniswap-mainnet</button>
+          <button class="manip-btn small-btn" onclick="loadPresetIntoEditor('movmint-fx')">movmint-fx</button>
+          <button class="manip-btn small-btn" onclick="loadPresetIntoEditor('protocol-v2')">protocol-v2</button>
+          <button class="manip-btn small-btn" onclick="loadPresetIntoEditor('cbdc-pilot')">cbdc-pilot</button>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Spec (YAML or JSON)</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px;" id="spec-active-name">Currently loaded: —</p>
+        <textarea id="spec-editor" spellcheck="false" style="
+          width: 100%; min-height: 380px;
+          background: var(--bg); color: var(--text);
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 12px; line-height: 1.5;
+          border: 1px solid var(--border); border-radius: 2px;
+          padding: 14px; resize: vertical;
+          tab-size: 2;
+        "></textarea>
+        <div id="spec-error" style="
+          font-family: 'IBM Plex Mono', monospace;
+          font-size: 11px; color: var(--red2);
+          margin-top: 8px; min-height: 16px;
+        "></div>
+      </div>
+      <div class="modal-section" style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="manip-btn small-btn" onclick="closeSpecModal()">Cancel</button>
+        <button class="manip-btn small-btn" onclick="applySpecFromEditor()" style="background:var(--amber);color:var(--bg);border-color:var(--amber);font-weight:600;">Load &amp; Bootstrap</button>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Spec Schema</div>
+        <p style="font-size:12px;color:var(--text2);">
+          See the technical documentation for the full schema. Required fields are
+          <code>pools</code> (with id, token0, token1, initial_price) and
+          <code>reference_prices</code>. Everything else has sensible defaults.
+        </p>
+      </div>
     </div>
   </div>
 </div>
