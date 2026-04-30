@@ -1542,7 +1542,10 @@ function buildAgents() {
             execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
     FD2:  { mandate:Math.random()<0.5?'buy':'sell', target:randInt(150,500), filled:0, vwapTarget:0,
             sliceSize:randInt(10,30), execCost:0, slicesFilled:0, paused:false, pauseUntil:0 },
-    AR1:  { fairValue:BASE_PRICE, posLimit:40, entryThresh:3*TICK, exitThresh:TICK, active:false, wins:0, losses:0, confidence:1.0, cooldownUntil:0, dailyLossLimit:2000, dailyLoss:0 },
+    AR1:  { fairValue:BASE_PRICE, posLimit:30, entryThresh:3*TICK, exitThresh:TICK,
+            active:false, wins:0, losses:0, confidence:1.0,
+            cooldownUntil:0, dailyLossLimit:2000, dailyLoss:0,
+            rollingMean:0, rollingStd:1, stdEntryMult:2.0 },  // enter only at 2σ deviations
     MN1:  { budgetUsed:0, budgetLimit:500, pauseUntil:0, realQtyFilled:0 },
     MN2:  { budgetUsed:0, budgetLimit:300, pauseUntil:0 },
     WS1:  { volTarget: randInt(800,2000), volDone:0, feeBudget:1500 },
@@ -1554,8 +1557,10 @@ function buildAgents() {
     D1A: { blockSize:0, blockSide:'bid', blockFilled:0, blockTarget:0,
            sliceInterval:0, nextSliceT:0, posLimit:200, participationRate:0.15,
            rebalanceCycle:0, dailyLossLimit:50000, dailyLoss:0 },
-    ETA: { premium:0, spreadThresh:1.5, posLimit:80, flipCooldown:0,
-           longFutures:0, shortFutures:0, dailyLossLimit:20000, dailyLoss:0 },
+    ETA: { spreadThresh:1.5, posLimit:60, flipCooldown:0,
+           premiumSustained:0,  // consecutive steps premium has been above threshold
+           entryPremiumSign:0,  // sign of premium when we entered (+1 or -1)
+           dailyLossLimit:20000, dailyLoss:0 },
     PBX: { clientOrder:null, sliceQty:0, slicesFilled:0, totalFilled:0,
            participationPct:0.12, nextSliceT:0, posLimit:300,
            vwapTarget:0, dailyLossLimit:30000, dailyLoss:0 },
@@ -2099,64 +2104,82 @@ function fundStep(id) {
 }
 
 // ── ARBITRAGEUR ──────────────────────────────────────────────────
-// VWAP mean-reversion with strategy confidence, daily loss limit, and cooldown.
+// Statistical mean-reversion: enters only when price deviation from VWAP
+// is genuinely statistically unusual (> stdEntryMult standard deviations
+// of the rolling price distribution). Exits when price reverts to VWAP.
+// This is more selective than pure tick-threshold, avoiding false entries
+// on normal random-walk drift.
 function arbStep(id) {
   if (Math.random() > 0.04) return;
   const a   = agents.find(x => x.id === id);
   const st  = a.state;
 
-  // COOLDOWN: strategy paused after loss streak
   if (simTime < st.cooldownUntil) return;
-
-  // DAILY LOSS LIMIT: hard stop for the day
   if (st.dailyLoss >= st.dailyLossLimit) return;
 
   const pos  = agentPos[id] || 0;
   const upnl = unrealisedPnl(id);
 
-  // STOP-LOSS: 5 ticks (wider so VWAP reversion has room)
+  // Update rolling mean and std from recent price history (20 bars)
+  if (priceHistory.length >= 10) {
+    const recent = priceHistory.slice(-20).map(p => p.price);
+    const mean   = recent.reduce((s,p)=>s+p,0) / recent.length;
+    const variance = recent.reduce((s,p)=>s+(p-mean)*(p-mean),0) / recent.length;
+    st.rollingMean = mean;
+    st.rollingStd  = Math.max(TICK, Math.sqrt(variance));  // min 1 tick std
+  }
+
+  // STOP-LOSS: 4 ticks
   const entry = agentAvgEntry[id] || midPrice;
-  if (pos !== 0 && Math.abs(midPrice - entry) >= 5*TICK) {
+  if (pos !== 0 && Math.abs(midPrice - entry) >= 4*TICK) {
     const side  = pos > 0 ? 'ask' : 'bid';
-    const price = side === 'ask' ? round(bestBid()) : round(bestAsk());
-    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
-    const loss = Math.abs(upnl);
+    addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'arb');
     st.losses++;
-    st.dailyLoss += loss;
-    // Confidence degrades on consecutive losses: gate future entries
+    st.dailyLoss += Math.abs(upnl);
     st.confidence = Math.max(0.1, st.confidence * 0.85);
-    // After 3 losses in a row, cooldown 2-4 minutes
     if (st.losses >= 3 && st.confidence < 0.5) {
       st.cooldownUntil = simTime + randInt(120, 240);
-      st.losses = 0;  // reset after cooldown
+      st.losses = 0;
     }
     return;
   }
 
-  // TAKE PROFIT: 8 ticks (2:1 reward:risk minimum with 4-tick entries)
-  if (pos !== 0 && upnl > 8*TICK_VAL*Math.abs(pos)/5) {
-    const side  = pos > 0 ? 'ask' : 'bid';
-    const price = side === 'ask' ? round(bestBid()+TICK) : round(bestAsk()-TICK);
-    addOrUpdate(side, price, Math.abs(pos), id, 'arb');
-    st.wins++;
-    // Confidence recovers on win
-    st.confidence = Math.min(1.0, st.confidence + 0.1);
-    return;
+  // TAKE PROFIT: price reverts back within 1 std of rolling mean
+  // (the anomaly has closed — this is the natural arb exit)
+  if (pos !== 0) {
+    const devFromMean = Math.abs(midPrice - st.rollingMean);
+    if (devFromMean < st.rollingStd * 0.5) {  // back to "normal" range
+      const side  = pos > 0 ? 'ask' : 'bid';
+      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK),
+                  Math.abs(pos), id, 'arb');
+      st.wins++;
+      st.confidence = Math.min(1.0, st.confidence + 0.1);
+      return;
+    }
+    return;  // hold — deviation hasn't closed yet
   }
 
-  // Only enter new position if no current position and confidence is sufficient
   if (Math.abs(pos) >= st.posLimit) return;
-  if (st.confidence < 0.3) return;  // low confidence — sit out
+  if (st.confidence < 0.3) return;
 
-  const vwapNow = totalVol > 0 ? vwapSum / totalVol : midPrice;
-  const dev = midPrice - vwapNow;
-  if (Math.abs(dev) < st.entryThresh) return;  // 3-tick threshold
+  // ENTRY: price must be > stdEntryMult standard deviations from rolling mean
+  // Default: 2.0σ — this is genuinely unusual, not just normal drift
+  const vwapNow   = totalVol > 0 ? vwapSum / totalVol : midPrice;
+  const devVwap   = midPrice - vwapNow;       // VWAP deviation
+  const devMean   = midPrice - st.rollingMean; // deviation from rolling mean
+  const sigmas    = Math.abs(devMean) / (st.rollingStd || 1);
 
-  // Size proportional to confidence: full size at confidence=1, half at 0.5
-  const baseQty = randInt(3, 10);
-  const qty     = Math.max(1, Math.floor(baseQty * st.confidence));
-  const side    = dev > 0 ? 'ask' : 'bid';
-  const price   = side === 'ask' ? round(bestAsk()) : round(bestBid());
+  // Require BOTH: VWAP deviation > 3 ticks AND statistical > 2σ
+  // This prevents entering on normal random walk drift
+  if (Math.abs(devVwap) < st.entryThresh) return;  // needs 3 ticks VWAP dev
+  if (sigmas < st.stdEntryMult) return;             // needs 2σ statistical dev
+
+  const baseQty = randInt(2, 8);
+  const qty     = Math.max(1, Math.min(Math.floor(baseQty * st.confidence),
+                                       Math.floor(availableCapital(id)/MARGIN_INITIAL)));
+  // Direction: revert toward both VWAP and rolling mean
+  const side  = devVwap > 0 ? 'ask' : 'bid';
+  const price = side === 'ask' ? round(bestAsk()) : round(bestBid());
   addOrUpdate(side, price, qty, id, 'arb');
 }
 
@@ -2720,7 +2743,6 @@ function d1Step() {
 // Capital: $500k-$2M. Daily loss limit: $20k.
 function etaStep() {
   const id = 'ETA';
-  if (Math.random() > 0.08) return;
   const a  = agents.find(x => x.id === id);
   if (!a || a.state.dead) return;
   const st = a.state;
@@ -2729,44 +2751,56 @@ function etaStep() {
   if (simTime < st.flipCooldown) return;
   if (currentSession().id === 'pre') return;
 
-  const pos    = agentPos[id] || 0;
-  const entry  = agentAvgEntry[id] || midPrice;
-  const upnl   = unrealisedPnl(id);
+  const pos   = agentPos[id] || 0;
+  const upnl  = unrealisedPnl(id);
+  const spread = spyPremiumTicks;
 
-  // Exit condition: arbitrage spread has closed (or stop/profit)
   if (pos !== 0) {
-    if (upnl > 4*TICK_VAL*Math.abs(pos)) {
-      // Arb closed profitably
+    // PRIMARY EXIT: premium has reverted past the entry sign — arb has closed
+    // e.g. entered long (SPY was rich, premium > 0), now premium <= 0.3 ticks → exit
+    const premiumReverted = (st.entryPremiumSign > 0 && spread <= 0.3)
+                         || (st.entryPremiumSign < 0 && spread >= -0.3);
+    if (premiumReverted) {
       const side = pos > 0 ? 'ask' : 'bid';
-      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK), Math.abs(pos), id, 'etfarb');
-      st.flipCooldown = simTime + randInt(20, 60);  // cooldown before re-entering
+      addOrUpdate(side, side==='ask'?round(bestBid()+TICK):round(bestAsk()-TICK),
+                  Math.abs(pos), id, 'etfarb');
+      st.flipCooldown = simTime + randInt(15, 45);
       return;
     }
-    if (upnl < -6*TICK_VAL*Math.abs(pos)) {
-      // Stop
+    // STOP: if underlying price has moved hard against us (2 ticks max loss per contract)
+    if (upnl < -2*TICK_VAL*Math.abs(pos)) {
       const side = pos > 0 ? 'ask' : 'bid';
-      addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()), Math.abs(pos), id, 'etfarb');
+      addOrUpdate(side, side==='ask'?round(bestBid()):round(bestAsk()),
+                  Math.abs(pos), id, 'etfarb');
       st.dailyLoss += Math.abs(upnl);
-      st.flipCooldown = simTime + randInt(60, 120);
+      st.flipCooldown = simTime + randInt(30, 90);
       return;
     }
-    return;  // hold until exit triggered
+    return;
   }
+
   if (Math.abs(pos) >= st.posLimit) return;
 
-  // ETF PREMIUM/DISCOUNT SIGNAL — correct cash-and-carry arbitrage direction
-  // SPY RICH (positive premium): SPY expensive, ES cheap
-  //   → BUY the cheap leg (ES futures = bid), short SPY shares (off-sim)
-  //   → ES price rises to close the gap → long futures position profits
-  // SPY CHEAP (negative premium): SPY cheap, ES expensive
-  //   → SELL the expensive leg (ES futures = ask), buy SPY shares (off-sim)
-  //   → ES price falls to close the gap → short futures position profits
-  const spread = spyPremiumTicks;
-  if (Math.abs(spread) < st.spreadThresh) return;
-  const side  = spread > 0 ? 'bid' : 'ask';  // BUY ES when SPY rich, SELL ES when SPY cheap
+  // PERSISTENCE FILTER: premium must be sustained ≥ 3 consecutive steps above threshold
+  // This filters out transient spikes that will revert before we can enter and exit
+  if (Math.abs(spread) >= st.spreadThresh) {
+    st.premiumSustained++;
+  } else {
+    st.premiumSustained = 0;
+    return;
+  }
+  if (st.premiumSustained < 3) return;  // wait for sustained premium
+  st.premiumSustained = 0;  // reset after entry
+
+  // ETF PREMIUM/DISCOUNT SIGNAL — correct cash-and-carry direction
+  // SPY rich (+premium) → ES cheap → BUY ES futures (bid)
+  // SPY cheap (−premium) → ES expensive → SELL ES futures (ask)
+  const side  = spread > 0 ? 'bid' : 'ask';
+  st.entryPremiumSign = spread > 0 ? 1 : -1;
   const marginCap = Math.floor(availableCapital(id) / MARGIN_INITIAL);
-  const qty   = Math.max(1, Math.min(randInt(5, 20), st.posLimit, marginCap));
-  const price = side === 'ask' ? round(bestAsk()) : round(bestBid());
+  const qty = Math.max(1, Math.min(randInt(3, 12), st.posLimit, marginCap));
+  // Use passive limit at best price — don't pay taker fee on entry
+  const price = side === 'bid' ? round(bestBid()) : round(bestAsk());
   addOrUpdate(side, price, qty, id, 'etfarb');
 }
 
