@@ -385,6 +385,8 @@ pre code { background: none; padding: 0; color: inherit; }
   <div class="nav-section">Capital Model</div>
   <a href="#capital" class="nav-link">Capital & Margin</a>
   <a href="#pnl" class="nav-link">P&L Accounting</a>
+  <a href="#stop-exec" class="nav-link">Stop-Loss Execution</a>
+  <a href="#passive-fees" class="nav-link">Maker/Taker Fees</a>
   <a href="#bankruptcy" class="nav-link">Bankruptcy & Rebirth</a>
 
   <div class="nav-section">Bet Sizing</div>
@@ -419,7 +421,7 @@ pre code { background: none; padding: 0; color: inherit; }
 <section id="intro">
 <h1>LOB-SIM Technical Reference</h1>
 <div class="chapter-meta">
-  <span>NTU MH6822 RegTech Course</span>
+  <span>Graduate Finance &amp; Compliance Programme</span>
   <span>Trade Surveillance Module</span>
   <span>ES·Z25 Futures Simulation Engine</span>
 </div>
@@ -763,28 +765,60 @@ entry if |signal| > 0.1 AND not adding to loser</code>
 <!-- FUNDS -->
 <section id="funds">
 <h3>Institutional Funds (FD1, FD2)</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Critical Design Principle — Mandate Execution vs Directional Trading</div>
+  Vanguard and Blackrock execute <strong>client mandates</strong>. The position they build belongs to the client. The fund desk's P&amp;L is not "did the market go up after I bought?" — that is the client's P&amp;L. The desk's P&amp;L is purely <strong>execution quality vs the VWAP benchmark</strong>: did I buy better or worse than the session average price? Modelling funds with a mark-to-market inventory P&amp;L produces meaningless, volatile losses from random-walk price fluctuations that have nothing to do with execution skill.
+</div>
+
 <div class="agent-doc-card">
   <div class="agent-doc-header">
     <div class="agent-doc-dot" style="background:#2563eb"></div>
     <div class="agent-doc-name">Vanguard / Blackrock — TWAP Mandate Executors</div>
-    <div class="agent-doc-type">TWAP · VWAP Discipline · Front-Running Target</div>
+    <div class="agent-doc-type">TWAP · VWAP Slippage Model · Timer-Based Discipline</div>
   </div>
   <div class="agent-doc-body">
-    <p>Funds execute a pre-determined directional mandate (buy or sell a fixed quantity) over the trading session using a TWAP (Time-Weighted Average Price) algorithm. They will not execute if the current market price is more than 3 ticks from session VWAP in the adverse direction. They pause when execution quality degrades.</p>
+    <p>Funds execute a pre-determined directional mandate (buy or sell 200–600 lots) over the session using TWAP. Slice timing is derived from remaining mandate quantity and remaining session time, creating true time-weighting. They use <code>filledActual</code> — tracking actual fills from the matching engine — not placements, to measure mandate progress.</p>
 
-    <h4>Decision Algorithm</h4>
+    <h4>Decision Algorithm (timer-based — no random probability gate)</h4>
     <ol class="agent-steps">
-      <li>Check capital floor: if equity &lt; 30% of starting capital, suspend mandate</li>
-      <li>Check execution quality pause: if average exec cost vs VWAP &gt; 3 ticks over last 5 slices, pause 30–90 seconds</li>
-      <li>Check VWAP discipline: <em>priceOK = (isBuy → mid ≤ VWAP + 3 ticks) OR (isSell → mid ≥ VWAP − 3 ticks)</em></li>
-      <li>If mandate complete (<em>filled ≥ target</em>), stop</li>
-      <li>Place passive limit order of <em>sliceQty</em> lots at competitive best bid/ask</li>
-      <li>Record execution cost for quality monitoring</li>
+      <li>Check <code>nextActT</code> timer: only act when scheduled. Skip otherwise.</li>
+      <li>If equity &lt; 30% of starting capital: suspend mandate, log event, wait 60s</li>
+      <li>If execution quality degraded (avg cost &gt; 3 ticks above VWAP over 5+ slices): pause 30–90s</li>
+      <li>Check VWAP discipline: skip if mid is more than 3 ticks adverse to mandate direction</li>
+      <li>If <code>filledActual ≥ target</code>: mandate complete — log final slippage, stop permanently</li>
+      <li>Place passive limit order of <em>sliceQty</em> lots at competitive best bid/ask (earns maker rebate)</li>
+      <li>Schedule next slice: <em>nextActT = now + TWAP_interval × uniform(0.7, 1.0)</em></li>
     </ol>
+
+    <div class="formula-block">
+      <div class="formula-label">TWAP Interval Calculation</div>
+      <code>slicesLeft      = ⌈(target − filledActual) / sliceSize⌉
+timeRemaining   = sessionEnd − simTime          [seconds]
+targetInterval  = clamp(timeRemaining / slicesLeft, 30s, 300s)
+nextActT        = simTime + uniform(0.7×interval, interval)</code>
+      <div class="formula-note">The interval shortens as the mandate approaches completion and as the session end nears — capturing the real-world "urgency escalation" of TWAP algorithms. Pauses for adverse price conditions do not reset the TWAP spacing.</div>
+    </div>
+
+    <div class="formula-block">
+      <div class="formula-label">P&L Model — Execution Slippage vs VWAP</div>
+      <code>vwapRef         = totalVolumeWeightedPrice / totalVolume
+execSlipTicks   = (fillPrice − vwapRef) / tick     [for buy mandate]
+                = (vwapRef − fillPrice) / tick     [for sell mandate]
+slipDollars     = execSlipTicks × $12.50 × fillQty
+
+agentRealised  += −slipDollars − FEE_MAKER × fillQty</code>
+      <div class="formula-note">Positive slippage (buying above VWAP) is a cost — recorded as a negative P&amp;L contribution. Negative slippage (buying below VWAP) is an execution improvement — a positive contribution. The fund's total P&amp;L represents the cumulative execution quality for the session. A skilled TWAP algorithm minimises slippage; a poorly timed one accumulates it. The agent card shows "X slip" to distinguish this from directional trading P&amp;L.</div>
+    </div>
+
+    <div class="callout def">
+      <div class="callout-title">Why filledActual not filled</div>
+      An earlier implementation used <code>filled += sliceQty</code> on order <em>placement</em>, not on actual <em>fill</em>. This caused the mandate counter to exhaust via placements that never matched, producing zero real market impact. The correct approach increments <code>filledActual</code> only inside the matching engine when a genuine fill occurs against a counterparty.
+    </div>
 
     <div class="callout ref">
       <div class="callout-title">Reference</div>
-      Almgren &amp; Chriss (2001). <em>Optimal Execution of Portfolio Transactions.</em> Journal of Risk 3(2).
+      Almgren &amp; Chriss (2001). <em>Optimal Execution of Portfolio Transactions.</em> Journal of Risk 3(2). The canonical formulation of execution cost as a function of participation rate and market impact.
     </div>
   </div>
 </div>
@@ -810,7 +844,7 @@ entry if |signal| > 0.1 AND not adding to loser</code>
 
     <h4>Decision Algorithm</h4>
     <ol class="agent-steps">
-      <li>With 0.033% probability per step (~1 call per 50 sim-minutes): generate a new client block of 500–2,000 lots</li>
+      <li>Block arrival timer: next block scheduled no sooner than 30–67 sim-minutes (<em>nextBlockT = simTime + uniform(1800, 4000)</em>). After a block completes, the next opportunity is 1–2 sim-hours later. Realistic: 3–5 client hedging calls per trading day on a major Delta-One desk.</li>
       <li>Compute slice size: <em>slice = 12% × estimatedMarketVolumeRate × 0.5</em></li>
       <li>Every 60–180 sim-seconds: place next slice as passive limit at best bid/ask</li>
       <li>Log completion with execution quality note when block is done</li>
@@ -834,6 +868,7 @@ nextSlice   = now + uniform(0.7×interval, interval)</code>
   </div>
   <div class="agent-doc-body">
     <p>Simulates a prime brokerage execution algorithm concealing a large client mandate behind a small visible iceberg tip. The true order size (500–1,500 lots) is never shown to the market. The desk enforces a strict 12% participation rate and pauses if VWAP slips adversely.</p>
+    <div class="callout algo"><div class="callout-title">Expected P&L</div>Expected result: −$0.50/contract × fills. Example: 211 fills × −$0.50 = −$105.50. Card shows "−$106 (net)". This is <strong>correct behaviour</strong>. The small net loss is covered by prime brokerage relationship revenue. The order progress (e.g. 247/1036) confirms the iceberg algorithm is executing correctly.</div>
 
     <h4>Forensic significance of the iceberg pattern</h4>
     <p>A series of consistent small fills at the same price, regularly spaced, from the same agent ID, indicates a large hidden order. This is the canonical pattern surveillance systems use to detect institutional presence before large price moves — and what front-running agents exploit when they receive advance information.</p>
@@ -862,14 +897,27 @@ if |mid − benchmarkVWAP| > 4 ticks:
     <div class="agent-doc-type">Statistical Arb · Confidence-Scaled · Hard Stops</div>
   </div>
   <div class="agent-doc-body">
+    <p>All exits use <code>executeMarketOrder()</code> — atomic broker-level execution that sweeps real book depth and prints fills to tape. No re-triggering on subsequent steps.</p>
     <ol class="agent-steps">
-      <li>Check daily loss limit (10% of capital), cooldown timer</li>
-      <li>If holding position: check stop (5 ticks) and profit target (8 ticks). Record win/loss, update confidence</li>
-      <li>After 3 consecutive losses with confidence &lt; 50%: pause 2–4 minutes</li>
-      <li>Entry only if ‖mid − VWAP‖ ≥ 3 ticks and confidence ≥ 30%</li>
-      <li>Size = <em>baseQty × confidence</em> (confidence-scaled position)</li>
-      <li>Direction: short if mid above VWAP (rich); long if mid below (cheap)</li>
+      <li>Timer-based: re-evaluates every 15–30 sim-seconds (<em>not</em> every step)</li>
+      <li>Check daily loss limit (10% of capital) and cooldown timer</li>
+      <li>Update rolling 20-bar mean and standard deviation of price history</li>
+      <li>If holding position: exits via <code>closePosition()</code> when (a) deviation reverts to within 0.5σ of mean — the anomaly closed — or (b) price moves 4 ticks against entry — stop</li>
+      <li>After 3 consecutive stops with confidence &lt; 50%: pause 2–4 minutes</li>
+      <li><strong>Dual entry condition:</strong> entry requires BOTH ‖mid − VWAP‖ ≥ 3 ticks AND ‖mid − rollingMean‖ ≥ 2σ. Prevents entering on normal random-walk drift.</li>
+      <li>Size = <em>baseQty × confidence</em>. Direction: short if above mean; long if below.</li>
     </ol>
+    <div class="formula-block">
+      <div class="formula-label">Why Both Conditions Are Required</div>
+      <code>VWAP deviation alone: fires on ~40% of steps in mid-session
+             (any 3-tick drift from a lagging average triggers it)
+
+σ-based condition alone: fires when historically unusual
+             but may not be economically meaningful
+
+BOTH required: selects only genuine statistical outliers that
+             also deviate from the volume-weighted fair price</code>
+    </div>
     <div class="callout ref">
       <div class="callout-title">Reference</div>
       Gatev, Goetzmann &amp; Rouwenhorst (2006). <em>Pairs Trading.</em> Review of Financial Studies 19(3).
@@ -882,7 +930,54 @@ if |mid − benchmarkVWAP| > 4 ticks:
 <section id="cta">
 <h2>CTA Agents — Bet Sizing Strategies</h2>
 
-<p>The four CTA agents implement distinct position sizing methodologies from the systematic trading literature. All share: a 5-bar vs 30-bar price momentum entry signal (threshold 0.4 ticks), a 15% high-water mark drawdown shutdown, an institutional credit facility (borrow 50% of capital once), and distance-to-insolvency position scaling.</p>
+<p>The four CTA agents implement distinct position sizing methodologies. All share: a fast/slow momentum signal (5-bar vs 30-bar, threshold 0.4 ticks), a 15% high-water mark drawdown shutdown, an institutional credit facility (borrow 50% of capital once), and distance-to-insolvency position scaling.</p>
+
+<section id="cta-arch">
+<h3>Entry / Management Architecture</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Critical Design: Entry and Stop Management Must Be Separated</div>
+  A fundamental error in earlier versions: stops and profit targets were implemented as <code>addOrUpdate()</code> calls — placing limit orders in the book. Since positions only close when those orders <em>match</em>, on the very next step the agent still sees <code>pos ≠ 0</code>, fires the stop again, and places another exit order. This causes an exponential pile-up of exit orders and thousands of spurious fills. The fix requires two distinct subsystems running at different frequencies.
+</div>
+
+<table>
+<thead><tr><th>Subsystem</th><th>Function</th><th>Runs</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><code>ctaManagePositions()</code></td><td>Risk management</td><td>Every sim step</td><td>Checks stops and profit targets on open positions. Closes via <code>executeMarketOrder()</code> — atomic, no re-triggering.</td></tr>
+<tr><td><code>cta1/2/3/4Step()</code></td><td>Signal evaluation</td><td>Every 45–90 sim-seconds (timer)</td><td>Evaluates trend signal. Only acts if <code>pos === 0</code> and past cooldown. Opens new position only.</td></tr>
+</tbody>
+</table>
+
+<p>This mirrors how real systematic desks operate: the risk system (execution layer) monitors positions continuously and acts on stop triggers in microseconds. The signal system (alpha layer) evaluates new trade opportunities at its own cadence — minutes to hours for a systematic CTA.</p>
+
+<div class="formula-block">
+  <div class="formula-label">ATR-Based Adaptive Stops (all CTAs)</div>
+  <code>atrTicks    = mean(|price[t] − price[t−1]| over last 20 bars) / tick
+              clamped to [1, 8] ticks
+
+stopTicks   = max(3, round(atrTicks × 1.5))   [stop at 1.5× ATR]
+profitTicks = max(5, round(atrTicks × 2.5))   [target at 2.5× ATR]
+RR ratio    = profitTicks / stopTicks ≥ 1.67
+
+Exit at stop:   closePosition(id, entry ∓ stopTicks×tick,   'taker')
+Exit at target: closePosition(id, entry ± profitTicks×tick, 'taker')</code>
+  <div class="formula-note">Fixed-tick stops on a timer-based evaluation cycle are dangerous: with 45–90 seconds between checks and a random walk moving ±6 ticks per period, a 3-tick stop fires deep in the loss before the agent evaluates it. ATR-based stops adapt to current volatility. The aggressive exit (hitting real book depth) means the stop is executed at the precise trigger price with real market impact — not queued as a passive limit.</div>
+</div>
+
+<div class="formula-block">
+  <div class="formula-label">Post-Exit Cooldown (all CTAs)</div>
+  <code>entryCooldownUntil = simTime + uniform(120, 300)  [2–5 minutes]
+
+cta_entry_step: if pos ≠ 0 OR simTime < entryCooldownUntil: return</code>
+  <div class="formula-note">Without cooldown, the entry function re-evaluates 45–90 seconds after a stop, finds the same trend signal (price hasn't changed much in 45 seconds), and immediately re-enters. This causes repeated stop-and-re-enter cycles that compound fee losses. The cooldown enforces a genuine pause — the market must produce a new signal after the position has settled.</div>
+</div>
+
+<div class="callout def">
+  <div class="callout-title">Why CTA Agents May Still Show Net Losses</div>
+  <p>Trend following on a <strong>pure random walk</strong> has negative expected P&amp;L equal to fees. This is not a bug — it is correct financial mathematics. In a zero-drift random walk, a 1.67:1 reward:risk ratio requires a win rate above 37.5% to break even. A random walk produces exactly 37.5% wins at this ratio — so after fees, E[P&amp;L] = −fees.</p>
+  <p>The simulation's price process adds a 5% momentum component to short-term moves (<em>recentMomentum = 3-bar price change × 0.05</em>), creating trending episodes that give CTAs a genuine edge. In choppy sessions CTAs will lose; in trending sessions they profit. Their performance is therefore a direct read on how much directional structure the simulated price process contains on any given run — which is itself a pedagogically valuable observation.</p>
+</div>
+</section>
 
 <div class="formula-block">
   <div class="formula-label">Shared Trend Signal</div>
@@ -890,20 +985,47 @@ if |mid − benchmarkVWAP| > 4 ticks:
 slow = mean(price[t−30..t])
 signal = (fast − slow) / tick
 
-entry if |signal| > 0.4  [any measurable trend direction]</code>
+entry if |signal| > 0.4 AND pos === 0 AND past entryCooldown</code>
 </div>
 
 <div class="formula-block">
   <div class="formula-label">Universal Risk Ceiling (all CTAs)</div>
   <code>dist = availableCapital / startingCapital
 
-if dist ≥ RISK_SCALE_FLOOR (0.25):  scaleFactor = 1.0
-if dist < RISK_SCALE_FLOOR:         scaleFactor = dist / 0.25
+if dist ≥ 0.25: scaleFactor = 1.0
+if dist &lt; 0.25: scaleFactor = dist / 0.25     [linear scale-down]
 
 maxPos = ⌊posLimit × scaleFactor⌋
+also capped by: ⌊availableCapital / MARGIN_INITIAL⌋
 
-[Prevents any position when equity < 25% of capital]</code>
+[Position automatically shrinks as capital depletes]</code>
 </div>
+</section>
+
+<section id="price-process">
+<h3>Price Process and Trend Following Performance</h3>
+
+<div class="formula-block">
+  <div class="formula-label">Simulated Price Drift</div>
+  <code>baseVol  = (session === 'open' ? 3 : 1.5) × tick
+noise    = (rand − 0.495) × baseVol         [near-zero drift random walk]
+
+recentMomentum = (price[t−1] − price[t−3]) × 0.05  [5% of 3-bar move]
+
+drift    = noise + recentMomentum
+midPrice = midPrice + drift</code>
+  <div class="formula-note">The 5% momentum weight creates short-lived trending episodes from order flow clustering — a statistical property documented in real intraday futures data (Cont &amp; Kukanov 2012). A pure zero-drift random walk makes trend following theoretically impossible; the momentum component gives CTAs a genuine, albeit small, exploitable edge. The resulting price process is neither a pure random walk nor a predictable trend — it requires the CTA's signal to correctly identify the momentum episodes.</div>
+</div>
+
+<table>
+<thead><tr><th>Price Environment</th><th>Expected CTA Result</th><th>Intuition</th></tr></thead>
+<tbody>
+<tr><td>Pure random walk (no momentum)</td><td>Net loss = fees</td><td>Win rate = exactly the break-even rate; fees push net negative</td></tr>
+<tr><td>Mean-reverting process</td><td>Large losses</td><td>Trend following in a mean-reverting market: every entry is wrong</td></tr>
+<tr><td>Trending with momentum (current)</td><td>Small positive or breakeven</td><td>Momentum creates episodes where trend signal has genuine predictive power</td></tr>
+<tr><td>Strong sustained trend</td><td>Profitable</td><td>All four CTAs profit; differences in sizing methodology become visible</td></tr>
+</tbody>
+</table>
 </section>
 
 <section id="fixed-frac">
@@ -1025,12 +1147,13 @@ unrealisedPnl(id)   = agentPos[id] × (midPrice − agentAvgEntry[id]) × $50</c
 </div>
 
 <table>
-<thead><tr><th>Agent Type</th><th>P&L Mechanism</th><th>Inventory Tracked?</th></tr></thead>
+<thead><tr><th>Agent Type</th><th>P&L Mechanism</th><th>Inventory?</th><th>Card Shows</th></tr></thead>
 <tbody>
-<tr><td>Market Maker</td><td>Spread capture: <em>(fillPrice − mid) × (−sign) × qty × $50</em> + maker rebate</td><td>No</td></tr>
-<tr><td>Agency Desk (D1A, PBX)</td><td>Commission ($0.50/contract) minus exchange fee ($1.00/contract) = −$0.50/contract net</td><td>No</td></tr>
-<tr><td>Wash Trader</td><td>−FEE_WASH × qty on both sides; no directional P&amp;L</td><td>No</td></tr>
-<tr><td>All directional agents</td><td>Inventory model: VWAP avg entry; realised P&amp;L crystallises on position reduction or flip</td><td>Yes</td></tr>
+<tr><td>Market Maker (mm)</td><td>Spread capture: <em>(fillPrice − mid) × (−sign) × qty × $50</em> + maker rebate</td><td>No</td><td>Realised spread income</td></tr>
+<tr><td>Fund (fund)</td><td>Execution slippage vs VWAP: <em>−(fillPrice − VWAP) × qty × $12.50</em> for buy mandate</td><td>Progress only</td><td>"X slip" — exec quality</td></tr>
+<tr><td>Agency Desk (d1, pbexec)</td><td>Commission ($0.50/contract) − exchange fee ($1.00) = −$0.50 net/contract</td><td>No</td><td>"X (net)" — fee P&amp;L</td></tr>
+<tr><td>Wash Trader (wash)</td><td>−FEE_WASH × qty both sides; no inventory</td><td>No</td><td>Fee cost only</td></tr>
+<tr><td>All directional agents</td><td>Inventory model: VWAP avg entry; realised P&amp;L on position reduction or flip</td><td>Yes</td><td>Total P&amp;L (realised + unrealised)</td></tr>
 </tbody>
 </table>
 
@@ -1041,7 +1164,80 @@ pnlPerPoint  = (fillPrice − avgEntry) × sign(oldPos)
 realisedPnL += pnlPerPoint × closingQty × $50
 
 if fillQty > |oldPos|:   avgEntry = fillPrice   [position flipped]</code>
-  <div class="formula-note">sign(oldPos): +1 if long (seller profits from price rise), −1 if short (buyer profits from price fall). Unrealised component = remaining position × (mid − avgEntry) × $50.</div>
+  <div class="formula-note">sign(oldPos) is +1 if long (profits from price rise), −1 if short. Unrealised = remaining position × (mid − avgEntry) × $50. The fund type is explicitly excluded from this model — fund fills are processed through the slippage model above instead.</div>
+</div>
+</section>
+
+<section id="passive-fees">
+<h3>Maker / Taker Fee Accounting</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Common Error: Charging Taker Fees on Passive Orders</div>
+  An earlier version set <code>isPassive = (tag === 'mm')</code> — only market makers received the maker rebate. Every fund slice, CTA entry, arb order, and RTM passive limit was being charged the taker fee ($1.00/contract) even when it was a resting limit order that earned a rebate. On a 200-lot fund mandate this creates $200 in spurious fee losses. The correct classification is based on the <em>order tag</em>, not the agent type.
+</div>
+
+<div class="formula-block">
+  <div class="formula-label">Passive Tag Classification</div>
+  <code>PASSIVE_TAGS = {'mm', 'fund', 'cta', 'arb', 'rtm', 'etfarb'}
+
+isPassive = PASSIVE_TAGS.has(fill.buyTag)    [or sellTag for seller]
+fee       = isPassive ? FEE_MAKER (−$0.25)   [maker rebate — revenue]
+                      : FEE_TAKER (+$1.00)   [taker fee — cost]</code>
+  <div class="formula-note">Noise traders, spoofers, insiders, and front-runners are inherently aggressive — they cross the spread to execute immediately. All other agent types post limit orders that rest in the book and earn the maker rebate when filled. Market impact of a passive fill is zero (the liquidity was already there); market impact of an aggressive fill moves lastPrice.</div>
+</div>
+</section>
+
+<section id="stop-exec">
+<h3>Stop-Loss and Limit Order Execution Architecture</h3>
+
+<div class="callout warn">
+  <div class="callout-title">Critical: addOrUpdate() Is Not an Execution</div>
+  <code>addOrUpdate(side, price, qty, id, tag)</code> places a limit order in the LOB. It does <em>not</em> close the position. If a stop-loss is implemented via <code>addOrUpdate</code>, the position remains open. On the next step the stop fires again, adding another exit order. This compounds into thousands of spurious fills. Stops and profit targets must use atomic execution that settles immediately.
+</div>
+
+<table>
+<thead><tr><th>Mechanism</th><th>Function</th><th>Fills tape?</th><th>Market impact?</th><th>Fee</th></tr></thead>
+<tbody>
+<tr><td>Stop-loss / market exit</td><td><code>executeMarketOrder(..., 'aggressive')</code></td><td>Yes — each depth level</td><td>Yes — sweeps real book depth, moves lastPrice</td><td>FEE_TAKER × qty</td></tr>
+<tr><td>Profit target / passive exit</td><td><code>executeMarketOrder(..., 'passive')</code></td><td>Yes — single fill at mid</td><td>No — broker internalisation</td><td>FEE_MAKER × qty (rebate)</td></tr>
+<tr><td>Convenience wrapper</td><td><code>closePosition(id, triggerPrice, 'taker'/'maker')</code></td><td>Delegates to above</td><td>Delegates to above</td><td>Delegates to above</td></tr>
+</tbody>
+</table>
+
+<div class="formula-block">
+  <div class="formula-label">executeMarketOrder — Stop-Loss Path (aggressive)</div>
+  <code>// Agent holds long position, stop fires → sweep bids
+remaining = abs(pos)
+for each bid level (bids[0], bids[1], ...):
+    fillQty   = min(remaining, level.qty)
+    fillPrice = level.price               [actual market price]
+    lastPrice = fillPrice                 [real market impact]
+    totalVol += fillQty; vwapSum += fillPrice × fillQty
+    addTape({ price, qty, agentId, ... }) [visible on public tape]
+    remaining -= fillQty
+    if remaining === 0: break
+
+avgFillPrice = totalCost / filled
+realised    += (avgFillPrice − avgEntry) × sign(pos) × filled × $50
+             − FEE_TAKER × filled
+agentPos     = 0; agentAvgEntry = 0</code>
+  <div class="formula-note">If no book depth is available (empty bid side), execution falls back to mid-price — equivalent to a market-on-close order. The stop is guaranteed to execute; slippage varies with available depth. A 25-lot stop in a well-quoted book typically fills at 1 level (negligible slippage). A 100-lot stop in a thin book may sweep 3–4 levels (2–3 ticks of slippage visible on chart).</div>
+</div>
+
+<div class="formula-block">
+  <div class="formula-label">executeMarketOrder — Profit Target Path (passive / broker internalisation)</div>
+  <code>// Agent holds position, limit target reached → fill at mid
+fillPrice = midPrice                     [broker internalises at mid]
+realised += (fillPrice − avgEntry) × sign(pos) × qty × $50
+          − FEE_MAKER × qty              [earn maker rebate]
+agentPos  = 0; agentAvgEntry = 0
+addTape(...)                             [single tape print at mid]</code>
+  <div class="formula-note">The broker internalisation model reflects how limit orders often fill in modern markets: the broker matches the order internally against another client flow or its own inventory, settling at mid. No depth is consumed; no market impact. The agent earns the maker rebate. The agent's fill at mid is economically equivalent to a limit order executing at its stated price in a one-tick spread market.</div>
+</div>
+
+<div class="callout def">
+  <div class="callout-title">Is the Broker Taking the Loss?</div>
+  No. The broker is never a counterparty in futures markets. The CME clearinghouse stands between all buyers and sellers. When a stop-loss fires: (1) the agent bears the full loss, (2) the broker earns only the exchange fee ($1.00/contract) for transmitting the order, and (3) the counterparty (whoever's resting bid was swept) receives a fill at their limit price. The broker's economic role is transmission and credit intermediation, not risk-taking.
 </div>
 </section>
 
@@ -1351,6 +1547,29 @@ spyPremiumTicks = spyPremium / tick           [signal for ETA agent entry]</code
   <div class="formula-note">The ±3 tick bound reflects the real-world creation/redemption mechanism: authorised participants can create or redeem ETF shares at NAV (approximately), bounding the premium/discount. The 0.01 per step flow shock models independent ETF market events (dividend adjustments, large passive rebalancing flows that hit SPY directly).</div>
 </div>
 
+<div class="formula-block">
+  <div class="formula-label">ETA Entry and Exit Logic (corrected)</div>
+  <code>// PERSISTENCE FILTER — prevents entry on transient spikes
+if |spyPremiumTicks| ≥ spreadThresh (1.5t):
+    premiumSustained++
+else:
+    premiumSustained = 0; return
+if premiumSustained < 3: return      [must hold 3 consecutive steps]
+
+// Entry: record direction at entry for signal-driven exit
+entryPremiumSign = sign(spyPremiumTicks)
+side = premium > 0 ? 'bid' : 'ask'  [BUY ES when SPY rich]
+
+// Primary exit: premium has closed (arb complete)
+premiumReverted = (entrySign > 0 && spyPremiumTicks ≤ 0.3)
+               || (entrySign < 0 && spyPremiumTicks ≥ −0.3)
+if premiumReverted: closePosition('maker')   [passive, earn rebate]
+
+// Stop: price moved 2 ticks against us regardless of premium
+if upnl < −2 × TICK_VAL × |pos|: closePosition('taker')</code>
+  <div class="formula-note">The signal-driven exit is essential for ETF arb. A P&amp;L-based exit (old approach) held the position until achieving a target in dollar terms, which meant riding random price movements that had nothing to do with whether the arbitrage had closed. The premium reversion exit captures the actual arb closure regardless of the P&amp;L magnitude. If the premium closes at a loss (the position moved adversely before the premium reverted), the trade closes at that loss — which is correct and rare, since the premium is bounded.</div>
+</div>
+
 <div class="callout ref"><div class="callout-title">Reference</div>
 Madhavan, A. (2012). <em>Exchange-Traded Funds, Market Structure, and the Flash Crash.</em> Financial Analysts Journal 68(4).
 </div>
@@ -1518,7 +1737,7 @@ Madhavan, A. (2012). <em>Exchange-Traded Funds, Market Structure, and the Flash 
 </table>
 
 <div class="footnote">
-  <p>LOB-SIM is a simulation for educational purposes within the NTU MH6822 RegTech course. All agents, prices, fills, and events are synthetic. The simulation does not connect to any live market data feed or exchange. References are provided for scholarly verification; the simulation's implementation may simplify or abstract aspects of the cited methodologies for pedagogical clarity.</p>
+  <p>LOB-SIM is a simulation for educational purposes within the Graduate Finance &amp; Compliance Programme. All agents, prices, fills, and events are synthetic. The simulation does not connect to any live market data feed or exchange. References are provided for scholarly verification; the simulation's implementation may simplify or abstract aspects of the cited methodologies for pedagogical clarity.</p>
 </div>
 </section>
 
